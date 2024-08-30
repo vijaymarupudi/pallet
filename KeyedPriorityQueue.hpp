@@ -33,10 +33,8 @@ public:
     return this->queue.top();
   }
 
-  std::pair<KeyType, DataType> pop() {
-    QueueEntry topItem = std::move(this->queue.top());
+  void pop() {
     this->queue.pop();
-    return topItem;
   }
 
   size_t size() const {

@@ -42,14 +42,13 @@ namespace vjcontainers {
       return compare.cont;
     }
   public:
-    template<class InputCont, class CmpFunc, class = std::enable_if_t<is_compare_named_requirement<CmpFunc, T>, void>>
+    template<class InputCont, class CmpFunc, class = std::enable_if_t<is_compare_named_requirement<CmpFunc, T>>>
     PriorityQueue(InputCont&& cont, CmpFunc compare) : compare{std::forward<InputCont>(cont), compare} {}
 
 
-    template<class CmpFunc, class = std::enable_if_t<is_compare_named_requirement<CmpFunc, T>, void>>
+    template<class CmpFunc, class = std::enable_if_t<is_compare_named_requirement<CmpFunc, T>>>
     PriorityQueue(CmpFunc compare) : compare{compare} {}
-    // template<class InputCont>
-    template<class InputCont, class = std::enable_if_t<is_container_v<InputCont>, void>>
+    template<class InputCont, class = std::enable_if_t<is_container_v<InputCont>>>
     PriorityQueue(InputCont&& cont) : compare{std::forward<InputCont>(cont), Compare()} {}
 
 

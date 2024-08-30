@@ -116,7 +116,8 @@ public:
       if (now < ttime) {
         break;
       }
-      auto [time, eventid] = queue.pop();
+      auto [time, eventid] = queue.top();
+      queue.pop();
       processEvent(eventid);
     }
     this->updateWaitingTime();
