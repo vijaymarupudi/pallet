@@ -43,7 +43,7 @@ public:
 
   void init() {
     timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
-    fdCallbacks[timerfd] = std::pair(timer_callback, this);
+    fdCallbacks[timerfd] = std::pair(&timer_callback, this);
   }
 
   virtual uint64_t currentTime() override {
@@ -52,7 +52,7 @@ public:
     return timespec_to_time(&spec);
   }
 
-  virtual void timer(uint64_t time) {
+  virtual void timer(uint64_t time) override {
     // 0 to disarm
     struct timespec it_interval = {0};
     struct timespec it_value = {0};

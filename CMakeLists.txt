@@ -10,4 +10,5 @@ add_subdirectory(rt)
 add_subdirectory(lua)
 
 add_executable(main main.cpp)
+set_property(TARGET main PROPERTY CXX_STANDARD 23)
 target_link_libraries(main RT::RtMidi Lua::Lua PkgConfig::SDL2 PkgConfig::LO)

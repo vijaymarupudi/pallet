@@ -5,6 +5,9 @@
 
 template <class ItemType, size_t _capacity>
 class StaticVector {
+public:
+  using size_type = size_t;
+private:
   struct Space {
     alignas(ItemType) std::byte bytes[sizeof(ItemType)];
     ItemType* ptr() {
@@ -31,8 +34,7 @@ class StaticVector {
     }
   };
   std::array<Space, _capacity> storage;
-  size_t top;
-
+  size_type top;
 public:
   StaticVector() : top(0) {}
   StaticVector(const StaticVector<ItemType, _capacity>& other) = delete;
@@ -40,12 +42,12 @@ public:
   StaticVector<ItemType, _capacity>& operator=(const StaticVector<ItemType, _capacity>& other) = delete;
   StaticVector<ItemType, _capacity>& operator=(StaticVector<ItemType, _capacity>&& other) = delete;
   ~StaticVector() {
-    for (size_t i = 0; i < this->size(); i++) {
+    for (size_type i = 0; i < this->size(); i++) {
       this->storage[i].destroy();
     }
   }
 
-  size_t capacity() const {
+  size_type capacity() const {
     return _capacity;
   }
 
@@ -75,15 +77,15 @@ public:
     return this->storage[this->size() - 1].ref();
   }
 
-  size_t size() const {
+  size_type size() const {
     return this->top;
   }
 
-  ItemType& operator[](size_t index) {
+  ItemType& operator[](size_type index) {
     return this->storage[index].ref();
   }
 
-  const ItemType& operator[](size_t index) const {
+  const ItemType& operator[](size_type index) const {
     return this->storage[index].ref();
   }
 
@@ -103,35 +105,22 @@ public:
     return this->storage[this->size()].ptr();
   }
 
-  void resize(size_t target) {
+  void resize(size_type target) {
     if (target < this->size()) {
-      for (size_t i = target; i < this->size(); i++) {
+      for (size_type i = target; i < this->size(); i++) {
         this->storage[i].destroy();
       }
       this->top = target;
     } else if (target > this->size()) {
-      for (size_t i = this->size(); i < target; i++) {
+      for (size_type i = this->size(); i < target; i++) {
         this->storage[i].construct();
       }
       this->top = target;
     }
   }
 
-  void reserve(size_t in) {
+  void reserve(size_type in) {
     // do nothing
   }
 
 };
-
-// template <class EntryType, size_t _capacity>
-// class IdTable {
-//   struct Entry {
-//     alignas(EntryType) std::byte bytes[sizeof(EntryType)];
-//   };
-//   std::array<Entry, _capacity> storage;
-//   size_t top = 0;
-//   template <class T>
-//   size_t push(T&& val) {
-
-//   }
-// };

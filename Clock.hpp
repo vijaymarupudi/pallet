@@ -2,6 +2,7 @@
 #include <inttypes.h>
 #include "Platform.hpp"
 #include "KeyedPriorityQueue.hpp"
+#include "StaticVector.hpp"
 #include "IdTable.hpp"
 
 static void clock_timer_callback(void* data);
@@ -21,7 +22,9 @@ class Clock {
 #else
   using id_type = uint32_t;
 #endif
-  KeyedPriorityQueue<256, uint64_t, id_type, std::greater<uint64_t>> queue;
+  template <class T>
+  using PriorityQueueStorageType = StaticVector<T, 256>;
+  KeyedPriorityQueue<uint64_t, id_type, PriorityQueueStorageType, std::greater<uint64_t>> queue;
   IdTable<ClockEvent, 256, id_type> idTable;
   Platform* platform;
   uint64_t waitingTime = 0;
