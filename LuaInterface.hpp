@@ -5,35 +5,56 @@
 #include <inttypes.h>
 
 class LuaInterface;
-
 static LuaInterface* interface;
 
-static int luaprint(lua_State* L) {
-  size_t len;
-  int typ = lua_type(L, -1);
+static void l_print_single(lua_State* L, int index) {
+  int typ = lua_type(L, index);
   if (typ == LUA_TSTRING) {
-    const char* str = lua_tolstring(L, -1, &len);
+    size_t len;
+    const char* str = lua_tolstring(L, index, &len);
     fwrite(str, 1, len, stdout);
-    putc('\n', stdout);
   } else if (typ == LUA_TNUMBER) {
-    if (lua_isinteger(L, -1)) {
-      int64_t number = luaL_checknumber(L, -1);
-      printf("%lld\n", number);
+    if (lua_isinteger(L, index)) {
+      int64_t number = luaL_checknumber(L, index);
+      printf("%lld", number);
     } else {
-      float number = luaL_checknumber(L, -1);
-      printf("%f\n", number);  
+      float number = luaL_checknumber(L, index);
+      printf("%f", number);
     }
-    
-  } else if (typ == LUA_TTABLE) {
-    printf("TABLE\n");
+
   } else if (typ == LUA_TNIL) {
-    printf("nil\n");
+    printf("nil");
   }
-  
+  else {
+    const char* name;
+    if (typ == LUA_TTABLE) {
+      name = "table";
+    } else if (typ == LUA_TFUNCTION) {
+      name = "function";
+    } else if (typ == LUA_TTHREAD) {
+      name = "thread";
+    } else if (typ == LUA_TUSERDATA) {
+      name = "userdata";
+    } else {
+      name = "unknown";
+    }
+    printf("<%s %p>", name, lua_topointer(L, index));
+  }
+}
+
+static int luaprint(lua_State* L) {
+  int top = lua_gettop(L);
+  for (int i = 1; i < top + 1; i++) {
+    l_print_single(L, i);
+    if (i != top) {
+      putc(' ', stdout);
+    }
+  }
+  putc('\n', stdout);
   return 0;
 }
 
-static void openio(lua_State* L) {
+static void l_open_io(lua_State* L) {
   lua_register(L, "print", luaprint);
 }
 
@@ -47,7 +68,7 @@ static const luaL_Reg loadedlibs[] = {
   {NULL, NULL}
 };
 
-static void openlibs(lua_State* L) {
+static void l_open_libs(lua_State* L) {
   const luaL_Reg *lib;
   /* call open functions from 'loadedlibs' and set results to global table */
   for (lib = loadedlibs; lib->func; lib++) {
@@ -80,6 +101,26 @@ static void l_bind_clock(lua_State* L) {
   l_bind_lua_func(L, clock_table, "clearInterval", l_clock_clear_timeout);
 }
 
+static int l_open_function(lua_State* L) {
+  if (strcmp(lua_tostring(L, -1), "pallet") == 0) {
+    int top = lua_gettop(L);
+    lua_newtable(L);
+    l_bind_clock(L);
+    lua_settop(L, top + 1);
+    return 1;
+  } else {
+    lua_pushnil(L);
+    return 1;
+  }
+}
+
+static int l_require(lua_State* L) {
+  size_t len;
+  const char* str = lua_tolstring(L, -1, &len);
+  luaL_requiref(L, str, l_open_function, 0);
+  return 1;
+}
+
 class LuaInterface {
 public:
   Clock* clock;
@@ -87,16 +128,14 @@ public:
 private:
   void bind() {
     auto L = this->L;
-    lua_newtable(L);
-    lua_pushvalue(L, -1);
-    lua_setglobal(L, "pallet");
-    l_bind_clock(L);
+    lua_pushcfunction(L, l_require);
+    lua_setglobal(L, "require");
   }
 public:
   void init(Clock* clock) {
     this->L = luaL_newstate();
-    openlibs(this->L);
-    openio(this->L);
+    l_open_libs(this->L);
+    l_open_io(this->L);
     this->clock = clock;
     interface = this;
     this->bind();
@@ -109,7 +148,7 @@ public:
   void cleanup() {
     lua_close(this->L);
   }
-  
+
 };
 
 static void l_clock_set_timeout_cb(void* data) {

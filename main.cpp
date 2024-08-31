@@ -46,8 +46,10 @@ int main() {
   LuaInterface luaInterface;
   luaInterface.init(&clock);
   luaInterface.dostring(R"(
+local pallet = require("pallet")
+print(pallet, pallet.clock)
+print(require)
 print(table)
-print(pallet)
 print(math)
 local lt = pallet.clock.currentTime()
 local id;
