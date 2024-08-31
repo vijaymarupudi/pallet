@@ -10,6 +10,7 @@
 #include <utility>
 #include <optional>
 #include <fstream>
+#include <algorithm>
 
 struct State {
   std::vector<std::pair<std::string, std::string>> files;
@@ -27,15 +28,14 @@ struct State {
     std::stringstream ss;
     std::ifstream file (buf, std::ios::in | std::ios::binary);
     ss << file.rdbuf();
-    printf("Adding %s\n", key.c_str());
     files.push_back(std::pair(std::move(key), std::move(ss.str())));
   }
 };
 
 void process(State& state, const char* rootdir, const char* dirname) {
   char realdirname[8192];
-  snprintf(realdirname, 8192, "%s/%s", rootdir, dirname);  
-  
+  snprintf(realdirname, 8192, "%s/%s", rootdir, dirname);
+
   DIR* dir = opendir(realdirname);
   struct dirent* ent;
   while ((ent = readdir(dir)) != nullptr) {
@@ -72,10 +72,56 @@ static std::string l_compile_to_bytecode(lua_State* L, const std::string& luaCod
   return std::move(state.data);
 }
 
-int main(int argc, char** argv) {
+
+
+static void output_hex(const char* name, std::string& out,
+                       std::vector<std::pair<std::string, std::string>>& pairs) {
+
+  char buf[8192];
+  std::sort(pairs.begin(), pairs.end(), [](const auto& a, const auto& b) {
+    return std::get<0>(a) < std::get<1>(b);
+  });
+
+  for (size_t index = 0; index < pairs.size(); index++) {
+    const auto& [modName, bytecode] = pairs[index];
+    snprintf(buf, 8192, "const unsigned char %s_%llu_data[] = {", name, index);
+    out.append(buf);
+    const unsigned char* data = reinterpret_cast<const unsigned char*>(bytecode.data());
+    for (size_t i = 0; i < bytecode.size(); i++) {
+      unsigned char d = data[i];
+      snprintf(buf, 8192, "%02X", d);
+      out.append("0x");
+      out.append(buf, 2);
+      if (i != bytecode.size() - 1) {
+        out.append(", ");
+      }
+    }
+    out.append("};\n");
+  }
+
+
+  snprintf(buf, 8192, "const struct filesystem_entry %s[%llu] = {\n", name, pairs.size());
+  out.append(buf);
+
+  for (size_t index = 0; index < pairs.size(); index++) {
+    const auto& [modName, bytecode] = pairs[index];
+    snprintf(buf, 8192, "  { \"%s\", %llu, &%s_%llu_data[0] },\n", modName.c_str(), bytecode.size(), name, index);
+    out.append(buf);
+    const unsigned char* data = reinterpret_cast<const unsigned char*>(bytecode.data());
+
+
+
+  }
+
+  out.append("};\n\n");
+  snprintf(buf, 8192, "const unsigned int %s_count = %llu;\n\n", name, pairs.size());
+  out.append(buf);
+}
+
+
+
+std::string generateContents(const char* dirname) {
   lua_State* L = luaL_newstate();
-  const char* dirname = argv[1];
-  const char* outfile = argv[2];
   State state;
   process(state, dirname, ".");
   std::vector<std::pair<std::string, std::string>> luaModules;
@@ -90,25 +136,42 @@ int main(int argc, char** argv) {
       }
       modName.resize(modName.size() - 4);
       std::string bytecode = l_compile_to_bytecode(L, content);
-      printf("ModPack: %s (%llu)\n", modName.c_str(), bytecode.size());
+      fprintf(stderr, "Lua module: %s (%llu)\n", modName.c_str(), bytecode.size());
       luaModules.push_back(std::pair(std::move(modName), std::move(bytecode)));
     } else {
+      fprintf(stderr, "File: %s (%llu)\n", fname.c_str(), content.size());
       regularFiles.push_back(std::pair(std::move(fname), std::move(content)));
     }
   }
 
-  std::string fileContents = R"(
-struct filesystem_entry {
-const char* filename;
-const unsigned char* contents;
+  std::string fileContents = R"(struct filesystem_entry {
+  const char* filename;
+  unsigned int size;
+  const unsigned char* contents;
 };
+
 )";
 
+  output_hex("filesystem_lua_modules", fileContents, luaModules);
+  output_hex("filesystem_files", fileContents, regularFiles);
+  return fileContents;
+}
 
-  fileContents.append("filesystem_entry lua_modules[");
-  fileContents.append(std::to_string(luaModules.size()));
-  fileContents.append("] = ;");
+int main(int argc, char** argv) {
+  const char* dirname = argv[1];
+  auto out = generateContents(dirname);
 
-  printf("%s", fileContents.c_str());
+  if (argc == 2) {
+    fwrite(out.c_str(), 1, out.size(), stdout);
+  } else if (argc == 3) {
+    const char* outfile = argv[2];
+    if (strcmp(outfile, "-") == 0) {
+      fwrite(out.c_str(), 1, out.size(), stdout);
+    } else {
+      FILE* f = fopen(outfile, "w");
+      fwrite(out.c_str(), 1, out.size(), f);
+      fclose(f);
+    }
+  }
 
 }

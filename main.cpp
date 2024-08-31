@@ -14,9 +14,6 @@
 #include "GridInterface.hpp"
 #include "LuaInterface.hpp"
 
-
-
-
 static void keyCb(int x, int y, int z, void* data) {
   auto interface = ((MonomeGridInterface*)data);
   interface->led(x, y, z * 15);
@@ -46,26 +43,16 @@ int main() {
   LuaInterface luaInterface;
   luaInterface.init(&clock);
   luaInterface.dostring(R"(
+local utils = require("pallet.utils")
+print(utils, "HERE")
 local pallet = require("pallet")
-print(pallet, pallet.clock)
-print(require)
-print(table)
-print(math)
-local lt = pallet.clock.currentTime()
-local id;
-local count = 0
-id = pallet.clock.setInterval(10000, function()
+pallet.clock.setTimeout(10000, function()
   local now = pallet.clock.currentTime()
   print(now)
-  lt = now
-  count = count + 1
-  if count == 100 then
-    pallet.clock.clearInterval(id)
-  end
 end)
 
 )");
-  
+
   // LinuxPlatform platform;
   // platform.init();
 
