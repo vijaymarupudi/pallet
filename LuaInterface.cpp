@@ -136,15 +136,18 @@ const char* l_lua_reader(lua_State* L, void* ud, size_t* size) {
 
 static int l_open_function(lua_State* L) {
   const char* lname = lua_tostring(L, -1);
-  if (strcmp(lname, "pallet") == 0) {
+  if (strcmp(lname, "_pallet") == 0) {
     int top = lua_gettop(L);
     lua_newtable(L);
     l_bind_clock(L);
     lua_settop(L, top + 1);
     return 1;
   } else {
-    const struct filesystem_entry* entry = l_find_filesystem_entry(&filesystem_lua_modules[0], filesystem_lua_modules_count,
-                                                             lname);
+    const struct filesystem_entry* entry =
+      l_find_filesystem_entry(&filesystem_lua_modules[0],
+                              filesystem_lua_modules_count,
+                              lname);
+
     if (!entry) {
       lua_pushnil(L);
     } else {

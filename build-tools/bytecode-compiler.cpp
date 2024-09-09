@@ -79,7 +79,7 @@ static void output_hex(const char* name, std::string& out,
 
   char buf[8192];
   std::sort(pairs.begin(), pairs.end(), [](const auto& a, const auto& b) {
-    return std::get<0>(a) < std::get<1>(b);
+    return std::get<0>(a) < std::get<0>(b);
   });
 
   for (size_t index = 0; index < pairs.size(); index++) {
