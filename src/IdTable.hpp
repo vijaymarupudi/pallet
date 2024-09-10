@@ -5,7 +5,7 @@
 #include <inttypes.h>
 #include "StaticVector.hpp"
 
-template <class EntryType, size_t _capacity, class id_type = uint32_t>
+template <class EntryType, template<class> class Container, class id_type = uint32_t>
 class IdTable {
   struct Space {
     alignas(EntryType) std::byte bytes[sizeof(EntryType)];
@@ -32,8 +32,8 @@ class IdTable {
       this->ptr()->~EntryType();
     }
   };
-  StaticVector<Space, _capacity> storage;
-  StaticVector<id_type, _capacity> freeVector;
+  Container<Space> storage;
+  Container<id_type> freeVector;
 public:
   template <class T>
   id_type push(T&& item) {

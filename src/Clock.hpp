@@ -1,9 +1,12 @@
 #pragma once
 #include <inttypes.h>
+#include <type_traits>
+#include <vector>
 #include "Platform.hpp"
 #include "KeyedPriorityQueue.hpp"
 #include "StaticVector.hpp"
 #include "IdTable.hpp"
+#include "constants.hpp"
 
 static void clock_timer_callback(void* data);
 
@@ -17,15 +20,14 @@ class Clock {
     bool deleted;
   };
 
-#ifdef RASPBERRYPI_PICO
-  using id_type = uint8_t;
-#else
-  using id_type = uint32_t;
-#endif
+  using id_type = std::conditional_t<pallet::constants::isEmbeddedDevice,
+                                     uint8_t, uint32_t>;
+
   template <class T>
-  using PriorityQueueStorageType = StaticVector<T, 256>;
-  KeyedPriorityQueue<uint64_t, id_type, PriorityQueueStorageType, std::greater<uint64_t>> queue;
-  IdTable<ClockEvent, 256, id_type> idTable;
+  using ContainerType = std::conditional_t<pallet::constants::isEmbeddedDevice, StaticVector<T, 256>, std::vector<T>>;
+
+  KeyedPriorityQueue<uint64_t, id_type, ContainerType, std::greater<uint64_t>> queue;
+  IdTable<ClockEvent, ContainerType, id_type> idTable;
   Platform* platform;
   uint64_t waitingTime = 0;
 public:
