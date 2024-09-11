@@ -190,6 +190,14 @@ void LuaInterface::cleanup() {
   lua_close(this->L);
 }
 
+static uint64_t l_clock_get_time_value(lua_State* L, int index) {
+  if (lua_isinteger(L, index)) {
+    return lua_tointeger(L, index);
+  } else {
+    return lua_tonumber(L, index);
+  }
+}
+
 
 static void l_clock_set_timeout_cb(void* data) {
   int ref = reinterpret_cast<intptr_t>(data);
@@ -208,14 +216,14 @@ static void l_clock_set_interval_cb(void* data) {
 
 
 static int l_clock_set_timeout(lua_State* L) {
-  uint64_t time = luaL_checkinteger(L, 1);
+  uint64_t time = l_clock_get_time_value(L, 1);
   int functionRef = luaL_ref(L, LUA_REGISTRYINDEX);
   auto id = luaInterface->clock->setTimeout(time, l_clock_set_timeout_cb, (void*)(intptr_t)functionRef);
   lua_pushinteger(L, id);
   return 1;
 }
 static int l_clock_set_interval(lua_State* L) {
-  uint64_t time = luaL_checkinteger(L, 1);
+  uint64_t time = l_clock_get_time_value(L, 1);
   int functionRef = luaL_ref(L, LUA_REGISTRYINDEX);
   auto id = luaInterface->clock->setInterval(time, l_clock_set_interval_cb, (void*)(intptr_t)functionRef);
   lua_pushinteger(L, id);

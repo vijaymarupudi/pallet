@@ -44,7 +44,7 @@ int main() {
   luaInterface.init(&clock);
   luaInterface.dostring(R"(
 local pallet = require("pallet")
-pallet.clock.setTimeout(200 * 1000, function()
+pallet.clock.setInterval((1/60) * 1000 * 1000, function()
   local now = pallet.clock.currentTime()
   print(now)
 end)
