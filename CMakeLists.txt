@@ -26,7 +26,7 @@ add_custom_command(OUTPUT filesystem.h
                    COMMAND ${BYTECODE_COMPILER_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/filesystem ${CMAKE_CURRENT_BINARY_DIR}/filesystem.h
                    DEPENDS bytecode-compiler ${FILESYSTEM_FILES})
 
-add_executable(main src/main.cpp src/LuaInterface.cpp src/Platform.cpp filesystem.h)
+add_executable(main src/main.cpp src/LuaInterface.cpp src/Platform.cpp src/Clock.cpp filesystem.h)
 
 set_property(TARGET main PROPERTY CXX_STANDARD 23)
 target_link_libraries(main RT::RtMidi Lua::Lua PkgConfig::SDL2 PkgConfig::LO)
