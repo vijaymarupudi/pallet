@@ -13,6 +13,8 @@
 #include "Clock.hpp"
 #include "GridInterface.hpp"
 #include "LuaInterface.hpp"
+#include "MidiInterface.hpp"
+#include "AudioInterface.hpp"
 
 static void keyCb(int x, int y, int z, void* data) {
   auto interface = ((MonomeGridInterface*)data);
@@ -42,17 +44,18 @@ int main() {
   clock.init((Platform*)&platform);
   LuaInterface luaInterface;
   luaInterface.init(&clock);
-  luaInterface.dostring(R"(
-local pallet = require("pallet")
-pallet.clock.setInterval((1/60) * 1000 * 1000, function()
-  local now = pallet.clock.currentTime()
-  print(now)
-end)
+//   luaInterface.dostring(R"(
+// local pallet = require("pallet")
+// pallet.clock.setInterval((1/60) * 1000 * 1000, function()
+//   local now = pallet.clock.currentTime()
+//   print(now)
+// end)
 
-)");
+// )");
 
-  // LinuxPlatform platform;
-  // platform.init();
+  LinuxAudioInterface audioInterface;
+
+  audioInterface.init();
 
   // LinuxMonomeGridInterface gridInterface;
   // gridInterface.init(&platform);
@@ -62,9 +65,11 @@ end)
   // auto time = platform.currentTime();
   // platform.timer(time + 1 * 500000);
 
+
   while (1) {
     platform.loopIter();
   }
+
   return 0;
 
   // lua_State* L = luaL_newstate();

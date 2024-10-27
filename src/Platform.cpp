@@ -24,7 +24,7 @@ static void timer_callback(int fd, void* data);
 
 void LinuxPlatform::init() {
   timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
-  fdCallbacks[timerfd] = std::pair(&timer_callback, this);
+  this->watchFdIn(timerfd, &timer_callback, this);
 }
 
 uint64_t LinuxPlatform::currentTime() {
@@ -52,8 +52,8 @@ void LinuxPlatform::uponTimer() {
   }
 }
 
-void LinuxPlatform::watchFd(int fd, void (*callback)(int, void*), void* userData) {
-  this->fdCallbacks[fd] = std::pair(callback, userData);
+void LinuxPlatform::watchFdIn(int fd, void (*callback)(int, void*), void* userData) {
+  this->fdCallbacks[fd] = std::tuple(POLLIN, callback, userData);
 }
 void LinuxPlatform::removeFd(int fd) {
   this->fdCallbacks.erase(fd);
@@ -61,8 +61,9 @@ void LinuxPlatform::removeFd(int fd) {
 void LinuxPlatform::loopIter() {
   int i = 0;
   for (const auto& [fd, value] : this->fdCallbacks) {
+    const auto& [events, cb, data] = value;
     this->pollFds[i].fd = fd;
-    this->pollFds[i].events = POLLIN;
+    this->pollFds[i].events = events;
     i++;
   }
   int len = i;
@@ -70,7 +71,7 @@ void LinuxPlatform::loopIter() {
   for (i = 0; i < len; i++) {
     if (this->pollFds[i].revents & POLLIN) {
       int fd = this->pollFds[i].fd;
-      auto [cb, data] = this->fdCallbacks[fd];
+      auto& [events, cb, data] = this->fdCallbacks[fd];
       cb(fd, data);
     }
   }

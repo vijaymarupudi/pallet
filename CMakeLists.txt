@@ -19,6 +19,7 @@ pkg_check_modules(LO REQUIRED IMPORTED_TARGET liblo)
 
 add_subdirectory(third-party/rt)
 add_subdirectory(third-party/lua)
+add_subdirectory(third-party/amy)
 
 file(GLOB FILESYSTEM_FILES filesystem/**/*)
 
@@ -29,5 +30,5 @@ add_custom_command(OUTPUT filesystem.h
 add_executable(main src/main.cpp src/LuaInterface.cpp src/Platform.cpp src/Clock.cpp filesystem.h)
 
 set_property(TARGET main PROPERTY CXX_STANDARD 23)
-target_link_libraries(main RT::RtMidi Lua::Lua PkgConfig::SDL2 PkgConfig::LO)
+target_link_libraries(main RT::RtMidi RT::RtAudio Lua::Lua Amy::Amy PkgConfig::SDL2 PkgConfig::LO)
 target_include_directories(main PRIVATE ${CMAKE_CURRENT_BINARY_DIR})

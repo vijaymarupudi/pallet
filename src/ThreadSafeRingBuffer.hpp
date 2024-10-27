@@ -47,5 +47,13 @@ public:
   index_type capacity() {
     return _capacity;
   }
+
+  bool empty() {
+    index_type currentReadIndex = readIndex;
+    if (currentReadIndex == writeIndex) {
+      return true;
+    }
+    return false;
+  }
   
 };

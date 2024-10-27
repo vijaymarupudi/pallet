@@ -108,7 +108,7 @@ public:
     this->osc_server = lo_server_new(osc_server_port_string, monome_grid_lo_on_error_func);
     lo_server_add_method(this->osc_server, NULL, NULL, monome_grid_lo_generic_osc_callback, this);
     int fd = lo_server_get_socket_fd(this->osc_server);
-    platform->watchFd(fd, monome_grid_lo_server_fd_ready_callback, this);
+    platform->watchFdIn(fd, monome_grid_lo_server_fd_ready_callback, this);
   }
 
   void rawQuadMap(int offX, int offY, quadDataType data) override {
