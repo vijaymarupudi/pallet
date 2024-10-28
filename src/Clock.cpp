@@ -52,15 +52,22 @@ void Clock::processEvent(Clock::id_type id) {
   // id table
   ClockEvent& event = idTable[id];
   // callback and reschedule if needed
-    
+
   if (!event.deleted) {
     event.callback(event.callbackUserData);
   }
-    
+
+  // This is necessary, as idTable might have reallocated in the
+  // callback, and therefore the reference might be invalid
+  event = idTable[id];
+
   if (!event.deleted && event.period != 0) {
     // if interval, add it back to the queue
-    event.prev = event.prev + event.period;
-    queue.push(event.prev + event.period, id);
+    auto now = event.prev + event.period;
+    event.prev = now;
+    queue.push(now + event.period, id);
+
+    this->updateWaitingTime();
   } else {
     // we will never need this event again
     idTable.free(id);
