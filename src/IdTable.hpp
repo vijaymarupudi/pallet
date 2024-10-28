@@ -35,6 +35,11 @@ class IdTable {
   Container<Space> storage;
   Container<id_type> freeVector;
 public:
+
+  IdTable() {
+    storage.reserve(256);
+    freeVector.reserve(256);
+  }
   template <class T>
   id_type push(T&& item) {
     if (freeVector.size() != 0) {
