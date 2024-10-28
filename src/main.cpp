@@ -15,6 +15,7 @@
 #include "LuaInterface.hpp"
 #include "MidiInterface.hpp"
 #include "AudioInterface.hpp"
+#include <cmath>
 
 static void keyCb(int x, int y, int z, void* data) {
   auto interface = ((MonomeGridInterface*)data);
@@ -65,6 +66,27 @@ int main() {
   // auto time = platform.currentTime();
   // platform.timer(time + 1 * 500000);
 
+  clock.setInterval(50 * 1000, [](void* data) {
+    // bleep();
+    auto e = amy_default_event();
+    e.osc = 0;
+    e.freq_coefs[COEF_CONST] = (int)(((float)rand()) / RAND_MAX * 1000 + 100);
+    e.velocity = 1;
+    e.wave = PULSE;
+    amy_add_event(e);
+    e.osc = 0;
+    e.time = amy_sysclock() + (int)(((float)rand()) / RAND_MAX * 100 + 10);
+    e.freq_coefs[COEF_CONST] = 220;
+    e.velocity = 0;
+    amy_add_event(e);
+    
+    // ((Clock*)data)->setTimeout(80 * 1000, [](void* data) {
+    //   printf("TIMEOUT!\n");
+    //   char m2[] = "v0f220.0l0.0Z";
+    //   amy_play_message(m2);
+    // }, nullptr);
+  }, &clock);
+  
 
   while (1) {
     platform.loopIter();

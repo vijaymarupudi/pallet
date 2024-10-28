@@ -1,8 +1,10 @@
+#pragma once
 #include "RtAudio.h"
 #include <cmath>
 #include <inttypes.h>
 extern "C" {
-#include "amy.h"  
+#include "amy.h"
+// #include "pcm_tiny.h"
 }
 
 
@@ -76,14 +78,14 @@ void bleep() {
     int32_t start = amy_sysclock();   // Right now..
     e.time = start;
     e.osc = 0;
-    e.wave = SINE;
+    e.wave = PULSE;
     e.freq_coefs[COEF_CONST] = 220;
     e.velocity = 1;                   // start a 220 Hz sine.
     amy_add_event(e);
-    e.time = start + 150;             // in 150 ms..
+    e.time = start + 10;             // in 150 ms..
     e.freq_coefs[COEF_CONST] = 440;   // change to 440 Hz.
     amy_add_event(e);
-    e.time = start + 300;          // in  300 ms..
+    e.time = start + 20;          // in  300 ms..
     e.velocity = 0;                   // note off.
     amy_add_event(e);
 }
@@ -102,6 +104,6 @@ public:
                      &linux_audio_callback, NULL, NULL);
     printf("Buffer: %u\n", bufferFrames);
     audio.startStream();
-    bleep();
+    // bleep();
   }
 };
