@@ -8,8 +8,8 @@
 #define AMY_BLOCK_SIZE 128
 #define BLOCK_SIZE_BITS 7 // log2 of BLOCK_SIZE
 #else
-#define AMY_BLOCK_SIZE 256
-#define BLOCK_SIZE_BITS 8 // log2 of BLOCK_SIZE
+#define AMY_BLOCK_SIZE 1024
+#define BLOCK_SIZE_BITS 10 // log2 of BLOCK_SIZE
 #endif
 
 #define AMY_OSCS 120
@@ -19,7 +19,7 @@
 #elif defined __EMSCRIPTEN__
 #define AMY_SAMPLE_RATE 48000
 #else
-#define AMY_SAMPLE_RATE 44100 
+#define AMY_SAMPLE_RATE 48000
 #endif
 #ifdef ALLES
 #define AMY_NCHANS 1

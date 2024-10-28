@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD 20)
 add_library(amy
             src/algorithms.c
             src/amy.c
+            src/transfer.c
             src/delay.c
             src/envelope.c
             src/custom.c

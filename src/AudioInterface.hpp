@@ -1,5 +1,10 @@
 #include "RtAudio.h"
 #include <cmath>
+#include <inttypes.h>
+extern "C" {
+#include "amy.h"  
+}
+
 
 class AudioInterface {
   
@@ -51,16 +56,36 @@ public:
 
 
 int linux_audio_callback(void* inOut, void* in, unsigned int nFrames, double time, RtAudioStreamStatus status, void* udata) {
-  Phasor* phasor = reinterpret_cast<Phasor*>(udata);
   float* out = reinterpret_cast<float*>(inOut);
-  for (int i = 0; i < nFrames / 2; i++) {
-    float samp = phasor->getPhase() * 2 - 1;
-    phasor->nextPhase();
-    samp *= 0.05;
-    out[i * 2] = samp;
-    out[i * 2 + 1] = -1 * samp;
+  amy_prepare_buffer();
+  amy_render(0, AMY_OSCS, 0);
+  // printf("%d, %d\n", nFrames, );
+  int16_t* samples = amy_fill_buffer();
+  for (int i = 0; i < AMY_BLOCK_SIZE * AMY_NCHANS; i++) {
+    // float samp = ((float)(rand())) / RAND_MAX * 2 - 1;
+    // float samp = (((float)samples[i]) / INT16_MAX);
+    // samp *= 0.05;
+    out[i] = ((float)samples[i]) / 32767.0f * 0.1;
+    // out[] = samp;
   }
   return 0;
+}
+
+void bleep() {
+    struct event e = amy_default_event();
+    int32_t start = amy_sysclock();   // Right now..
+    e.time = start;
+    e.osc = 0;
+    e.wave = SINE;
+    e.freq_coefs[COEF_CONST] = 220;
+    e.velocity = 1;                   // start a 220 Hz sine.
+    amy_add_event(e);
+    e.time = start + 150;             // in 150 ms..
+    e.freq_coefs[COEF_CONST] = 440;   // change to 440 Hz.
+    amy_add_event(e);
+    e.time = start + 300;          // in  300 ms..
+    e.velocity = 0;                   // note off.
+    amy_add_event(e);
 }
 
 class LinuxAudioInterface : public AudioInterface {
@@ -71,9 +96,12 @@ public:
     unsigned int defDevice = audio.getDefaultOutputDevice();
     RtAudio::StreamParameters params {defDevice, 2, 0};
     unsigned int bufferFrames = 1024;
-    Phasor phasor(48000, 440);
+    // Phasor phasor(48000, 440);
+    amy_start(1, 0, 0, 0);
     audio.openStream(&params, NULL, RTAUDIO_FLOAT32, 48000, &bufferFrames,
-                     &linux_audio_callback, &phasor, NULL);
+                     &linux_audio_callback, NULL, NULL);
+    printf("Buffer: %u\n", bufferFrames);
     audio.startStream();
+    bleep();
   }
 };

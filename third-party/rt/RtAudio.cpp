@@ -3206,6 +3206,7 @@ bool RtApiJack :: callbackEvent( unsigned long nframes )
     return FAILURE;
   }
   if ( stream_.bufferSize != nframes ) {
+    printf("Discrepancy: %ld, %ld", stream_.bufferSize, nframes);
     errorText_ = "RtApiJack::callbackEvent(): the JACK buffer size has changed ... cannot process!";
     error( RTAUDIO_WARNING );
     return FAILURE;
