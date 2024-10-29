@@ -1,5 +1,5 @@
 #pragma once
-#include "RtAudio.h"
+#include "miniaudio.h"
 #include <cmath>
 #include <inttypes.h>
 extern "C" {
@@ -57,20 +57,15 @@ public:
 };
 
 
-int linux_audio_callback(void* inOut, void* in, unsigned int nFrames, double time, RtAudioStreamStatus status, void* udata) {
+void linux_audio_callback(ma_device* dev, void* inOut, const void* inIn, ma_uint32 nFrames) {
   float* out = reinterpret_cast<float*>(inOut);
   amy_prepare_buffer();
   amy_render(0, AMY_OSCS, 0);
   // printf("%d, %d\n", nFrames, );
   int16_t* samples = amy_fill_buffer();
   for (int i = 0; i < AMY_BLOCK_SIZE * AMY_NCHANS; i++) {
-    // float samp = ((float)(rand())) / RAND_MAX * 2 - 1;
-    // float samp = (((float)samples[i]) / INT16_MAX);
-    // samp *= 0.05;
-    out[i] = ((float)samples[i]) / 32767.0f * 0.1;
-    // out[] = samp;
+    out[i] = ((float)samples[i]) / 32767.0f;
   }
-  return 0;
 }
 
 void bleep() {
@@ -91,19 +86,23 @@ void bleep() {
 }
 
 class LinuxAudioInterface : public AudioInterface {
-  RtAudio audio;
 public:
   void init() {
-    srand(time(NULL));
-    unsigned int defDevice = audio.getDefaultOutputDevice();
-    RtAudio::StreamParameters params {defDevice, 2, 0};
-    unsigned int bufferFrames = 1024;
+    ma_device_config config = ma_device_config_init(ma_device_type_playback);
+    config.playback.format   = ma_format_f32;   // Set to ma_format_unknown to use the device's native format.
+    config.playback.channels = 2;               // Set to 0 to use the device's native channel count.
+    config.sampleRate        = 48000;           // Set to 0 to use the device's native sample rate.
+    config.dataCallback      = &linux_audio_callback;   // This function will be called when miniaudio needs more data.
+    config.pUserData         = nullptr;   // Can be accessed from the device object (device.pUserData)
+    config.periodSizeInFrames = 1024;
+    
     // Phasor phasor(48000, 440);
     amy_start(1, 0, 0, 0);
-    audio.openStream(&params, NULL, RTAUDIO_FLOAT32, 48000, &bufferFrames,
-                     &linux_audio_callback, NULL, NULL);
-    printf("Buffer: %u\n", bufferFrames);
-    audio.startStream();
-    // bleep();
+    ma_device device;
+    if (ma_device_init(nullptr, &config, &device) != MA_SUCCESS) {
+      return;
+    }
+    bleep();
+    ma_device_start(&device);
   }
 };

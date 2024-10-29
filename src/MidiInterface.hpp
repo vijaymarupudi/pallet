@@ -48,7 +48,7 @@ static void midi_interface_midi_in_callback(double ts, std::vector<unsigned char
 
 static void midi_interface_thread_func(int thread_server_fd) {
   RtMidiIn midiIn;
-  midiIn.setCallback(midi_interface_midi_in_callback, (void*)thread_server_fd);
+  midiIn.setCallback(midi_interface_midi_in_callback, (void*)(intptr_t)thread_server_fd);
   midiIn.ignoreTypes(false, false, false);
   midiIn.openPort();
   while (true) {
