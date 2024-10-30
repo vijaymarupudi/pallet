@@ -44,7 +44,8 @@ int main() {
   Clock clock;
   clock.init((Platform*)&platform);
   LuaInterface luaInterface;
-  luaInterface.init(&clock);
+  luaInterface.init();
+  luaInterface.setClock(&clock);
 //   luaInterface.dostring(R"(
 // local pallet = require("pallet")
 // pallet.clock.setInterval((1/60) * 1000 * 1000, function()

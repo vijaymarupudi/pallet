@@ -9,9 +9,13 @@ public:
 private:
   void bind();
 public:
-  void init(Clock* clock);
+  void init();
   void dostring(const char* str);
   void cleanup();
+  void setClock(Clock* clock) {
+    this->clock = clock;
+  }
+
 };
 
 extern LuaInterface* luaInterface;

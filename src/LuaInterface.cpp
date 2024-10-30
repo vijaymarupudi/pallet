@@ -139,7 +139,9 @@ static int l_open_function(lua_State* L) {
   if (strcmp(lname, "_pallet") == 0) {
     int top = lua_gettop(L);
     lua_newtable(L);
-    l_bind_clock(L);
+    if (luaInterface->clock) {
+      l_bind_clock(L);
+    }
     lua_settop(L, top + 1);
     return 1;
   } else {
@@ -172,18 +174,18 @@ void LuaInterface::bind() {
     lua_setglobal(L, "require");
 }
 
-void LuaInterface::init(Clock* clock) {
+void LuaInterface::init() {
   this->L = luaL_newstate();
   l_open_libs(this->L);
   l_open_io(this->L);
-  this->clock = clock;
   luaInterface = this;
+  this->clock = nullptr;
   this->bind();
 }
 
 void LuaInterface::dostring(const char* str) {
     luaL_dostring(this->L, str);
-  }
+}
 
 
 void LuaInterface::cleanup() {
