@@ -8,8 +8,8 @@
 #define AMY_BLOCK_SIZE 128
 #define BLOCK_SIZE_BITS 7 // log2 of BLOCK_SIZE
 #else
-#define AMY_BLOCK_SIZE 1024
-#define BLOCK_SIZE_BITS 10 // log2 of BLOCK_SIZE
+#define AMY_BLOCK_SIZE 64
+#define BLOCK_SIZE_BITS 6 // log2 of BLOCK_SIZE
 #endif
 
 #define AMY_OSCS 120

@@ -38,6 +38,19 @@ static void timerCb(void* data) {
   printf("WOW\n");
 }
 
+
+int scale(int note) {
+  const int s[] = {0, 2, 4, 5, 7, 9, 11};
+  return note / 7 * 12 + s[note % 7];
+}
+
+const int RHY_LEN = 32;
+bool RHY[RHY_LEN] = {1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1};
+int RHY_I = 0;
+int RHY_FREQ[RHY_LEN] = {1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1};
+
+int voiceNumber = 0;
+
 int main() {
   LinuxPlatform platform;
   platform.init();
@@ -67,29 +80,57 @@ int main() {
   // auto time = platform.currentTime();
   // platform.timer(time + 1 * 500000);
 
-  // clock.setInterval(50 * 1000, [](void* data) {
-  //   // bleep();
-  //   auto e = amy_default_event();
-  //   e.osc = 0;
-  //   e.freq_coefs[COEF_CONST] = (int)(((float)rand()) / RAND_MAX * 1000 + 100);
-  //   e.velocity = 1;
-  //   e.wave = PULSE;
-  //   amy_add_event(e);
-  //   e.osc = 0;
-  //   e.time = amy_sysclock() + (int)(((float)rand()) / RAND_MAX * 100 + 10);
-  //   e.freq_coefs[COEF_CONST] = 220;
-  //   e.velocity = 0;
-  //   amy_add_event(e);
-    
-  //   // ((Clock*)data)->setTimeout(80 * 1000, [](void* data) {
-  //   //   printf("TIMEOUT!\n");
-  //   //   char m2[] = "v0f220.0l0.0Z";
-  //   //   amy_play_message(m2);
-  //   // }, nullptr);
-  // }, &clock);
+  srand(time(NULL));
+  for (int i = 0; i < RHY_LEN; i++) {
+    RHY_FREQ[i] = 60 + scale(((float)rand()) / RAND_MAX * 12);
+    RHY[i] = ((float)rand()) / RAND_MAX < 0.5;
+  }
 
-  clock.setInterval(100 * 1000, [](void* data){ bleep(); }, nullptr);
+  amy_reset_oscs();
+
+  char patch[] = ("u1024,"
+                  "v2P0.25w0I3.04a0.5,0,0,0.4A0,1,300,0.5,3000,0Z"
+                  "v1P0.25w0I1a1,0,0,1A5,1,2000,0,2000,0Z"
+                  "v0w8o1O,,,,2,1a1,0,0,0Z");
+
+  amy_play_message((char*)patch);
+
+  char m[8192];
+
+  for (int i = 0; i < 32; i++) {
+    snprintf(m, 8192, "r%dK1024Z", i);
+    amy_play_message(m);
+  }
   
+  for (const auto cmd : {
+      "h0.9,1Z",
+      // "M0.5,500,500Z"
+    }) {
+    amy_play_message((char*)cmd);  
+  }
+
+
+  
+  clock.setInterval(60.0f / 120 / 2 / 2 / 2 * 1000 * 1000, [](void* data){
+    char m[8192];
+    // snprintf(m, 8192, "v1f%fd%f,0,0,0,0.1l1Z", ((float)rand()) / RAND_MAX * 1000, ((float)rand()) / RAND_MAX * 1);
+    if (RHY[RHY_I]) {
+      auto time = amy_sysclock();
+      snprintf(m, 8192, "r%dn%dl1Z", voiceNumber, RHY_FREQ[RHY_I]);
+      amy_play_message(m);
+      snprintf(m, 8192, "t%dr%dl0Z", time + 100, voiceNumber);
+      amy_play_message(m);
+      voiceNumber = (voiceNumber + 1) % 32;
+    }
+
+    RHY_I = (RHY_I + 1) % RHY_LEN;
+
+    // ((Clock*)data)->setTimeout(30 * 1000, [](void* data) {
+    //   char m[] = "v1l0Z";
+    //   amy_play_message(m);
+    // }, nullptr);
+  }, &clock);
+
 
   while (1) {
     platform.loopIter();

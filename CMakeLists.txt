@@ -33,3 +33,6 @@ add_executable(main src/main.cpp src/LuaInterface.cpp src/Platform.cpp src/Clock
 set_property(TARGET main PROPERTY CXX_STANDARD 23)
 target_link_libraries(main RT::RtMidi Miniaudio::Miniaudio Lua::Lua Amy::Amy PkgConfig::SDL2 PkgConfig::LO)
 target_include_directories(main PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+
+add_executable(test src/test.cpp)
+target_link_libraries(test Miniaudio::Miniaudio)
