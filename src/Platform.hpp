@@ -21,6 +21,7 @@ protected:
 #include <tuple>
 #include <poll.h>
 #include <time.h>
+#include <fcntl.h>
 
 class LinuxPlatform : public Platform {
 public:
@@ -35,6 +36,7 @@ public:
   void removeFd(int fd);
   void loopIter();
   void cleanup();
+  void setFdNonBlocking(int fd);
 };
 
 

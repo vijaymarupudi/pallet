@@ -9,28 +9,28 @@
 #include <sys/timerfd.h>
 #include <time.h>
 
-static void time_to_timespec(uint64_t time, struct timespec* spec) {
+static void timeToTimespec(uint64_t time, struct timespec* spec) {
   time_t s = time / 1000000;
   time_t ns = (time % 1000000) * 1000;
   spec->tv_sec = s;
   spec->tv_nsec = ns;
 }
 
-static uint64_t timespec_to_time(struct timespec* spec) {
+static uint64_t timespecToTime(struct timespec* spec) {
   return (spec->tv_sec * 1000000) + (spec->tv_nsec / 1000);
 }
 
-static void timer_callback(int fd, void* data);
+static void timerCallback(int fd, void* data);
 
 void LinuxPlatform::init() {
   timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
-  this->watchFdIn(timerfd, &timer_callback, this);
+  this->watchFdIn(timerfd, &timerCallback, this);
 }
 
 uint64_t LinuxPlatform::currentTime() {
   struct timespec spec;
   clock_gettime(CLOCK_MONOTONIC, &spec);
-  return timespec_to_time(&spec);
+  return timespecToTime(&spec);
 }
 
 void LinuxPlatform::timer(uint64_t time) {
@@ -38,7 +38,7 @@ void LinuxPlatform::timer(uint64_t time) {
   struct timespec it_interval = {0};
   struct timespec it_value = {0};
   if (time != 0) {
-    time_to_timespec(time, &it_value);  
+    timeToTimespec(time, &it_value);  
   }
   struct itimerspec its = {it_interval, it_value};
   timerfd_settime(this->timerfd, TFD_TIMER_ABSTIME, &its, nullptr);
@@ -77,11 +77,16 @@ void LinuxPlatform::loopIter() {
   }
 }
 
+void LinuxPlatform::setFdNonBlocking(int fd) {
+  int flags = fcntl(fd, F_GETFL, 0);
+  fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+}
+
 void LinuxPlatform::cleanup() {
   close(this->timerfd);
 }
 
-static void timer_callback(int fd, void* data) {
+static void timerCallback(int fd, void* data) {
   auto platform = ((LinuxPlatform*) data);
   platform->uponTimer();
 }

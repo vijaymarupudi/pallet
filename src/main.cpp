@@ -8,8 +8,6 @@
 #include <string>
 #include "RtMidi.h"
 #include "lua.hpp"
-#include <stdlib.h>
-#include <unistd.h>
 #include "Clock.hpp"
 #include "GridInterface.hpp"
 #include "LuaInterface.hpp"
@@ -30,26 +28,52 @@ static void connectCb(void* data) {
   gridInterface->setOnKey(keyCb, gridInterface);
 }
 
-static void intervalCb(void* data) {
-  printf("Hello world! %llu\n", ((Clock*)data)->currentTime());
-}
-
-static void timerCb(void* data) {
-  printf("WOW\n");
-}
-
-
 int scale(int note) {
-  const int s[] = {0, 2, 4, 5, 7, 9, 11};
+  const int s[] = {0, 2, 3, 5, 7, 8, 10};
   return note / 7 * 12 + s[note % 7];
 }
 
-const int RHY_LEN = 32;
-bool RHY[RHY_LEN] = {1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1};
-int RHY_I = 0;
-int RHY_FREQ[RHY_LEN] = {1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1};
+void handleInput(char* buf, ssize_t len) {
+  int processed = 0;
+  for (int i = 0; i < 8192; i++) {
+      if (buf[i] == '\n') {
+        buf[i] = 0;
+        amy_play_message(buf);
+        processed = i + 1;
+        break;
+      }
+  }
 
-int voiceNumber = 0;
+  if (processed != len) {
+    return handleInput(buf + processed, len - processed);
+  }
+  
+}
+
+struct Gridder {
+  LinuxMonomeGridInterface& gridInterface;
+  Clock& clock;
+  float t;
+  void begin() {
+    t = 0;
+    this->step();
+    clock.setInterval(1.0f / 120 * 1000 * 1000, [](void* ud) {
+      auto gridder = ((Gridder*)ud);
+      gridder->step();
+    }, this);
+  }
+  void step() {
+    t = t + 1.0f / 120;
+    gridInterface.clear();
+    for (int i = 0; i < 16 * 16; i++) {
+      int x = i % 16;
+      int y = i / 16;
+      gridInterface.led(x, y, ((sin(6 * t + 2 * (x / 16.0f * 2 + 1) * (y / 16.0f * 4 + 1)) + 1) / 2) * 15);
+    }
+    gridInterface.render();
+    
+  }
+};
 
 int main() {
   LinuxPlatform platform;
@@ -68,8 +92,23 @@ int main() {
 
 // )");
 
-  LinuxAudioInterface audioInterface;
+  LinuxMonomeGridInterface gridInterface;
+  auto gridder = Gridder(gridInterface, clock);
+  gridInterface.init(&platform);
+  gridInterface.setOnConnect([](const std::string& id, bool connected, void* ud){
+    if (connected)
+      {
+        printf("connected %s!\n", id.c_str());
+        ((Gridder*)ud)->begin();
+      }
+    else
+      { printf("disconnected %s!\n", id.c_str()); }
+  }, &gridder);
+  gridInterface.connect();
+  
 
+
+  LinuxAudioInterface audioInterface;
   audioInterface.init();
 
   // LinuxMonomeGridInterface gridInterface;
@@ -80,58 +119,20 @@ int main() {
   // auto time = platform.currentTime();
   // platform.timer(time + 1 * 500000);
 
-  srand(time(NULL));
-  for (int i = 0; i < RHY_LEN; i++) {
-    RHY_FREQ[i] = 60 + scale(((float)rand()) / RAND_MAX * 12);
-    RHY[i] = ((float)rand()) / RAND_MAX < 0.5;
-  }
 
+  
+  platform.setFdNonBlocking(0);
+  platform.watchFdIn(0, [](int fd, void* ud){
+    char buf[8192];
+    ssize_t len = read(0, buf, 8192);
+    handleInput(buf, len);
+  }, nullptr);
+
+
+    
   amy_reset_oscs();
 
-  char patch[] = ("u1024,"
-                  "v2P0.25w0I3.04a0.5,0,0,0.4A0,1,300,0.5,3000,0Z"
-                  "v1P0.25w0I1a1,0,0,1A5,1,2000,0,2000,0Z"
-                  "v0w8o1O,,,,2,1a1,0,0,0Z");
-
-  amy_play_message((char*)patch);
-
-  char m[8192];
-
-  for (int i = 0; i < 32; i++) {
-    snprintf(m, 8192, "r%dK1024Z", i);
-    amy_play_message(m);
-  }
   
-  for (const auto cmd : {
-      "h0.9,1Z",
-      // "M0.5,500,500Z"
-    }) {
-    amy_play_message((char*)cmd);  
-  }
-
-
-  
-  clock.setInterval(60.0f / 120 / 2 / 2 / 2 * 1000 * 1000, [](void* data){
-    char m[8192];
-    // snprintf(m, 8192, "v1f%fd%f,0,0,0,0.1l1Z", ((float)rand()) / RAND_MAX * 1000, ((float)rand()) / RAND_MAX * 1);
-    if (RHY[RHY_I]) {
-      auto time = amy_sysclock();
-      snprintf(m, 8192, "r%dn%dl1Z", voiceNumber, RHY_FREQ[RHY_I]);
-      amy_play_message(m);
-      snprintf(m, 8192, "t%dr%dl0Z", time + 100, voiceNumber);
-      amy_play_message(m);
-      voiceNumber = (voiceNumber + 1) % 32;
-    }
-
-    RHY_I = (RHY_I + 1) % RHY_LEN;
-
-    // ((Clock*)data)->setTimeout(30 * 1000, [](void* data) {
-    //   char m[] = "v1l0Z";
-    //   amy_play_message(m);
-    // }, nullptr);
-  }, &clock);
-
-
   while (1) {
     platform.loopIter();
   }
