@@ -10,6 +10,11 @@
 
 class Clock {
 
+public:
+  using id_type = std::conditional_t<pallet::constants::isEmbeddedDevice,
+                                     uint8_t, uint32_t>;
+private:
+
   struct ClockEvent {
     uint64_t prev;
     uint64_t period;
@@ -17,9 +22,6 @@ class Clock {
     void* callbackUserData;
     bool deleted;
   };
-
-  using id_type = std::conditional_t<pallet::constants::isEmbeddedDevice,
-                                     uint8_t, uint32_t>;
 
   template <class T>
   using ContainerType = std::conditional_t<pallet::constants::isEmbeddedDevice, StaticVector<T, 256>, std::vector<T>>;
