@@ -80,7 +80,6 @@ public:
 
   virtual void sendRawQuadMap(int offX, int offY, quadDataType data) = 0;
   virtual void connect() = 0;
-  
 };
 
 #ifdef __linux__
@@ -107,6 +106,7 @@ public:
   oscAddrT gridAddr;
   LinuxOscInterface oscInterface;
   std::string gridId;
+  bool autoReconnect = true;
   void init(LinuxPlatform* platform) {
     MonomeGridInterface::init();
     oscInterface.init(platform);
@@ -163,7 +163,7 @@ public:
       this->cols = argv[1]->i;
       this->nQuads = (this->rows / 8) * (this->cols / 8);
       this->connected = true;
-      if (onConnectCb) {
+      if (this->onConnectCb) {
         this->onConnectCb(this->gridId, true, this->onConnectData);
       }
     } else if (strcmp(path, "/serialosc/remove") == 0) {
@@ -175,8 +175,12 @@ public:
 
   void uponDeviceChange(const char* cStrId, bool addition) {
     std::string deviceId = cStrId;
-    if (!addition && deviceId == gridId) {
-      this->disconnect();
+    if (!addition && deviceId == this->gridId) {
+      this->disconnect(false);
+    }
+
+    if (addition && deviceId == this->gridId && this->autoReconnect) {
+      this->connect();
     }
     requestDeviceNotifications();
   }
@@ -187,15 +191,16 @@ public:
     
   }
 
-  void disconnect() {
+  void disconnect(bool manual = true) {
     if (connected) {
       this->oscInterface.freeAddress(this->gridAddr);
       this->gridAddr = nullptr;
-      std::string oldId = this->gridId;
-      this->gridId = "";
       this->connected = false;
+      if (manual) {
+        this->autoReconnect = false;
+      }
       if (this->onConnectCb) {
-        this->onConnectCb(oldId, false, this->onConnectData);
+        this->onConnectCb(this->gridId, false, this->onConnectData);
       }
     }
   }

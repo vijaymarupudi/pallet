@@ -54,7 +54,10 @@ struct Gridder {
   LinuxMonomeGridInterface& gridInterface;
   Clock& clock;
   float t;
+  bool begun = false;
   void begin() {
+    if (begun) { return; }
+    begun = true;
     t = 0;
     this->step();
     clock.setInterval(1.0f / 120 * 1000 * 1000, [](void* ud) {
