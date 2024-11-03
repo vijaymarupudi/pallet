@@ -22,6 +22,7 @@ add_subdirectory(third-party/miniaudio)
 add_subdirectory(third-party/lua)
 add_subdirectory(third-party/amy)
 
+
 file(GLOB FILESYSTEM_FILES filesystem/**/*)
 
 add_custom_command(OUTPUT filesystem.h
@@ -35,4 +36,3 @@ target_link_libraries(main RT::RtMidi Miniaudio::Miniaudio Lua::Lua Amy::Amy Pkg
 target_include_directories(main PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(test src/test.cpp)
-target_link_libraries(test Miniaudio::Miniaudio)
