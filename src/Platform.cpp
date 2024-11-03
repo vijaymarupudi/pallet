@@ -6,6 +6,7 @@
 #include <utility>
 #include <poll.h>
 #include <unistd.h>
+#include <cstdio>
 #include <sys/timerfd.h>
 #include <time.h>
 
@@ -22,9 +23,25 @@ static uint64_t timespecToTime(struct timespec* spec) {
 
 static void timerCallback(int fd, void* data);
 
+static void linuxSetThreadToHighPriority() {
+  int ret = getpriority(PRIO_PROCESS, 0);
+  // increase priority of the process
+  setpriority(PRIO_PROCESS, 0, ret - 4);
+}
+
 void LinuxPlatform::init() {
   timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
   this->watchFdIn(timerfd, &timerCallback, this);
+
+  // for reducing latency
+  this->cpu_dma_latency_fd = open("/dev/cpu_dma_latency", O_RDONLY);
+  if (this->cpu_dma_latency_fd >= 0) {
+    int val = 0;
+    write(this->cpu_dma_latency_fd, &val, sizeof(val));
+  }
+
+  // for reducing latency
+  linuxSetThreadToHighPriority();
 }
 
 uint64_t LinuxPlatform::currentTime() {
@@ -84,6 +101,7 @@ void LinuxPlatform::setFdNonBlocking(int fd) {
 
 void LinuxPlatform::cleanup() {
   close(this->timerfd);
+  if (this->cpu_dma_latency_fd >= 0) { close(this->cpu_dma_latency_fd); }
 }
 
 static void timerCallback(int fd, void* data) {

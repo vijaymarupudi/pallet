@@ -42,8 +42,34 @@ void handleInput(char* buf, ssize_t len, LinuxAudioInterface* iface) {
 
 }
 
+#include <array>
+#include <tuple>
+
+template <class T, size_t maxLen>
+struct MeanMeasurer {
+  std::array<T, maxLen> measurements = {0};
+  size_t len = 0;
+  size_t i = 0;
+
+  void addSample(T sample) {
+    measurements[i] = sample;
+    i = (i + 1) % maxLen;
+    if (len < maxLen) {
+      len++;
+    }
+  }
+
+  T mean() {
+    T total = 0;
+    for (int i = 0; i < len; i++) {
+      total += measurements[i] / len;
+    }
+    return total;
+  }
+};
+
 int voiceNumber = 0;
-int nVoices = 16;
+int nVoices = 8;
 
 int main() {
   LinuxPlatform platform;
@@ -62,30 +88,9 @@ int main() {
 
 // )");
 
-  // LinuxMonomeGridInterface gridInterface;
-  // auto gridder = Gridder(gridInterface, clock);
-  // gridInterface.init(&platform);
-  // gridInterface.setOnConnect([](const std::string& id, bool connected, void* ud){
-  //   if (connected)
-  //     {
-  //       printf("connected %s!\n", id.c_str());
-  //       ((Gridder*)ud)->begin();
-  //     }
-  //   else
-  //     { printf("disconnected %s!\n", id.c_str()); }
-  // }, &gridder);
-  // gridInterface.connect();
 
   LinuxAudioInterface audioInterface;
   audioInterface.init(&clock);
-
-  // LinuxMonomeGridInterface gridInterface;
-  // gridInterface.init(&platform);
-  // gridInterface.setOnConnect(connectCb, &gridInterface);
-  // gridInterface.connect();
-  // platform.setOnTimer(timerCb, &platform);
-  // auto time = platform.currentTime();
-  // platform.timer(time + 1 * 500000);
 
   LinuxMidiInterface midiInterface;
   midiInterface.setOnMidi([](unsigned char* buf, size_t len, void* ud) {
@@ -103,7 +108,52 @@ int main() {
     handleInput(buf, len, (LinuxAudioInterface*)ud);
   }, &audioInterface);
 
+  MeanMeasurer<float, 16> measurer;
+
+  uint64_t prev = 0;
+  int i = 0;
+  using State = std::tuple<Clock*, MeanMeasurer<float, 16>*, uint64_t*, int*>;
+  State state = std::tuple(&clock, &measurer, &prev, &i);
+
+  // clock.setInterval(10 * 1000, [](void* ud) {
+  //   auto items = (State*)ud;
+  //   auto [clock, measurer, prev, i] = *items;
+  //   (*i)++;
+
+  //   auto t = clock->currentTime();
+    
+  //   if (*prev == 0) {
+  //     *prev = t;
+  //     return;
+  //   }
+
+  //   auto diff = t - *prev;
+  //   measurer->addSample(diff);
+  //   printf("t: %lu\n", t);
+  //   printf("d: %lu, %f\n", diff, measurer->mean());
+  //     if (*i % 100 == 0) {
+  //   }
+  //   *prev = t;
+  // }, &state);
+
   amy_reset_oscs();
+
+  LinuxMonomeGridInterface gridInterface;
+
+  gridInterface.init(&platform);
+  gridInterface.connect();
+  
+  gridInterface.setOnKey([](int x, int y, int z, void* ud) {
+    int note = scale(x + y * 16) % 128;
+    char buf[1024];
+    if (z == 1) {
+      snprintf(buf, 1024, "r0n%dl1Z", note);
+    } else {
+      snprintf(buf, 1024, "r0dl0Z");
+    }
+    amy_play_message(buf);
+    voiceNumber
+  }, nullptr);
 
   while (1) {
     platform.loopIter();

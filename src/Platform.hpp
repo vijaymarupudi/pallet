@@ -22,9 +22,11 @@ protected:
 #include <poll.h>
 #include <time.h>
 #include <fcntl.h>
+#include <sys/resource.h>
 
 class LinuxPlatform : public Platform {
 public:
+  int cpu_dma_latency_fd;
   int timerfd;
   struct pollfd pollFds[16];
   std::map<int, std::tuple<int, void(*)(int, void*), void*>> fdCallbacks;
