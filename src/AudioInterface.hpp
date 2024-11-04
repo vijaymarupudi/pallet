@@ -99,7 +99,7 @@ public:
       ma_encoder_init_file("out.wav", &config, &encoder);
       ma_pcm_rb_init(ma_format_f32, 2, 48000, NULL, NULL, &recordingRingBuffer);
       this->recording = true;
-      this->recordingIntervalId = this->clock->setInterval(1000 * 100, [](void* ud) {
+      this->recordingIntervalId = this->clock->setInterval(1000 * 100, [](ClockEventInfo* _, void* ud) {
         auto iface = (LinuxAudioInterface*)ud;
         if (!iface->recording) { return; }
         float* buf;

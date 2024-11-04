@@ -8,19 +8,30 @@
 #include "IdTable.hpp"
 #include "constants.hpp"
 
+
+using ClockIdT = std::conditional_t<pallet::constants::isEmbeddedDevice,
+                              uint8_t, uint32_t>;
+
+struct ClockEventInfo {
+  ClockIdT id;
+  uint64_t now;
+  uint64_t intended;
+  uint64_t period;
+};
+
+using ClockCbT = void(*)(ClockEventInfo*, void*);
+
 class Clock {
-
 public:
-  using id_type = std::conditional_t<pallet::constants::isEmbeddedDevice,
-                                     uint8_t, uint32_t>;
+  using id_type = ClockIdT;
 private:
-
   struct ClockEvent {
     uint64_t prev;
     uint64_t period;
-    void (*callback)(void*);
+    ClockCbT callback;
     void* callbackUserData;
     bool deleted;
+    bool isInterval() { return period != 0; }
   };
 
   template <class T>
@@ -36,15 +47,18 @@ public:
   void init(Platform* platform);
   uint64_t currentTime();
   id_type setTimeout(uint64_t duration,
-                     void (*callback)(void*),
+                     ClockCbT callback,
                      void* callbackUserData);
+  id_type setTimeoutAbsolute(uint64_t duration,
+                             ClockCbT callback,
+                             void* callbackUserData);
   id_type setInterval(uint64_t period,
-                      void (*callback)(void*),
+                      ClockCbT callback,
                       void* callbackUserData);
   void clearTimeout(id_type id);
   void* getTimeoutUserData(id_type id);
   void clearInterval(id_type id);
-  void processEvent(id_type id);
+  void processEvent(Clock::id_type id, uint64_t now, uint64_t goal);
   void updateWaitingTime();
   void process();
 };

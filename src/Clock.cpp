@@ -12,20 +12,27 @@ uint64_t Clock::currentTime() {
 }
 
 Clock::id_type Clock::setTimeout(uint64_t duration,
-                          void (*callback)(void*),
-                          void* callbackUserData) {
+                                 ClockCbT callback,
+                                 void* callbackUserData) {
   auto now = this->currentTime();
+  auto goal = now + duration;
+  return setTimeoutAbsolute(goal, callback, callbackUserData);
+}
+
+Clock::id_type Clock::setTimeoutAbsolute(uint64_t goal,
+                                         ClockCbT callback,
+                                         void* callbackUserData) {
   auto id = idTable.push(ClockEvent {
-      now, 0, callback, callbackUserData, false
+      0, 0, callback, callbackUserData, false
     });
-  queue.push(now + duration, id);
+  queue.push(goal, id);
   this->updateWaitingTime();
   return id;
 }
 
 Clock::id_type Clock::setInterval(uint64_t period,
-                           void (*callback)(void*),
-                           void* callbackUserData) {
+                                  ClockCbT callback,
+                                  void* callbackUserData) {
   auto now = this->currentTime();
   auto id = idTable.push(ClockEvent {
       now, period, callback, callbackUserData, false
@@ -47,14 +54,15 @@ void Clock::clearInterval(Clock::id_type id) {
   this->clearTimeout(id);
 }
 
-void Clock::processEvent(Clock::id_type id) {
+void Clock::processEvent(Clock::id_type id, uint64_t now, uint64_t goal) {
   // at this point, the event is out of the queue, but still in the
   // id table
   ClockEvent& event = idTable[id];
   // callback and reschedule if needed
 
   if (!event.deleted) {
-    event.callback(event.callbackUserData);
+    ClockEventInfo info {id, now, goal, event.period};
+    event.callback(&info, event.callbackUserData);
   }
 
   // This is necessary, as idTable might have reallocated in the
@@ -98,7 +106,7 @@ void Clock::process() {
     }
     auto [time, eventid] = queue.top();
     queue.pop();
-    processEvent(eventid);
+    processEvent(eventid, now, time);
   }
   this->updateWaitingTime();
 }

@@ -10,6 +10,7 @@ protected:
     this->timerCb = cb;
     this->timerCbUserData = userData;
   }
+  // should be thread safe!
   virtual uint64_t currentTime() = 0;
   virtual void timer(uint64_t time) = 0;
 };

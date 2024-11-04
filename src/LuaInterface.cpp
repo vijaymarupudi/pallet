@@ -77,7 +77,7 @@ static void l_open_libs(lua_State* L) {
   }
 }
 
-static void l_clock_set_timeout_cb(void* data);
+static void l_clock_set_timeout_cb(ClockEventInfo* info, void* data);
 static int l_clock_set_timeout(lua_State* L);
 static int l_clock_set_interval(lua_State* L);
 static int l_clock_current_time(lua_State* L);
@@ -201,7 +201,7 @@ static uint64_t l_clock_get_time_value(lua_State* L, int index) {
 }
 
 
-static void l_clock_set_timeout_cb(void* data) {
+static void l_clock_set_timeout_cb(ClockEventInfo* info, void* data) {
   int ref = reinterpret_cast<intptr_t>(data);
   lua_rawgeti(luaInterface->L, LUA_REGISTRYINDEX, ref);
   luaL_unref(luaInterface->L, LUA_REGISTRYINDEX, ref);
@@ -209,7 +209,7 @@ static void l_clock_set_timeout_cb(void* data) {
   lua_call(luaInterface->L, 0, 0);
 }
 
-static void l_clock_set_interval_cb(void* data) {
+static void l_clock_set_interval_cb(ClockEventInfo* info, void* data) {
   int ref = reinterpret_cast<intptr_t>(data);
   lua_rawgeti(luaInterface->L, LUA_REGISTRYINDEX, ref);
   // the function is now at the top of the stack

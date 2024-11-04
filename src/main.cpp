@@ -9,6 +9,7 @@
 #include "RtMidi.h"
 #include "lua.hpp"
 #include "Clock.hpp"
+#include "BeatClock.hpp"
 #include "GridInterface.hpp"
 #include "LuaInterface.hpp"
 #include "MidiInterface.hpp"
@@ -45,29 +46,6 @@ void handleInput(char* buf, ssize_t len, LinuxAudioInterface* iface) {
 #include <array>
 #include <tuple>
 
-template <class T, size_t maxLen>
-struct MeanMeasurer {
-  std::array<T, maxLen> measurements = {0};
-  size_t len = 0;
-  size_t i = 0;
-
-  void addSample(T sample) {
-    measurements[i] = sample;
-    i = (i + 1) % maxLen;
-    if (len < maxLen) {
-      len++;
-    }
-  }
-
-  T mean() {
-    T total = 0;
-    for (int i = 0; i < len; i++) {
-      total += measurements[i] / len;
-    }
-    return total;
-  }
-};
-
 int voiceNumber = 0;
 int nVoices = 8;
 
@@ -93,13 +71,8 @@ int main() {
   audioInterface.init(&clock);
 
   LinuxMidiInterface midiInterface;
-  midiInterface.setOnMidi([](unsigned char* buf, size_t len, void* ud) {
-    for (int i = 0; i < len; i++) {
-      printf("0x%02X ", buf[i]);
-    }
-    printf("\n");
-  }, nullptr);
   midiInterface.init(&platform);
+  midiInterface.monitor();
 
   platform.setFdNonBlocking(0);
   platform.watchFdIn(0, [](int fd, void* ud){
@@ -107,34 +80,6 @@ int main() {
     ssize_t len = read(0, buf, 8192);
     handleInput(buf, len, (LinuxAudioInterface*)ud);
   }, &audioInterface);
-
-  MeanMeasurer<float, 16> measurer;
-
-  uint64_t prev = 0;
-  int i = 0;
-  using State = std::tuple<Clock*, MeanMeasurer<float, 16>*, uint64_t*, int*>;
-  State state = std::tuple(&clock, &measurer, &prev, &i);
-
-  // clock.setInterval(10 * 1000, [](void* ud) {
-  //   auto items = (State*)ud;
-  //   auto [clock, measurer, prev, i] = *items;
-  //   (*i)++;
-
-  //   auto t = clock->currentTime();
-    
-  //   if (*prev == 0) {
-  //     *prev = t;
-  //     return;
-  //   }
-
-  //   auto diff = t - *prev;
-  //   measurer->addSample(diff);
-  //   printf("t: %lu\n", t);
-  //   printf("d: %lu, %f\n", diff, measurer->mean());
-  //     if (*i % 100 == 0) {
-  //   }
-  //   *prev = t;
-  // }, &state);
 
   amy_reset_oscs();
 
@@ -152,7 +97,6 @@ int main() {
       snprintf(buf, 1024, "r0dl0Z");
     }
     amy_play_message(buf);
-    voiceNumber
   }, nullptr);
 
   while (1) {
