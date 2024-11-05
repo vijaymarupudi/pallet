@@ -49,12 +49,16 @@ public:
   id_type setTimeout(uint64_t duration,
                      ClockCbT callback,
                      void* callbackUserData);
-  id_type setTimeoutAbsolute(uint64_t duration,
+  id_type setTimeoutAbsolute(uint64_t goal,
                              ClockCbT callback,
                              void* callbackUserData);
   id_type setInterval(uint64_t period,
                       ClockCbT callback,
                       void* callbackUserData);
+  id_type setIntervalAbsolute(uint64_t goal,
+                              uint64_t period,
+                              ClockCbT callback,
+                              void* callbackUserData);
   void clearTimeout(id_type id);
   void* getTimeoutUserData(id_type id);
   void clearInterval(id_type id);

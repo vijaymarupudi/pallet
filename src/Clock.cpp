@@ -32,12 +32,20 @@ Clock::id_type Clock::setTimeoutAbsolute(uint64_t goal,
 
 Clock::id_type Clock::setInterval(uint64_t period,
                                   ClockCbT callback,
-                                  void* callbackUserData) {
+                                  void* callbackUserData){
+  auto now = this->currentTime();
+  return setIntervalAbsolute(now + period, period, callback, callbackUserData);
+}
+
+Clock::id_type Clock::setIntervalAbsolute(uint64_t goal,
+                                          uint64_t period,
+                                          ClockCbT callback,
+                                          void* callbackUserData){
   auto now = this->currentTime();
   auto id = idTable.push(ClockEvent {
-      now, period, callback, callbackUserData, false
+      goal - period, period, callback, callbackUserData, false
     });
-  queue.push(now + period, id);
+  queue.push(goal, id);
   this->updateWaitingTime();
   return id;
 }

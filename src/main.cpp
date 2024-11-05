@@ -9,7 +9,7 @@
 #include "RtMidi.h"
 #include "lua.hpp"
 #include "Clock.hpp"
-#include "BeatClock.hpp"
+// #include "BeatClock.hpp"
 #include "GridInterface.hpp"
 #include "LuaInterface.hpp"
 #include "MidiInterface.hpp"
@@ -89,15 +89,20 @@ int main() {
   gridInterface.connect();
   
   gridInterface.setOnKey([](int x, int y, int z, void* ud) {
+    auto gi = (LinuxMonomeGridInterface*)ud;
+    gi->clear();
     int note = scale(x + y * 16) % 128;
     char buf[1024];
     if (z == 1) {
       snprintf(buf, 1024, "r0n%dl1Z", note);
+      gi->led(x, y, z * 15);
     } else {
       snprintf(buf, 1024, "r0dl0Z");
+      gi->led(x, y, z * 15);
     }
     amy_play_message(buf);
-  }, nullptr);
+    gi->render();
+  }, &gridInterface);
 
   while (1) {
     platform.loopIter();

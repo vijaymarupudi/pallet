@@ -1,7 +1,6 @@
+#pragma once
 #include "RtMidi.h"
-#include <sys/socket.h>
-#include <iostream>
-#include <vector>
+#include "Platform.hpp"
 
 using MidiInterfaceOnMidiCbT = void(*)(uint64_t, const unsigned char*, size_t, void*);
 
@@ -28,7 +27,7 @@ public:
   void internalOnMidi(uint64_t time, const unsigned char* buf, size_t len, void* ud) {
     if (this->monitoring) {
       if (len == 0) { return; }
-      printf("midi in | time: %lu, message: ");
+      printf("midi in | time: %lu, message: ", time);
       printf("0x%02X", buf[0]);
       for (int i = 1; i < len; i++) {
         printf(", 0x%02X", buf[i]);
@@ -48,9 +47,6 @@ public:
   
 };
 
-#include <unistd.h>
-#include <stdlib.h>
-
 class LinuxMidiInterface : public MidiInterface {
 public:
   bool status = false;
@@ -65,55 +61,3 @@ public:
   virtual void sendMidi(const unsigned char* buf,
                         size_t len) override;
 };
-
-void LinuxMidiInterface::sendMidi(const unsigned char* buf,
-                                  size_t len) {
-  midiOut.sendMessage(buf, len);
-}
-
-struct LinuxMidiInterfaceMessage {
-  uint64_t time;
-  unsigned char buf[3];
-  unsigned char len;
-};
-
-static void midiInterfaceMidiInCallback(double ts,
-                                        std::vector<unsigned char>* message,
-                                        void* data) {
-  auto mface = reinterpret_cast<LinuxMidiInterface*>(data);
-  if (message->size() <= 3) {
-    LinuxMidiInterfaceMessage msg;
-    for (int i = 0; i < message->size(); i++) {
-      msg.buf[i] = (*message)[i];
-    }
-    msg.time = mface->platform->currentTime();
-    msg.len = message->size();
-    write(mface->threadWriteFd, &msg, sizeof(msg));
-  }
-}
-
-void LinuxMidiInterface::init(LinuxPlatform* platform) {
-  status = true;
-  this->platform = platform;
-  int fds[2];
-  pipe(fds);
-  threadReadFd = fds[0];
-  threadWriteFd = fds[1];
-  platform->setFdNonBlocking(threadReadFd);
-  platform->watchFdIn(threadReadFd, [](int fd, void* ud) {
-    auto mface = (LinuxMidiInterface*)ud;
-    LinuxMidiInterfaceMessage messages[16];
-    ssize_t len = read(fd, &messages[0],
-                       16 * sizeof(LinuxMidiInterfaceMessage)) /
-      sizeof(LinuxMidiInterfaceMessage);
-    for (int i = 0; i < len; i += 1) {
-      auto& msg = messages[i];
-      mface->internalOnMidi(msg.time, msg.buf, msg.len, mface->onMidiUserData);
-    }
-  }, this);
-  midiIn.setCallback(midiInterfaceMidiInCallback, this);
-  midiOut.openPort();
-  midiIn.ignoreTypes(false, false, false);
-  midiIn.openPort();
-}
-

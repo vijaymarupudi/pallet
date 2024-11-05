@@ -9,6 +9,8 @@
 #include <cstdio>
 #include <sys/timerfd.h>
 #include <time.h>
+#include <sched.h>
+#include <cstring>
 
 static void timeToTimespec(uint64_t time, struct timespec* spec) {
   time_t s = time / 1000000;
@@ -24,9 +26,19 @@ static uint64_t timespecToTime(struct timespec* spec) {
 static void timerCallback(int fd, void* data);
 
 static void linuxSetThreadToHighPriority() {
+  // increase the niceness of the process
   int ret = getpriority(PRIO_PROCESS, 0);
-  // increase priority of the process
   setpriority(PRIO_PROCESS, 0, ret - 4);
+
+  // enable SCHED_FIFO for realtime scheduling without preemption
+  // new threads can't inherit realtime status
+  struct sched_param schparam;
+  memset(&schparam, 0, sizeof(struct sched_param));
+  schparam.sched_priority = 60;
+  if (sched_setscheduler(0, SCHED_FIFO | SCHED_RESET_ON_FORK,
+                         &schparam) == 0) {
+    fprintf(stderr, "realtime schedling enabled\n");
+  }
 }
 
 void LinuxPlatform::init() {
