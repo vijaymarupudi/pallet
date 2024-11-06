@@ -14,6 +14,7 @@
 #include "LuaInterface.hpp"
 #include "MidiInterface.hpp"
 #include "AudioInterface.hpp"
+#include "MidiParser.hpp"
 #include <cmath>
 
 int scale(int note) {
@@ -72,7 +73,19 @@ int main() {
 
   LinuxMidiInterface midiInterface;
   midiInterface.init(&platform);
-  midiInterface.monitor();
+  // midiInterface.monitor();
+
+  MidiParser parser;
+  parser.noteOn([](int chan, int note, int vel) {
+    char buf[1024];
+    snprintf(buf, 1024, "r%dn%dl%fZ", chan, note, vel ? 1.0 : 0.0);
+    amy_play_message(buf);
+  });
+
+  midiInterface.setOnMidi([](uint64_t time, const unsigned char* buf, size_t len, void* ud) {
+    ((MidiParser*)ud)->uponMidi(buf, len);
+  }, &parser);
+
 
   platform.setFdNonBlocking(0);
   platform.watchFdIn(0, [](int fd, void* ud){
@@ -87,7 +100,7 @@ int main() {
 
   gridInterface.init(&platform);
   gridInterface.connect();
-  
+
   gridInterface.setOnKey([](int x, int y, int z, void* ud) {
     auto gi = (LinuxMonomeGridInterface*)ud;
     gi->clear();
