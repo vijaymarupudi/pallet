@@ -19,7 +19,7 @@ std::pair<UIntType, bool> unsignedAdditionHelper(UIntType a, UIntType b) {
   UIntType res = a + b;
   if (res < a) { overflow = true; }
   else { overflow = false; }
-  return res, overflow;
+  return {res, overflow};
 }
 
 template <class UIntType>
@@ -28,7 +28,7 @@ std::pair<UIntType, bool> unsignedSubtractionHelper(UIntType a, UIntType b) {
   UIntType res = a - b;
   if (res > a) { underflow = true; }
   else { underflow = false; }
-  return res, underflow;
+  return {res, underflow};
 }
 
 static void timeToTimespec(struct timespec* reference, uint64_t time, struct timespec* spec) {
@@ -39,9 +39,9 @@ static void timeToTimespec(struct timespec* reference, uint64_t time, struct tim
   spec->tv_nsec = ns;
 }
 
-static uint64_t timespecToTime(struct timespace* reference, struct timespec* spec) {
-  auto [ns, underflow] = unsignedSubtraction<uint64_t>(spec->tv_nsec, reference->tv_nsec);
-  time_t s = spec->tv_s - reference->tv_s;
+static uint64_t timespecToTime(struct timespec* reference, struct timespec* spec) {
+  auto [ns, underflow] = unsignedSubtractionHelper<uint64_t>(spec->tv_nsec, reference->tv_nsec);
+  time_t s = spec->tv_sec - reference->tv_sec;
   if (underflow) {
     s -= 1;
   }
@@ -68,7 +68,7 @@ static void linuxSetThreadToHighPriority() {
 
 void LinuxPlatform::init() {
   // get reference time
-  clock_gettime(CLOCK_MONOTONIC, &reference);
+  clock_gettime(CLOCK_MONOTONIC, &referenceTime);
 
   timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
   this->watchFdIn(timerfd, &timerCallback, this);

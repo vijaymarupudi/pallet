@@ -1,30 +1,25 @@
 #pragma once
 
+#include <concepts>
 #include <cinttypes>
 #include "macros.hpp"
 
 namespace pallet {
-  PALLET_ALWAYS_INLINE uint64_t timeInS(uint64_t s) {
+
+  namespace detail {
+    template <class T>
+    concept TimeArgument = std::convertible_to<T, uint64_t>;
+  }
+
+  PALLET_ALWAYS_INLINE uint64_t timeInS(detail::TimeArgument auto s) {
     return s * 1000 * 1000;
   }
 
-  PALLET_ALWAYS_INLINE uint64_t timeInS(double s) {
-    return s * 1000 * 1000;
-  }
-
-  PALLET_ALWAYS_INLINE uint64_t timeInMs(uint64_t ms) {
+  PALLET_ALWAYS_INLINE uint64_t timeInMs(detail::TimeArgument auto ms) {
     return ms * 1000;
   }
 
-  PALLET_ALWAYS_INLINE uint64_t timeInMs(double ms) {
-    return ms * 1000;
-  }
-
-  PALLET_ALWAYS_INLINE uint64_t timeInUs(uint64_t us) {
-    return us;
-  }
-
-  PALLET_ALWAYS_INLINE uint64_t timeInUs(double us) {
+  PALLET_ALWAYS_INLINE uint64_t timeInUs(detail::TimeArgument auto us) {
     return us;
   }
 }

@@ -42,11 +42,11 @@ struct BeatClockMeanMeasurer {
 };
 
 static uint64_t bpmToBeatPeriod(double bpm) {
-  return 60.0 / bpm * 1000 * 1000;
+  return pallet::timeInS(60.0 / bpm);
 }
 
 static uint64_t bpmToPPQNPeriod(double bpm, int ppqn) {
-  return 60.0 / bpm / ppqn * 1000 * 1000;
+  return pallet::timeInS(60.0 / bpm / ppqn);
 }
 
 class BeatClockMeasurement {
@@ -132,7 +132,8 @@ public:
   int beatPhase = 0;
   uint64_t lastTickTime = 0;
 
-  void init(Clock* clock, BeatClockScheduler* scheduler) : clock(clock), scheduler(scheduler) {}
+  void init(Clock* clock, BeatClockScheduler* scheduler) : clock(clock), scheduler(scheduler) {
+  }
 
   void setOnTick(auto&& onTickCb,
                  auto&& onTickUserData) {
