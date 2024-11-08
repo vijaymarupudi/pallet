@@ -26,6 +26,7 @@ protected:
 #include <sys/resource.h>
 
 class LinuxPlatform : public Platform {
+  struct timespec referenceTime;
 public:
   int cpu_dma_latency_fd;
   int timerfd;

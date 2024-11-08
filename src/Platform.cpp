@@ -11,16 +11,41 @@
 #include <time.h>
 #include <sched.h>
 #include <cstring>
+#include "macros.hpp"
 
-static void timeToTimespec(uint64_t time, struct timespec* spec) {
-  time_t s = time / 1000000;
-  time_t ns = (time % 1000000) * 1000;
+template <class UIntType>
+std::pair<UIntType, bool> unsignedAdditionHelper(UIntType a, UIntType b) {
+  bool overflow;
+  UIntType res = a + b;
+  if (res < a) { overflow = true; }
+  else { overflow = false; }
+  return res, overflow;
+}
+
+template <class UIntType>
+std::pair<UIntType, bool> unsignedSubtractionHelper(UIntType a, UIntType b) {
+  bool underflow;
+  UIntType res = a - b;
+  if (res > a) { underflow = true; }
+  else { underflow = false; }
+  return res, underflow;
+}
+
+static void timeToTimespec(struct timespec* reference, uint64_t time, struct timespec* spec) {
+  time_t s = time / 1000000 + reference->tv_sec;
+  auto [ns, overflow] = unsignedAdditionHelper<uint64_t>((time % 1000000) * 1000, reference->tv_nsec);
+  if (overflow) { s += 1; }
   spec->tv_sec = s;
   spec->tv_nsec = ns;
 }
 
-static uint64_t timespecToTime(struct timespec* spec) {
-  return (spec->tv_sec * 1000000) + (spec->tv_nsec / 1000);
+static uint64_t timespecToTime(struct timespace* reference, struct timespec* spec) {
+  auto [ns, underflow] = unsignedSubtraction<uint64_t>(spec->tv_nsec, reference->tv_nsec);
+  time_t s = spec->tv_s - reference->tv_s;
+  if (underflow) {
+    s -= 1;
+  }
+  return (s * 1000000) + (ns / 1000);
 }
 
 static void timerCallback(int fd, void* data);
@@ -42,6 +67,9 @@ static void linuxSetThreadToHighPriority() {
 }
 
 void LinuxPlatform::init() {
+  // get reference time
+  clock_gettime(CLOCK_MONOTONIC, &reference);
+
   timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
   this->watchFdIn(timerfd, &timerCallback, this);
 
@@ -59,7 +87,7 @@ void LinuxPlatform::init() {
 uint64_t LinuxPlatform::currentTime() {
   struct timespec spec;
   clock_gettime(CLOCK_MONOTONIC, &spec);
-  return timespecToTime(&spec);
+  return timespecToTime(&this->referenceTime, &spec);
 }
 
 void LinuxPlatform::timer(uint64_t time) {
@@ -67,7 +95,7 @@ void LinuxPlatform::timer(uint64_t time) {
   struct timespec it_interval = {0};
   struct timespec it_value = {0};
   if (time != 0) {
-    timeToTimespec(time, &it_value);  
+    timeToTimespec(&this->referenceTime, time, &it_value);  
   }
   struct itimerspec its = {it_interval, it_value};
   timerfd_settime(this->timerfd, TFD_TIMER_ABSTIME, &its, nullptr);

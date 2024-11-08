@@ -2,6 +2,8 @@
 #include <array>
 #include <inttypes.h>
 #include "Clock.hpp"
+#include "utils.hpp"
+#include "BeatClockScheduler.hpp"
 
 template <class T, size_t maxLen>
 struct BeatClockMeanMeasurer {
@@ -39,9 +41,12 @@ struct BeatClockMeanMeasurer {
   }
 };
 
+static uint64_t bpmToBeatPeriod(double bpm) {
+  return 60.0 / bpm * 1000 * 1000;
+}
 
-uint64_t bpmTo24PPQNPeriod(double bpm) {
-  return 60 / (double)bpm / 24 * 1000 * 1000;
+static uint64_t bpmToPPQNPeriod(double bpm, int ppqn) {
+  return 60.0 / bpm / ppqn * 1000 * 1000;
 }
 
 class BeatClockMeasurement {
@@ -89,60 +94,170 @@ public:
   }
 };
 
-enum class BeatClockMode {
+struct BeatClockInfo {
+  double bpm;
+  int ppqn;
+  double beat;
+  double beatPhase;
+  uint64_t time;
+  uint64_t intended;
+};
+
+enum class BeatClockType {
   Internal,
   Midi
 };
 
-class BeatClock {
-  using BeatClockOnTickT = void(*)(uint64_t);
-  Clock* clock;
-  double bpm;
-  void uponTick(uint64_t time) {
-    
-  };
-  virtual setBPM(float bpm) = 0;
+enum class BeatClockTransportType {
+  Start,
+  Stop,
+  Continue
 };
 
-class BeatClockInternal : public BeatClock  {
-  Clock::id_type interval;
-  uint64_t intervalDuration;
-  double bpm;
+class BeatClockImplementationInterface {
+public:
+  using id_type = BeatClockScheduler::id_type;
+  CStyleCallback<BeatClockInfo*> onTickCallback;
+  CStyleCallback<BeatClockTransportType> onTransportCallback;
+  BeatClockScheduler* scheduler;
   Clock* clock;
-  void init(Clock* clock, double bpm) : clock(clock), bpm(bpm) {
-    intervalDuration = bpmTo24PPQNPeriod(bpm);
+
+  double bpm = 120;
+  int ppqn = 24;
+  uint64_t beatPeriod = 500000;
+  uint64_t ppqnPeriod = 20833;
+  double beat = 0;
+  int beatRef = 0; // integer component of beat
+  int tickCount = 0;
+  int beatPhase = 0;
+  uint64_t lastTickTime = 0;
+
+  void init(Clock* clock, BeatClockScheduler* scheduler) : clock(clock), scheduler(scheduler) {}
+
+  void setOnTick(auto&& onTickCb,
+                 auto&& onTickUserData) {
+    onTickCallback.set(onTickCb, onTickUserData);
+  }
+
+  void setOnTransport(auto&& onT, auto&& data) {
+    onTransportCallback.set(onT, data);
+  }
+
+  void uponTick(uint64_t time, uint64_t intended) {
+    BeatClockInfo info { bpm, ppqn, beat, beatPhase, time, intended };
+    onTickCallback.call(&info, this->onTickUserData);
+    tickCount += 1;
+    beatPhase += 1;
+    beat += 1.0/ppqn;
+    if (beatPhase % ppqn == 0) {
+      beatPhase = 0;
+      beatRef += 1;
+      beat = beatRef;
+    }
+  };
+
+  void uponTransport(BeatClockTransport transport) {
+    onTransportCallback.call(transport);
+  }
+  
+  virtual setBPM(double bpm) {
+    this->bpm = bpm;
+    this->beatPeriod = bpmToPeriod(this->bpm);
+    this->ppqnPeriod = bpmToPPQNPeriod(this->bpm, this->ppqn);
+  };
+
+  virtual setPPQN(int ppqn) {
+    this->ppqn = ppqn;
+    this->ppqnPeriod = bpmToPPQNPeriod(this->bpm, this->ppqn);
+  }
+};
+
+class BeatClockInternal : public BeatClockImplementationInterface  {
+public:
+  Clock::id_type interval;
+  bool running = false;
+  Clock* clock;
+
+  void init(Clock* clock) {
+    BeatClockImplementationInterface::init(clock);
+    this->setBPM(120);
+  }
+
+  void run() {
+    running = true;
     auto now = clock->currentTime();
     auto cb = [](ClockEventInfo* info, void* ud) {
       auto bc = ((BeatClockInternal*)ud);
-      bc->tick(info->intended);
+      bc->uponTick(info->now, info->intended);
     };
     this->interval = clock->setIntervalAbsolute(now,
-                                                intervalDuration,
+                                                beatPeriod,
                                                 cb,
                                                 this);
   }
 
-  void start()
-  
+  void stopRunning() {
+    running = false;
+    clock->clearInterval(interval);
+  }
+
+  void cleanup() {
+    if (running) {
+      running = false;
+      clock->clearInterval(interval);
+    }
+  }
+
+  virtual setBPM(double bpm) {
+    auto old = this->ppqnPeriod;
+    BeatClockImplementationInterface::setBPM(bpm);
+    if (old != this->ppqnPeriod) {
+      if (running) {
+        
+      }
+    }
+  }
+};
+
+class BeatClockMidi : public BeatClockImplementationInterface {
 };
 
 
-class BeatClockInterface {
-  Clock* clock;
-  BeatClockMeasurement measurement;
-  float internalBPM;
-  BeatClockMode mode;
+class BeatClock {
+  BeatClockType mode;
+  BeatClockImplementationInterface* implementation;
+  BeatClockInternal internalImplementation;
+  BeatClockMidi midiImplementation;
   
-
   void init(Clock* clock) {
     this->clock = clock;
-    mode = BeatClockMode::Internal;
-    internalBPM = 120;
+    mode = BeatClockType::Internal;
+    internalImplementation.init(clock);
+    midiImplementation.init(clock);
+    implementation = internalImplementation;
+  }
+
+  id_type setBeatSyncTimeout(double sync,
+                             double offset,
+                             BeatClockCbT callback,
+                             void* callbackUserData) {
+    return implementation->
+      scheduler->
+      setBeatSyncTimeout(sync, offset, callback, callbackUserData);
   }
   
-  
+  void clearBeatSyncTimeout(id_type id) {
+    return implementation->
+      scheduler->
+      clearBeatSyncTimeout(id);
+  }
 
+  void setBPM(double bpm) {
+    return implementation->setBPM(bpm);
+  }
+  
   void cleanup() {
-    
+    internalImplementation.cleanup();
+    midiImplementation.cleanup();
   }
 };

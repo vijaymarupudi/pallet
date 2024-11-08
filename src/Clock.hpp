@@ -7,6 +7,7 @@
 #include "StaticVector.hpp"
 #include "IdTable.hpp"
 #include "constants.hpp"
+#include "time.hpp"
 
 
 using ClockIdT = std::conditional_t<pallet::constants::isEmbeddedDevice,
