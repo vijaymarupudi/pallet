@@ -4,6 +4,7 @@
 #include "Clock.hpp"
 #include "utils.hpp"
 #include "BeatClockScheduler.hpp"
+#include "macros.hpp"
 
 template <class T, size_t maxLen>
 struct BeatClockMeanMeasurer {
@@ -41,11 +42,11 @@ struct BeatClockMeanMeasurer {
   }
 };
 
-static uint64_t bpmToBeatPeriod(double bpm) {
+constexpr PALLET_ALWAYS_INLINE uint64_t bpmToBeatPeriod(double bpm) {
   return pallet::timeInS(60.0 / bpm);
 }
 
-static uint64_t bpmToPPQNPeriod(double bpm, int ppqn) {
+constexpr PALLET_ALWAYS_INLINE uint64_t bpmToPPQNPeriod(double bpm, int ppqn) {
   return pallet::timeInS(60.0 / bpm / ppqn);
 }
 
@@ -124,8 +125,8 @@ public:
 
   double bpm = 120;
   int ppqn = 24;
-  uint64_t beatPeriod = 500000;
-  uint64_t ppqnPeriod = 20833;
+  uint64_t beatPeriod = bpmToBeatPeriod(120);
+  uint64_t ppqnPeriod = bpmToPPQNPeriod(120, 24);
   double beat = 0;
   int beatRef = 0; // integer component of beat
   int tickCount = 0;

@@ -11,15 +11,16 @@ namespace pallet {
     concept TimeArgument = std::convertible_to<T, uint64_t>;
   }
 
-  PALLET_ALWAYS_INLINE uint64_t timeInS(detail::TimeArgument auto s) {
+  constexpr PALLET_ALWAYS_INLINE uint64_t timeInS(detail::TimeArgument auto s) {
     return s * 1000 * 1000;
   }
 
-  PALLET_ALWAYS_INLINE uint64_t timeInMs(detail::TimeArgument auto ms) {
+  constexpr PALLET_ALWAYS_INLINE uint64_t timeInMs(detail::TimeArgument auto ms) {
     return ms * 1000;
   }
 
-  PALLET_ALWAYS_INLINE uint64_t timeInUs(detail::TimeArgument auto us) {
+  constexpr PALLET_ALWAYS_INLINE uint64_t timeInUs(detail::TimeArgument auto us) {
     return us;
   }
+
 }
