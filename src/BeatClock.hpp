@@ -5,6 +5,7 @@
 #include "utils.hpp"
 #include "BeatClockScheduler.hpp"
 #include "macros.hpp"
+#include "MidiInterface.hpp"
 
 template <class T, size_t maxLen>
 struct BeatClockMeanMeasurer {
@@ -99,7 +100,7 @@ struct BeatClockInfo {
   double bpm;
   int ppqn;
   double beat;
-  double beatPhase;
+  int beatPhase;
   uint64_t time;
   uint64_t intended;
 };
@@ -117,12 +118,14 @@ enum class BeatClockTransportType {
 
 class BeatClockImplementationInterface {
 public:
-  using id_type = BeatClockScheduler::id_type;
-  CStyleCallback<BeatClockInfo*> onTickCallback;
-  CStyleCallback<BeatClockTransportType> onTransportCallback;
-  BeatClockScheduler* scheduler;
+  pallet::CStyleCallback<BeatClockInfo*> onTickCallback;
+  pallet::CStyleCallback<BeatClockTransportType> onTransportCallback;
   Clock* clock;
+  bool active;
 
+  // Clock state info
+
+  // Update setStateFromOther if you add more state
   double bpm = 120;
   int ppqn = 24;
   uint64_t beatPeriod = bpmToBeatPeriod(120);
@@ -132,8 +135,23 @@ public:
   int tickCount = 0;
   int beatPhase = 0;
   uint64_t lastTickTime = 0;
+  uint64_t lastTickTimeIntended = 0;
 
-  void init(Clock* clock, BeatClockScheduler* scheduler) : clock(clock), scheduler(scheduler) {
+  void init(Clock* clock) {
+    this->clock = clock;
+  }
+
+  void setStateFromOther(BeatClockImplementationInterface& other) {
+    this->bpm = other.bpm;
+    this->ppqn = other.ppqn;
+    this->beatPeriod = other.beatPeriod;
+    this->ppqnPeriod = other.ppqnPeriod;
+    this->beat = other.beat;
+    this->beatRef = other.beatRef; // integer component of beat
+    this->tickCount = other.tickCount;
+    this->beatPhase = other.beatPhase;
+    this->lastTickTime = other.lastTickTime;
+    this->lastTickTimeIntended = other.lastTickTimeIntended;
   }
 
   void setOnTick(auto&& onTickCb,
@@ -146,11 +164,20 @@ public:
   }
 
   void uponTick(uint64_t time, uint64_t intended) {
-    BeatClockInfo info { bpm, ppqn, beat, beatPhase, time, intended };
-    onTickCallback.call(&info, this->onTickUserData);
+    BeatClockInfo info {
+      this->bpm,
+      this->ppqn,
+      this->beat,
+      this->beatPhase,
+      time,
+      intended
+    };
+    onTickCallback.call(&info);
     tickCount += 1;
     beatPhase += 1;
     beat += 1.0/ppqn;
+    lastTickTime = time;
+    lastTickTimeIntended = intended;
     if (beatPhase % ppqn == 0) {
       beatPhase = 0;
       beatRef += 1;
@@ -158,23 +185,28 @@ public:
     }
   };
 
-  void uponTransport(BeatClockTransport transport) {
+  void uponTransport(BeatClockTransportType transport) {
     onTransportCallback.call(transport);
   }
   
-  virtual setBPM(double bpm) {
+  virtual void setBPM(double bpm) {
     this->bpm = bpm;
-    this->beatPeriod = bpmToPeriod(this->bpm);
+    this->beatPeriod = bpmToBeatPeriod(this->bpm);
     this->ppqnPeriod = bpmToPPQNPeriod(this->bpm, this->ppqn);
   };
 
-  virtual setPPQN(int ppqn) {
+  virtual void setPPQN(int ppqn) {
     this->ppqn = ppqn;
     this->ppqnPeriod = bpmToPPQNPeriod(this->bpm, this->ppqn);
   }
+
+  virtual void setActive(bool activeState) {
+    this->active = activeState;
+  }
+
 };
 
-class BeatClockInternal : public BeatClockImplementationInterface  {
+class BeatClockInternalImplementation : public BeatClockImplementationInterface  {
 public:
   Clock::id_type interval;
   bool running = false;
@@ -182,14 +214,16 @@ public:
 
   void init(Clock* clock) {
     BeatClockImplementationInterface::init(clock);
-    this->setBPM(120);
   }
 
   void run() {
     running = true;
+  }
+
+  void runClockIfNecessary() {
     auto now = clock->currentTime();
     auto cb = [](ClockEventInfo* info, void* ud) {
-      auto bc = ((BeatClockInternal*)ud);
+      auto bc = ((BeatClockInternalImplementation*)ud);
       bc->uponTick(info->now, info->intended);
     };
     this->interval = clock->setIntervalAbsolute(now,
@@ -210,7 +244,7 @@ public:
     }
   }
 
-  virtual setBPM(double bpm) {
+  virtual void setBPM(double bpm) {
     auto old = this->ppqnPeriod;
     BeatClockImplementationInterface::setBPM(bpm);
     if (old != this->ppqnPeriod) {
@@ -221,36 +255,106 @@ public:
   }
 };
 
-class BeatClockMidi : public BeatClockImplementationInterface {
+class BeatClockInternalSchedulerInformationInterface : public BeatClockSchedulerInformationInterface {
+  BeatClockInternalImplementation* bc;
+  void init(BeatClockInternalImplementation* bc) {
+    this->bc = bc;
+  }
+  virtual double getCurrentBeat() {
+    auto beatPeriod = bc->beatPeriod;
+    auto now = bc->clock->currentTime();
+    auto timeSinceLastTick = now - bc->lastTickTimeIntended;
+    return bc->beat + timeSinceLastTick / beatPeriod;
+  };
+  virtual double getCurrentBeatPeriod() {
+    return bc->beatPeriod;
+  };
+  virtual int getCurrentPPQN() {
+    return bc->ppqn;
+  };
 };
 
+class BeatClockMidiImplementation : public BeatClockImplementationInterface {
+public:
+  MidiInterface* mface;
+  void init(Clock* clock,
+            MidiInterface* mface) {
+    BeatClockImplementationInterface::init(clock);
+    this->mface = mface;
+  }
+
+  void cleanup() {
+    
+  }
+};
+
+class BeatClockMidiSchedulerInformationInterface : public BeatClockSchedulerInformationInterface {
+  BeatClockMidiImplementation* bc;
+  void init(BeatClockMidiImplementation* bc) {
+    this->bc = bc;
+  }
+  virtual double getCurrentBeat() {
+    auto beatPeriod = bc->beatPeriod;
+    auto now = bc->clock->currentTime();
+    auto timeSinceLastTick = now - bc->lastTickTime;
+    return bc->beat + timeSinceLastTick / beatPeriod;
+  };
+  virtual double getCurrentBeatPeriod() {
+    return bc->beatPeriod;
+  };
+  virtual int getCurrentPPQN() {
+    return bc->ppqn;
+  };
+};
 
 class BeatClock {
+public:
+  using id_type = BeatClockScheduler::id_type;
+  Clock* clock;
   BeatClockType mode;
-  BeatClockImplementationInterface* implementation;
-  BeatClockInternal internalImplementation;
-  BeatClockMidi midiImplementation;
+  BeatClockImplementationInterface* implementation = nullptr;
+  BeatClockScheduler scheduler;
+  BeatClockInternalImplementation internalImplementation;
+  BeatClockInternalSchedulerInformationInterface internalScheduleInfo;
+  BeatClockMidiImplementation midiImplementation;
+  BeatClockMidiSchedulerInformationInterface midiScheduleInfo;
   
-  void init(Clock* clock) {
+  void init(Clock* clock, MidiInterface* midiInterface) {
     this->clock = clock;
-    mode = BeatClockType::Internal;
+    this->implementation = nullptr;
     internalImplementation.init(clock);
-    midiImplementation.init(clock);
-    implementation = internalImplementation;
+    midiImplementation.init(clock, midiInterface);
+  }
+
+  void setClockSource(BeatClockType mode) {
+    auto oldImplementation = implementation;
+    this->mode = mode;
+    switch (mode) {
+    case BeatClockType::Internal:
+      implementation = &internalImplementation;
+      break;
+    case BeatClockType::Midi:
+      implementation = &midiImplementation;
+      break;
+    }
+    if (oldImplementation) {
+      // we're switching clocks
+      oldImplementation->setActive(false);
+      implementation->setStateFromOther(*oldImplementation);
+      implementation->setActive(true);
+    }
   }
 
   id_type setBeatSyncTimeout(double sync,
                              double offset,
                              BeatClockCbT callback,
                              void* callbackUserData) {
-    return implementation->
-      scheduler->
+    return scheduler.
       setBeatSyncTimeout(sync, offset, callback, callbackUserData);
   }
   
   void clearBeatSyncTimeout(id_type id) {
-    return implementation->
-      scheduler->
+    return scheduler.
       clearBeatSyncTimeout(id);
   }
 

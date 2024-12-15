@@ -13,7 +13,7 @@ namespace pallet {
       this->data = data;
     }
 
-    template <class CallArguments>
+    template <class ...CallArguments>
     void call(CallArguments... args) {
       if (this->ptr) {
         this->ptr(std::forward<CallArguments>(args)..., this->data);  

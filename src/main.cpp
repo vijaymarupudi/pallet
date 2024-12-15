@@ -9,7 +9,7 @@
 #include "RtMidi.h"
 #include "lua.hpp"
 #include "Clock.hpp"
-// #include "BeatClock.hpp"
+#include "BeatClock.hpp"
 #include "GridInterface.hpp"
 #include "LuaInterface.hpp"
 #include "MidiInterface.hpp"
@@ -75,16 +75,16 @@ int main() {
   midiInterface.init(&platform);
   // midiInterface.monitor();
 
-  MidiParser parser;
-  parser.noteOn([](int chan, int note, int vel) {
-    char buf[1024];
-    snprintf(buf, 1024, "r%dn%dl%fZ", chan, note, vel ? 1.0 : 0.0);
-    amy_play_message(buf);
-  });
+  // MidiParser parser;
+  // parser.noteOn([](int chan, int note, int vel) {
+  //   char buf[1024];
+  //   snprintf(buf, 1024, "r%dn%dl%fZ", chan, note, vel ? 1.0 : 0.0);
+  //   amy_play_message(buf);
+  // });
 
-  midiInterface.setOnMidi([](uint64_t time, const unsigned char* buf, size_t len, void* ud) {
-    ((MidiParser*)ud)->uponMidi(buf, len);
-  }, &parser);
+  // midiInterface.setOnMidi([](uint64_t time, const unsigned char* buf, size_t len, void* ud) {
+  //   ((MidiParser*)ud)->uponMidi(buf, len);
+  // }, &parser);
 
 
   platform.setFdNonBlocking(0);
@@ -96,26 +96,29 @@ int main() {
 
   amy_reset_oscs();
 
-  LinuxMonomeGridInterface gridInterface;
+  // LinuxMonomeGridInterface gridInterface;
 
-  gridInterface.init(&platform);
-  gridInterface.connect();
+  // gridInterface.init(&platform);
+  // gridInterface.connect();
 
-  gridInterface.setOnKey([](int x, int y, int z, void* ud) {
-    auto gi = (LinuxMonomeGridInterface*)ud;
-    gi->clear();
-    int note = scale(x + y * 16) % 128;
-    char buf[1024];
-    if (z == 1) {
-      snprintf(buf, 1024, "r0n%dl1Z", note);
-      gi->led(x, y, z * 15);
-    } else {
-      snprintf(buf, 1024, "r0dl0Z");
-      gi->led(x, y, z * 15);
-    }
-    amy_play_message(buf);
-    gi->render();
-  }, &gridInterface);
+  // gridInterface.setOnKey([](int x, int y, int z, void* ud) {
+  //   auto gi = (LinuxMonomeGridInterface*)ud;
+  //   gi->clear();
+  //   int note = scale(x + y * 16) % 128;
+  //   char buf[1024];
+  //   if (z == 1) {
+  //     snprintf(buf, 1024, "r0n%dl1Z", note);
+  //     gi->led(x, y, z * 15);
+  //   } else {
+  //     snprintf(buf, 1024, "r0dl0Z");
+  //     gi->led(x, y, z * 15);
+  //   }
+  //   amy_play_message(buf);
+  //   gi->render();
+  // }, &gridInterface);
+
+  BeatClock beatClock;
+  beatClock.init(&clock, nullptr);
 
   while (1) {
     platform.loopIter();

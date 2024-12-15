@@ -10,7 +10,7 @@ int main()
   
 {
 
-  Wow var;
+  // Wow var;
   return 0;
 
 
