@@ -21,6 +21,7 @@ struct BeatClockEventInfo {
 
 
 class BeatClockSchedulerInformationInterface {
+public:
   virtual double getCurrentBeat() = 0;
   virtual double getCurrentBeatPeriod() = 0;
   virtual int getCurrentPPQN() = 0;
@@ -49,7 +50,11 @@ private:
   IdTable<BeatClockEvent, ContainerType, id_type> idTable;
   BeatClockSchedulerInformationInterface* beatInfo;
 public:
-  void init(BeatClockSchedulerInformationInterface* beatInfo);
+  bool clockTimeoutStatus = false;
+  Clock::id_type clockTimeoutId;
+  Clock* clock;
+  // public
+  void init(Clock* clock, BeatClockSchedulerInformationInterface* beatInfo);
   id_type setBeatTimeout(double duration,
                          BeatClockCbT callback,
                          void* callbackUserData);
@@ -63,6 +68,10 @@ public:
   id_type setBeatInterval(double period,
                           BeatClockCbT callback,
                           void* callbackUserData);
+  id_type setBeatSyncInterval(double sync,
+                              double offset,
+                              BeatClockCbT callback,
+                              void* callbackUserData); 
   id_type setBeatIntervalAbsolute(double goal,
                                   double period,
                                   BeatClockCbT callback,
@@ -71,10 +80,14 @@ public:
   void* getBeatTimeoutUserData(id_type id);
   void clearBeatSyncTimeout(id_type id);
   void clearBeatInterval(id_type id);
-  
-private:
+
+  // private
   void processEvent(BeatClockScheduler::id_type id, double now, double goal);
   void updateWaitingTime();
   void process();
+  void timer(uint64_t time);
+  void processSoon();
+  uint64_t targetBeatTime(double, double);
+  void uponTick();
 };
 

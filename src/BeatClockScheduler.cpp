@@ -1,5 +1,3 @@
-#pragma once
-
 #include "BeatClockScheduler.hpp"
 #include <cmath>
 
@@ -10,18 +8,21 @@ static void beatClockSchedulerCallback(ClockEventInfo* info, void* ud) {
   ((BeatClockScheduler*)ud)->process();
 }
 
-static double beatClockSchedulerNextSyncedBeat(double clock_beat, double sync, double offset) {
+static double beatClockSchedulerNextSyncedBeat(double clockBeat, double sync, double offset) {
     double nextBeat;
     nextBeat = ceil(clockBeat / sync + 0.000001) * sync;
     nextBeat = nextBeat + offset;
 
-    while (nextBeat < clock_beat + 0.000001) {
+    while (nextBeat < clockBeat + 0.000001) {
         nextBeat += sync;
     }
     return fmax(nextBeat, 0);
 }
 
-void BeatClockScheduler::init(BeatClockSchedulerInformationInterface* beatInfo) : beatInfo(beatInfo) {}
+void BeatClockScheduler::init(Clock* clock, BeatClockSchedulerInformationInterface* beatInfo) {
+  this->clock = clock;
+  this->beatInfo = beatInfo;
+}
 
 void BeatClockScheduler::timer(uint64_t time) {
 
@@ -53,7 +54,7 @@ void BeatClockScheduler::processSoon() {
 BeatClockScheduler::id_type BeatClockScheduler::setBeatTimeout(double duration,
                                                                BeatClockCbT callback,
                                                                void* callbackUserData) {
-  auto now = this->currentBeat();
+  auto now = this->beatInfo->getCurrentBeat();
   auto goal = now + duration;
   return setBeatTimeoutAbsolute(goal, callback, callbackUserData);
 }
@@ -104,7 +105,7 @@ BeatClockScheduler::id_type BeatClockScheduler::setBeatSyncInterval(double sync,
                                                                     void* callbackUserData){
   auto now = this->beatInfo->getCurrentBeat();
   auto goal = beatClockSchedulerNextSyncedBeat(now, sync, offset);
-  setBeatTimeoutAbsolute(goal, callback, callbackUserData);
+  return setBeatTimeoutAbsolute(goal, callback, callbackUserData);
 }
 
 void BeatClockScheduler::clearBeatTimeout(BeatClockScheduler::id_type id) {
@@ -154,13 +155,13 @@ void BeatClockScheduler::updateWaitingTime() {
     this->timer(0);
     return;
   }
-  auto [tbeat, tevent] = queue.top();
+  const auto& [tbeat, tevent] = queue.top();
 
   /*
     If more than a tick away, do nothing
   */
 
-  double tickDurationBeats = 1 / currentPPQN;
+  double tickDurationBeats = 1.0 / this->beatInfo->getCurrentPPQN();
 
   double currentBeat = this->beatInfo->getCurrentBeat();
 
@@ -180,7 +181,7 @@ void BeatClockScheduler::updateWaitingTime() {
   this->timer(goal);
 }
 
-void BeatClockScheduler::targetBeatTime(double currentBeat, double targetBeat) {
+uint64_t BeatClockScheduler::targetBeatTime(double currentBeat, double targetBeat) {
   auto diff = targetBeat - currentBeat;
   double beatPeriod = this->beatInfo->getCurrentBeatPeriod();
   uint64_t targetTime = clock->currentTime() + diff * beatPeriod;

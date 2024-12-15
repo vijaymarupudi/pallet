@@ -33,7 +33,7 @@ struct BeatClockMeanMeasurer {
         total += measurements[i] / len;
       }
     }
-    
+
     return total;
   }
 
@@ -57,7 +57,7 @@ public:
   BeatClockMeanMeasurer<FloatingPoint, 32> measurer;
   FloatingPoint phase = 0;
   int phaseCounter = 0;
- 
+
   FloatingPoint timePerBeat = 0.5;
   int ppqn = 24;
   uint64_t prev = 0;
@@ -65,13 +65,13 @@ public:
   void tick(uint64_t time) {
     if (prev == 0) {
       prev = time;
-      return; 
+      return;
     }
     uint64_t diff = time - prev;
     measurer.addSample(diff);
     timePerBeat = measurer.mean() * ppqn;
     prev = time;
-    
+
     phase = (phase + 1.0/ppqn);
     phaseCounter = phaseCounter + 1;
     if (phaseCounter == ppqn) {
@@ -188,7 +188,7 @@ public:
   void uponTransport(BeatClockTransportType transport) {
     onTransportCallback.call(transport);
   }
-  
+
   virtual void setBPM(double bpm) {
     this->bpm = bpm;
     this->beatPeriod = bpmToBeatPeriod(this->bpm);
@@ -249,13 +249,14 @@ public:
     BeatClockImplementationInterface::setBPM(bpm);
     if (old != this->ppqnPeriod) {
       if (running) {
-        
+
       }
     }
   }
 };
 
 class BeatClockInternalSchedulerInformationInterface : public BeatClockSchedulerInformationInterface {
+public:
   BeatClockInternalImplementation* bc;
   void init(BeatClockInternalImplementation* bc) {
     this->bc = bc;
@@ -284,11 +285,12 @@ public:
   }
 
   void cleanup() {
-    
+
   }
 };
 
 class BeatClockMidiSchedulerInformationInterface : public BeatClockSchedulerInformationInterface {
+public:
   BeatClockMidiImplementation* bc;
   void init(BeatClockMidiImplementation* bc) {
     this->bc = bc;
@@ -310,20 +312,32 @@ class BeatClockMidiSchedulerInformationInterface : public BeatClockSchedulerInfo
 class BeatClock {
 public:
   using id_type = BeatClockScheduler::id_type;
+
   Clock* clock;
+  BeatClockScheduler scheduler;
+
+
   BeatClockType mode;
   BeatClockImplementationInterface* implementation = nullptr;
-  BeatClockScheduler scheduler;
+
   BeatClockInternalImplementation internalImplementation;
   BeatClockInternalSchedulerInformationInterface internalScheduleInfo;
+
   BeatClockMidiImplementation midiImplementation;
   BeatClockMidiSchedulerInformationInterface midiScheduleInfo;
-  
+
   void init(Clock* clock, MidiInterface* midiInterface) {
     this->clock = clock;
     this->implementation = nullptr;
+
     internalImplementation.init(clock);
+    internalScheduleInfo.init(&internalImplementation);
     midiImplementation.init(clock, midiInterface);
+    midiScheduleInfo.init(&midiImplementation);
+
+    this->scheduler.init(clock, &internalScheduleInfo);
+
+    this->setClockSource(BeatClockType::Internal);
   }
 
   void setClockSource(BeatClockType mode) {
@@ -332,6 +346,7 @@ public:
     switch (mode) {
     case BeatClockType::Internal:
       implementation = &internalImplementation;
+
       break;
     case BeatClockType::Midi:
       implementation = &midiImplementation;
@@ -352,7 +367,7 @@ public:
     return scheduler.
       setBeatSyncTimeout(sync, offset, callback, callbackUserData);
   }
-  
+
   void clearBeatSyncTimeout(id_type id) {
     return scheduler.
       clearBeatSyncTimeout(id);
@@ -361,7 +376,7 @@ public:
   void setBPM(double bpm) {
     return implementation->setBPM(bpm);
   }
-  
+
   void cleanup() {
     internalImplementation.cleanup();
     midiImplementation.cleanup();
