@@ -336,8 +336,10 @@ public:
     midiScheduleInfo.init(&midiImplementation);
 
     this->scheduler.init(clock, &internalScheduleInfo);
-
+    
     this->setClockSource(BeatClockType::Internal);
+
+    
   }
 
   void setClockSource(BeatClockType mode) {
@@ -357,6 +359,16 @@ public:
       oldImplementation->setActive(false);
       implementation->setStateFromOther(*oldImplementation);
       implementation->setActive(true);
+    }
+
+    // switch the beat info of the scheduler
+    switch(mode) {
+    case BeatClockType::Internal:
+      scheduler.setBeatInfo(&internalScheduleInfo);
+      break;
+    case BeatClockType::Midi:
+      scheduler.setBeatInfo(&midiScheduleInfo);
+      break;
     }
   }
 

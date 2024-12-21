@@ -55,6 +55,7 @@ public:
   Clock* clock;
   // public
   void init(Clock* clock, BeatClockSchedulerInformationInterface* beatInfo);
+  void setBeatInfo(BeatClockSchedulerInformationInterface* beatInfo) { this->beatInfo = beatInfo; }
   id_type setBeatTimeout(double duration,
                          BeatClockCbT callback,
                          void* callbackUserData);
