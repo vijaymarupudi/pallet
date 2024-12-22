@@ -225,7 +225,7 @@ public:
       this->startTickInterval(now);
     } else {
       // not running
-      clock->clearInterval(interval);
+      clock->clearInterval(this->interval);
     }
   }
 

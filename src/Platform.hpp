@@ -12,7 +12,7 @@ protected:
   }
   // should be thread safe!
   virtual uint64_t currentTime() = 0;
-  virtual void timer(uint64_t time) = 0;
+  virtual void timer(uint64_t time, bool off = false) = 0;
 };
 
 #if PALLET_CONSTANTS_PLATFORM == PALLET_CONSTANTS_PLATFORM_LINUX
@@ -34,7 +34,7 @@ public:
   std::map<int, std::tuple<int, void(*)(int, void*), void*>> fdCallbacks;
   void init();
   virtual uint64_t currentTime() override;
-  virtual void timer(uint64_t time) override;
+  virtual void timer(uint64_t time, bool off = false) override;
   void uponTimer();
   void watchFdIn(int fd, void (*callback)(int, void*), void* userData);
   void removeFd(int fd);

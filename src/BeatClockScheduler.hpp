@@ -86,7 +86,7 @@ public:
   void processEvent(BeatClockScheduler::id_type id, double now, double goal);
   void updateWaitingTime();
   void process();
-  void timer(uint64_t time);
+  void timer(uint64_t time, bool off = false);
   void processSoon();
   uint64_t targetBeatTime(double, double);
   void uponTick();

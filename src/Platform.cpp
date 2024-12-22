@@ -13,11 +13,23 @@
 #include <cstring>
 #include "macros.hpp"
 
+// template <class UIntType>
+// std::pair<UIntType, bool> unsignedAdditionHelper(UIntType a, UIntType b) {
+//   bool overflow;
+//   UIntType res = a + b;
+//   if (res < a) { overflow = true; }
+//   else { overflow = false; }
+//   return {res, overflow};
+// }
+
 template <class UIntType>
-std::pair<UIntType, bool> unsignedAdditionHelper(UIntType a, UIntType b) {
+std::pair<UIntType, bool> nanosecondAdditionHelper(UIntType a, UIntType b) {
   bool overflow;
   UIntType res = a + b;
-  if (res < a) { overflow = true; }
+  if (res > 1000000000) {
+    overflow = true;
+    res = res - 1000000000;
+  }
   else { overflow = false; }
   return {res, overflow};
 }
@@ -33,7 +45,8 @@ std::pair<UIntType, bool> unsignedSubtractionHelper(UIntType a, UIntType b) {
 
 static void timeToTimespec(struct timespec* reference, uint64_t time, struct timespec* spec) {
   time_t s = time / 1000000 + reference->tv_sec;
-  auto [ns, overflow] = unsignedAdditionHelper<uint64_t>((time % 1000000) * 1000, reference->tv_nsec);
+
+  auto [ns, overflow] = nanosecondAdditionHelper<uint64_t>((time % 1000000) * 1000, reference->tv_nsec);
   if (overflow) { s += 1; }
   spec->tv_sec = s;
   spec->tv_nsec = ns;
@@ -90,13 +103,14 @@ uint64_t LinuxPlatform::currentTime() {
   return timespecToTime(&this->referenceTime, &spec);
 }
 
-void LinuxPlatform::timer(uint64_t time) {
-  // 0 to disarm
+void LinuxPlatform::timer(uint64_t time, bool off) {
+  // if off = true, turn off
   struct timespec it_interval = {0};
   struct timespec it_value = {0};
-  if (time != 0) {
-    timeToTimespec(&this->referenceTime, time, &it_value);  
+  if (!off) {
+    timeToTimespec(&this->referenceTime, time, &it_value);
   }
+
   struct itimerspec its = {it_interval, it_value};
   timerfd_settime(this->timerfd, TFD_TIMER_ABSTIME, &its, nullptr);
 }

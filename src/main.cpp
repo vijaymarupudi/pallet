@@ -120,6 +120,10 @@ int main() {
   BeatClock beatClock;
   beatClock.init(&clock, nullptr);
 
+  beatClock.setBeatSyncTimeout(1, 0, [](BeatClockEventInfo* info, void* ud) {
+    printf("here\n");
+  }, nullptr);
+
   while (1) {
     platform.loopIter();
   }

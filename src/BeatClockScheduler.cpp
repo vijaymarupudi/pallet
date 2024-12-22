@@ -24,15 +24,16 @@ void BeatClockScheduler::init(Clock* clock, BeatClockSchedulerInformationInterfa
   this->beatInfo = beatInfo;
 }
 
-void BeatClockScheduler::timer(uint64_t time) {
+void BeatClockScheduler::timer(uint64_t time, bool off) {
 
   if (clockTimeoutStatus) {
     clock->clearTimeout(clockTimeoutId);
     clockTimeoutStatus = false;
   }
   
-  // 0, turn off
-  if (time == 0) {
+
+  // turn off
+  if (off) {
     return;
   }
 
@@ -152,7 +153,7 @@ void BeatClockScheduler::processEvent(BeatClockScheduler::id_type id, double now
 
 void BeatClockScheduler::updateWaitingTime() {
   if (queue.size() == 0) {
-    this->timer(0);
+    this->timer(0, true);
     return;
   }
   const auto& [tbeat, tevent] = queue.top();
@@ -166,7 +167,7 @@ void BeatClockScheduler::updateWaitingTime() {
   double currentBeat = this->beatInfo->getCurrentBeat();
 
   if (currentBeat + tickDurationBeats < tbeat) {
-    this->timer(0);
+    this->timer(0, true);
     return;
   }
 
