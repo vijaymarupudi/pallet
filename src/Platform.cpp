@@ -66,8 +66,10 @@ std::pair<UIntType, bool> nanosecondSubtractionHelper(UIntType a, UIntType b) {
 
 
 static void timeToTimespec(struct timespec* reference, uint64_t time, struct timespec* spec) {
-  time_t s = time / 1000000 + reference->tv_sec;
-  auto [ns, overflow] = nanosecondAdditionHelper<uint64_t>((time % 1000000) * 1000, reference->tv_nsec);
+  auto sSince = time / 1000000000;
+  auto nsSince = (time % 1000000000);
+  time_t s = sSince + reference->tv_sec;
+  auto [ns, overflow] = nanosecondAdditionHelper<uint64_t>(nsSince, reference->tv_nsec);
   if (overflow) { s += 1; }
   spec->tv_sec = s;
   spec->tv_nsec = ns;
@@ -79,7 +81,7 @@ static uint64_t timespecToTime(struct timespec* reference, struct timespec* spec
   if (underflow) {
     s -= 1;
   }
-  return (s * 1000000) + (ns / 1000);
+  return (s * 1000000000) + ns;
 }
 
 static void timerCallback(int fd, void* data);

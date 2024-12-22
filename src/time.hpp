@@ -12,15 +12,15 @@ namespace pallet {
   }
 
   constexpr PALLET_ALWAYS_INLINE uint64_t timeInS(detail::TimeArgument auto s) {
-    return s * 1000 * 1000;
+    return s * 1000 * 1000 * 1000;
   }
 
   constexpr PALLET_ALWAYS_INLINE uint64_t timeInMs(detail::TimeArgument auto ms) {
-    return ms * 1000;
+    return ms * 1000 * 1000;
   }
 
   constexpr PALLET_ALWAYS_INLINE uint64_t timeInUs(detail::TimeArgument auto us) {
-    return us;
+    return us * 1000;
   }
 
 }
