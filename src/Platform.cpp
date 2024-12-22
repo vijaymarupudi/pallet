@@ -13,7 +13,9 @@
 #include <cstring>
 #include "macros.hpp"
 
-// Perhaps buggy
+
+// Most likely buggy
+
 // template <class UIntType>
 // std::pair<UIntType, bool> unsignedAdditionHelper(UIntType a, UIntType b) {
 //   bool overflow;
@@ -22,6 +24,19 @@
 //   else { overflow = false; }
 //   return {res, overflow};
 // }
+
+// template <class UIntType>
+// std::pair<UIntType, bool> unsignedSubtractionHelper(UIntType a, UIntType b) {
+//   bool underflow;
+//   UIntType res = a - b;
+//   if (res > a) {
+//     underflow = true;
+
+//   }
+//   else { underflow = false; }
+//   return {res, underflow};
+// }
+
 
 template <class UIntType>
 std::pair<UIntType, bool> nanosecondAdditionHelper(UIntType a, UIntType b) {
@@ -49,21 +64,9 @@ std::pair<UIntType, bool> nanosecondSubtractionHelper(UIntType a, UIntType b) {
   return {res, underflow};
 }
 
-// template <class UIntType>
-// std::pair<UIntType, bool> unsignedSubtractionHelper(UIntType a, UIntType b) {
-//   bool underflow;
-//   UIntType res = a - b;
-//   if (res > a) {
-//     underflow = true;
-
-//   }
-//   else { underflow = false; }
-//   return {res, underflow};
-// }
 
 static void timeToTimespec(struct timespec* reference, uint64_t time, struct timespec* spec) {
   time_t s = time / 1000000 + reference->tv_sec;
-
   auto [ns, overflow] = nanosecondAdditionHelper<uint64_t>((time % 1000000) * 1000, reference->tv_nsec);
   if (overflow) { s += 1; }
   spec->tv_sec = s;

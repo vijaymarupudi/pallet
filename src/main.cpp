@@ -120,8 +120,8 @@ int main() {
   BeatClock beatClock;
   beatClock.init(&clock, nullptr);
 
-  beatClock.setBeatSyncTimeout(1, 0, [](BeatClockEventInfo* info, void* ud) {
-    printf("here\n");
+  beatClock.setBeatSyncInterval(1, 0, 1.0/64, [](BeatClockEventInfo* info, void* ud) {
+    printf("%f, %f\n", info->now, info->intended);
   }, nullptr);
 
   while (1) {

@@ -38,3 +38,6 @@ target_include_directories(main PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(test src/test.cpp)
 set_property(TARGET test PROPERTY CXX_STANDARD 23)
+
+# add_compile_options(-fsanitize=address)
+# add_link_options(-fsanitize=address)

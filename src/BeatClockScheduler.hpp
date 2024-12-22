@@ -71,6 +71,7 @@ public:
                           void* callbackUserData);
   id_type setBeatSyncInterval(double sync,
                               double offset,
+                              double period,
                               BeatClockCbT callback,
                               void* callbackUserData); 
   id_type setBeatIntervalAbsolute(double goal,

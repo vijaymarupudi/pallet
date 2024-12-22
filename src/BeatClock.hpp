@@ -165,6 +165,7 @@ public:
   }
 
   void uponTick(uint64_t time, uint64_t intended) {
+    // printf("BeatClock::uponTick() | tick: %lu, intended: %lu, beat: %f\n", time, intended, beat);
     BeatClockInfo info {
       this->bpm,
       this->ppqn,
@@ -235,6 +236,7 @@ private:
       auto bc = ((BeatClockInternalImplementation*)ud);
       bc->uponTick(info->now, info->intended);
     };
+    this->lastTickTimeIntended = startTime;
     this->interval = clock->setIntervalAbsolute(startTime,
                                                 this->ppqnPeriod,
                                                 cb,
@@ -255,12 +257,12 @@ public:
       if (this->running) {
         clock->clearInterval(this->interval);
 
-        auto lastTickTime = this->lastTickTime;
+        auto lastTickTimeIntended = this->lastTickTimeIntended;
         auto now = clock->currentTime();
 
         uint64_t startTime;
-        if (lastTickTime + this->ppqnPeriod >= now) {
-          startTime = lastTickTime + this->ppqnPeriod;
+        if (lastTickTimeIntended + this->ppqnPeriod >= now) {
+          startTime = lastTickTimeIntended + this->ppqnPeriod;
         } else {
           startTime = now;
         }
@@ -281,8 +283,11 @@ public:
   virtual double getCurrentBeat() {
     auto beatPeriod = bc->beatPeriod;
     auto now = bc->clock->currentTime();
-    auto timeSinceLastTick = now - bc->lastTickTimeIntended;
-    return bc->beat + timeSinceLastTick / beatPeriod;
+    auto timeSinceLastTickIntended = now - bc->lastTickTimeIntended;
+    double b = bc->beat + (double)timeSinceLastTickIntended / (double)beatPeriod;
+    // printf("timeSinceLastTickIntended: %lu, beat: %f, current beat: %f %f\n", timeSinceLastTickIntended,
+    //        bc->beat, b, (double)timeSinceLastTickIntended / (double)beatPeriod);
+    return b;
   };
   virtual double getCurrentBeatPeriod() {
     return bc->beatPeriod;
@@ -315,8 +320,8 @@ public:
   virtual double getCurrentBeat() {
     auto beatPeriod = bc->beatPeriod;
     auto now = bc->clock->currentTime();
-    auto timeSinceLastTick = now - bc->lastTickTime;
-    return bc->beat + timeSinceLastTick / beatPeriod;
+    auto timeSinceLastTickIntended = now - bc->lastTickTimeIntended;
+    return bc->beat + timeSinceLastTickIntended / beatPeriod;
   };
   virtual double getCurrentBeatPeriod() {
     return bc->beatPeriod;
@@ -398,9 +403,18 @@ public:
   id_type setBeatSyncTimeout(double sync,
                              double offset,
                              BeatClockCbT callback,
-                             void* callbackUserData) {
+                             void* callbackUserData){
     return scheduler.
       setBeatSyncTimeout(sync, offset, callback, callbackUserData);
+  }
+
+  id_type setBeatSyncInterval(double sync,
+                              double offset,
+                              double period,
+                              BeatClockCbT callback,
+                              void* callbackUserData)  {
+    return scheduler.
+      setBeatSyncInterval(sync, offset, period, callback, callbackUserData);
   }
 
   void clearBeatSyncTimeout(id_type id) {

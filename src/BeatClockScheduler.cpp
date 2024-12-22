@@ -102,11 +102,12 @@ BeatClockScheduler::id_type BeatClockScheduler::setBeatIntervalAbsolute(double g
 
 BeatClockScheduler::id_type BeatClockScheduler::setBeatSyncInterval(double sync,
                                                                     double offset,
+                                                                    double period,
                                                                     BeatClockCbT callback,
                                                                     void* callbackUserData){
   auto now = this->beatInfo->getCurrentBeat();
   auto goal = beatClockSchedulerNextSyncedBeat(now, sync, offset);
-  return setBeatTimeoutAbsolute(goal, callback, callbackUserData);
+  return setBeatIntervalAbsolute(goal, period, callback, callbackUserData);
 }
 
 void BeatClockScheduler::clearBeatTimeout(BeatClockScheduler::id_type id) {
