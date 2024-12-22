@@ -13,6 +13,7 @@
 #include <cstring>
 #include "macros.hpp"
 
+// Perhaps buggy
 // template <class UIntType>
 // std::pair<UIntType, bool> unsignedAdditionHelper(UIntType a, UIntType b) {
 //   bool overflow;
@@ -35,13 +36,30 @@ std::pair<UIntType, bool> nanosecondAdditionHelper(UIntType a, UIntType b) {
 }
 
 template <class UIntType>
-std::pair<UIntType, bool> unsignedSubtractionHelper(UIntType a, UIntType b) {
+std::pair<UIntType, bool> nanosecondSubtractionHelper(UIntType a, UIntType b) {
   bool underflow;
-  UIntType res = a - b;
-  if (res > a) { underflow = true; }
-  else { underflow = false; }
+  UIntType res;
+  if (b > a) {
+    underflow = true;
+    res = 1000000000 - (b - a);
+  } else {
+    underflow = false;
+    res = a - b;
+  }
   return {res, underflow};
 }
+
+// template <class UIntType>
+// std::pair<UIntType, bool> unsignedSubtractionHelper(UIntType a, UIntType b) {
+//   bool underflow;
+//   UIntType res = a - b;
+//   if (res > a) {
+//     underflow = true;
+
+//   }
+//   else { underflow = false; }
+//   return {res, underflow};
+// }
 
 static void timeToTimespec(struct timespec* reference, uint64_t time, struct timespec* spec) {
   time_t s = time / 1000000 + reference->tv_sec;
@@ -53,7 +71,7 @@ static void timeToTimespec(struct timespec* reference, uint64_t time, struct tim
 }
 
 static uint64_t timespecToTime(struct timespec* reference, struct timespec* spec) {
-  auto [ns, underflow] = unsignedSubtractionHelper<uint64_t>(spec->tv_nsec, reference->tv_nsec);
+  auto [ns, underflow] = nanosecondSubtractionHelper<uint64_t>(spec->tv_nsec, reference->tv_nsec);
   time_t s = spec->tv_sec - reference->tv_sec;
   if (underflow) {
     s -= 1;
@@ -100,7 +118,8 @@ void LinuxPlatform::init() {
 uint64_t LinuxPlatform::currentTime() {
   struct timespec spec;
   clock_gettime(CLOCK_MONOTONIC, &spec);
-  return timespecToTime(&this->referenceTime, &spec);
+  auto t = timespecToTime(&this->referenceTime, &spec);
+  return t;
 }
 
 void LinuxPlatform::timer(uint64_t time, bool off) {

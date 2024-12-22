@@ -43,6 +43,7 @@ private:
   KeyedPriorityQueue<uint64_t, id_type, ContainerType, std::greater<uint64_t>> queue;
   IdTable<ClockEvent, ContainerType, id_type> idTable;
   Platform* platform;
+  bool platformTimerStatus = false;
   uint64_t waitingTime = 0;
 public:
   void init(Platform* platform);

@@ -92,15 +92,17 @@ void Clock::processEvent(Clock::id_type id, uint64_t now, uint64_t goal) {
 
 void Clock::updateWaitingTime() {
   if (queue.size() == 0) {
-    waitingTime = 0;
-    platform->timer(0, true);
+    this->waitingTime = 0;
+    this->platformTimerStatus = false;
+    this->platform->timer(0, true);
     return;
   }
-  auto [ttime, tevent] = queue.top();
-  if (waitingTime == ttime) { return; }
+  auto [ttime, tevent] = this->queue.top();
+  if (this->platformTimerStatus && this->waitingTime == ttime) { return; }
   else {
-    waitingTime = ttime;
-    platform->timer(waitingTime);
+    this->waitingTime = ttime;
+    this->platform->timer(waitingTime);
+    this->platformTimerStatus = true;
   }
 }
 
