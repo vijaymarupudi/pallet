@@ -121,7 +121,8 @@ public:
   pallet::CStyleCallback<BeatClockInfo*> onTickCallback;
   pallet::CStyleCallback<BeatClockTransportType> onTransportCallback;
   Clock* clock;
-  bool active;
+  bool active = false;
+  bool running = false;
 
   // Clock state info
 
@@ -189,6 +190,10 @@ public:
     onTransportCallback.call(transport);
   }
 
+  virtual void run(bool state) {
+    running = state;
+  }
+
   virtual void setBPM(double bpm) {
     this->bpm = bpm;
     this->beatPeriod = bpmToBeatPeriod(this->bpm);
@@ -209,48 +214,60 @@ public:
 class BeatClockInternalImplementation : public BeatClockImplementationInterface  {
 public:
   Clock::id_type interval;
-  bool running = false;
-  Clock* clock;
 
-  void init(Clock* clock) {
-    BeatClockImplementationInterface::init(clock);
+  virtual void run(bool state) override {
+    bool oldState = running;
+    BeatClockImplementationInterface::run(state);
+    if (oldState == state) { return; }
+    if (state) {
+      // running, start tick
+      auto now = clock->currentTime();
+      this->startTickInterval(now);
+    } else {
+      // not running
+      clock->clearInterval(interval);
+    }
   }
 
-  void run() {
-    running = true;
-  }
-
-  void runClockIfNecessary() {
-    auto now = clock->currentTime();
+private:
+  void startTickInterval(uint64_t startTime) {
     auto cb = [](ClockEventInfo* info, void* ud) {
       auto bc = ((BeatClockInternalImplementation*)ud);
       bc->uponTick(info->now, info->intended);
     };
-    this->interval = clock->setIntervalAbsolute(now,
-                                                beatPeriod,
+    this->interval = clock->setIntervalAbsolute(startTime,
+                                                this->ppqnPeriod,
                                                 cb,
                                                 this);
   }
 
-  void stopRunning() {
-    running = false;
-    clock->clearInterval(interval);
-  }
+public:
+
 
   void cleanup() {
-    if (running) {
-      running = false;
-      clock->clearInterval(interval);
-    }
+    this->run(false);
   }
 
   virtual void setBPM(double bpm) {
     auto old = this->ppqnPeriod;
     BeatClockImplementationInterface::setBPM(bpm);
     if (old != this->ppqnPeriod) {
-      if (running) {
+      if (this->running) {
+        clock->clearInterval(this->interval);
 
+        auto lastTickTime = this->lastTickTime;
+        auto now = clock->currentTime();
+
+        uint64_t startTime;
+        if (lastTickTime + this->ppqnPeriod >= now) {
+          startTime = lastTickTime + this->ppqnPeriod;
+        } else {
+          startTime = now;
+        }
+        this->startTickInterval(startTime);
       }
+
+      // if it's not running, then calling the superclasses setBPM should be enough
     }
   }
 };
@@ -316,7 +333,6 @@ public:
   Clock* clock;
   BeatClockScheduler scheduler;
 
-
   BeatClockType mode;
   BeatClockImplementationInterface* implementation = nullptr;
 
@@ -335,11 +351,18 @@ public:
     midiImplementation.init(clock, midiInterface);
     midiScheduleInfo.init(&midiImplementation);
 
-    this->scheduler.init(clock, &internalScheduleInfo);
-    
-    this->setClockSource(BeatClockType::Internal);
+    auto tickCallback = [](BeatClockInfo* info, void* ud) {
+      auto scheduler = (BeatClockScheduler*)ud;
+      scheduler->uponTick();
+    };
 
-    
+    internalImplementation.onTickCallback.set(tickCallback, &scheduler);
+    midiImplementation.onTickCallback.set(tickCallback, &scheduler);
+
+    this->scheduler.init(clock, &internalScheduleInfo);
+    this->setClockSource(BeatClockType::Internal);
+    this->implementation->setBPM(120);
+    this->implementation->run(true);
   }
 
   void setClockSource(BeatClockType mode) {
