@@ -75,7 +75,7 @@ static void linuxSetThreadToHighPriority() {
   schparam.sched_priority = 60;
   if (sched_setscheduler(0, SCHED_FIFO | SCHED_RESET_ON_FORK,
                          &schparam) == 0) {
-    fprintf(stderr, "realtime schedling enabled\n");
+    fprintf(stderr, "realtime scheduling enabled\n");
   }
 }
 
