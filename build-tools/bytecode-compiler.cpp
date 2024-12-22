@@ -154,6 +154,7 @@ std::string generateContents(const char* dirname) {
 
   output_hex("filesystem_lua_modules", fileContents, luaModules);
   output_hex("filesystem_files", fileContents, regularFiles);
+  lua_close(L);
   return fileContents;
 }
 
