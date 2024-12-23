@@ -50,6 +50,7 @@ have been implemented and are functional.
   it
 * Eventually, I want to learn the math behind audio processing
   (filters, mostly) and implement it
+* I want to learn embedded programming
 
 ## Inspired by
 
