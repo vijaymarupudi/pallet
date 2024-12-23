@@ -24,7 +24,7 @@ void BeatClockScheduler::init(Clock* clock, BeatClockSchedulerInformationInterfa
   this->beatInfo = beatInfo;
 }
 
-void BeatClockScheduler::timer(uint64_t time, bool off) {
+void BeatClockScheduler::timer(pallet::Time time, bool off) {
 
   if (clockTimeoutStatus) {
     clock->clearTimeout(clockTimeoutId);
@@ -183,10 +183,10 @@ void BeatClockScheduler::updateWaitingTime() {
   this->timer(goal);
 }
 
-uint64_t BeatClockScheduler::targetBeatTime(double currentBeat, double targetBeat) {
+pallet::Time BeatClockScheduler::targetBeatTime(double currentBeat, double targetBeat) {
   auto diff = targetBeat - currentBeat;
   double beatPeriod = this->beatInfo->getCurrentBeatPeriod();
-  uint64_t targetTime = clock->currentTime() + diff * beatPeriod;
+  pallet::Time targetTime = clock->currentTime() + diff * beatPeriod;
   return targetTime;
 }
 

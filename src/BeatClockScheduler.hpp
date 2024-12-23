@@ -87,9 +87,9 @@ public:
   void processEvent(BeatClockScheduler::id_type id, double now, double goal);
   void updateWaitingTime();
   void process();
-  void timer(uint64_t time, bool off = false);
+  void timer(pallet::Time time, bool off = false);
   void processSoon();
-  uint64_t targetBeatTime(double, double);
+  pallet::Time targetBeatTime(double, double);
   void uponTick();
 };
 
