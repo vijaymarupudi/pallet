@@ -118,7 +118,9 @@ int main() {
   // }, &gridInterface);
 
   BeatClock beatClock;
-  beatClock.init(&clock, nullptr);
+  beatClock.init(&clock, &midiInterface);
+
+  beatClock.sendMidiClock(true);
 
   beatClock.setBeatSyncInterval(1, 0, 1.0/2, [](BeatClockEventInfo* info, void* ud) {
     printf("tick, %f\n", info->intended);

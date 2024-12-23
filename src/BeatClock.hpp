@@ -113,7 +113,7 @@ enum class BeatClockType {
 enum class BeatClockTransportType {
   Start,
   Stop,
-  Continue
+  Reset
 };
 
 class BeatClockImplementationInterface {
@@ -121,6 +121,7 @@ public:
   pallet::CStyleCallback<BeatClockInfo*> onTickCallback;
   pallet::CStyleCallback<BeatClockTransportType> onTransportCallback;
   Clock* clock;
+  MidiInterface* midiInterface;
   bool active = false;
   bool running = false;
 
@@ -138,8 +139,9 @@ public:
   uint64_t lastTickTime = 0;
   uint64_t lastTickTimeIntended = 0;
 
-  void init(Clock* clock) {
+  void init(Clock* clock, MidiInterface* midiInterface) {
     this->clock = clock;
+    this->midiInterface = midiInterface;
   }
 
   void setStateFromOther(BeatClockImplementationInterface& other) {
@@ -244,8 +246,6 @@ private:
   }
 
 public:
-
-
   void cleanup() {
     this->run(false);
   }
@@ -299,15 +299,7 @@ public:
 
 class BeatClockMidiImplementation : public BeatClockImplementationInterface {
 public:
-  MidiInterface* mface;
-  void init(Clock* clock,
-            MidiInterface* mface) {
-    BeatClockImplementationInterface::init(clock);
-    this->mface = mface;
-  }
-
   void cleanup() {
-
   }
 };
 
@@ -336,7 +328,10 @@ public:
   using id_type = BeatClockScheduler::id_type;
 
   Clock* clock;
+  MidiInterface* midiInterface;
   BeatClockScheduler scheduler;
+
+  bool _sendMidiClock = false;
 
   BeatClockType mode;
   BeatClockImplementationInterface* implementation = nullptr;
@@ -349,20 +344,25 @@ public:
 
   void init(Clock* clock, MidiInterface* midiInterface) {
     this->clock = clock;
+    this->midiInterface = midiInterface;
     this->implementation = nullptr;
 
-    internalImplementation.init(clock);
+    internalImplementation.init(clock, midiInterface);
     internalScheduleInfo.init(&internalImplementation);
     midiImplementation.init(clock, midiInterface);
     midiScheduleInfo.init(&midiImplementation);
 
     auto tickCallback = [](BeatClockInfo* info, void* ud) {
-      auto scheduler = (BeatClockScheduler*)ud;
-      scheduler->uponTick();
+      auto bc = (BeatClock*)ud;
+      if (bc->_sendMidiClock && bc->midiInterface) {
+        unsigned char msg[] = {0xF8};
+        bc->midiInterface->sendMidi(msg, 1);
+      }
+      bc->scheduler.uponTick();
     };
 
-    internalImplementation.onTickCallback.set(tickCallback, &scheduler);
-    midiImplementation.onTickCallback.set(tickCallback, &scheduler);
+    internalImplementation.onTickCallback.set(tickCallback, this);
+    midiImplementation.onTickCallback.set(tickCallback, this);
 
     this->scheduler.init(clock, &internalScheduleInfo);
     this->setClockSource(BeatClockType::Internal);
@@ -398,6 +398,11 @@ public:
       scheduler.setBeatInfo(&midiScheduleInfo);
       break;
     }
+  }
+
+  void sendMidiClock(bool state) {
+    // 0 to disable
+    this->_sendMidiClock = state;
   }
 
   id_type setBeatSyncTimeout(double sync,
