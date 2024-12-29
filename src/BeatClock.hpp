@@ -21,9 +21,13 @@ struct BeatClockMeanMeasurer {
     }
   }
 
-  T mean() {
-    T total = 0;
+  T mean(double defaultValue) {
 
+    if (len == 0) {
+      return defaultValue;
+    }
+
+    T total = 0;
     if (len == maxLen) {
       for (int i = 0; i < len; i++) {
         total += measurements[i] / maxLen;
@@ -43,66 +47,21 @@ struct BeatClockMeanMeasurer {
   }
 };
 
-constexpr PALLET_ALWAYS_INLINE uint64_t bpmToBeatPeriod(double bpm) {
+constexpr PALLET_ALWAYS_INLINE pallet::Time bpmToBeatPeriod(double bpm) {
   return pallet::timeInS(60.0 / bpm);
 }
 
-constexpr PALLET_ALWAYS_INLINE uint64_t bpmToPPQNPeriod(double bpm, int ppqn) {
+constexpr PALLET_ALWAYS_INLINE pallet::Time bpmToPPQNPeriod(double bpm, int ppqn) {
   return pallet::timeInS(60.0 / bpm / ppqn);
 }
-
-class BeatClockMeasurement {
-  using FloatingPoint = double;
-public:
-  BeatClockMeanMeasurer<FloatingPoint, 32> measurer;
-  FloatingPoint phase = 0;
-  int phaseCounter = 0;
-
-  FloatingPoint timePerBeat = 0.5;
-  int ppqn = 24;
-  uint64_t prev = 0;
-  void init() { reset(); };
-  void tick(uint64_t time) {
-    if (prev == 0) {
-      prev = time;
-      return;
-    }
-    uint64_t diff = time - prev;
-    measurer.addSample(diff);
-    timePerBeat = measurer.mean() * ppqn;
-    prev = time;
-
-    phase = (phase + 1.0/ppqn);
-    phaseCounter = phaseCounter + 1;
-    if (phaseCounter == ppqn) {
-      phase = 0;
-      phaseCounter = 0;
-    }
-  };
-
-  bool isValid() {
-    return measurer.len > 0;
-  };
-
-  void reset() {
-    phaseCounter = ppqn - 1;
-    phase = 1.0/ppqn * phaseCounter;
-  }
-
-  void clear() {
-    reset();
-    measurer.clear();
-    prev = 0;
-  }
-};
 
 struct BeatClockInfo {
   double bpm;
   int ppqn;
   double beat;
   int beatPhase;
-  uint64_t time;
-  uint64_t intended;
+  pallet::Time time;
+  pallet::Time intended;
 };
 
 enum class BeatClockType {
@@ -122,7 +81,6 @@ public:
   pallet::CStyleCallback<BeatClockTransportType> onTransportCallback;
   Clock* clock;
   MidiInterface* midiInterface;
-  bool active = false;
   bool running = false;
 
   // Clock state info
@@ -130,14 +88,14 @@ public:
   // Update setStateFromOther if you add more state
   double bpm = 120;
   int ppqn = 24;
-  uint64_t beatPeriod = bpmToBeatPeriod(120);
-  uint64_t ppqnPeriod = bpmToPPQNPeriod(120, 24);
+  pallet::Time beatPeriod = bpmToBeatPeriod(120);
+  pallet::Time ppqnPeriod = bpmToPPQNPeriod(120, 24);
   double beat = 0;
   int beatRef = 0; // integer component of beat
   int tickCount = 0;
   int beatPhase = 0;
-  uint64_t lastTickTime = 0;
-  uint64_t lastTickTimeIntended = 0;
+  pallet::Time lastTickTime = 0;
+  pallet::Time lastTickTimeIntended = 0;
 
   void init(Clock* clock, MidiInterface* midiInterface) {
     this->clock = clock;
@@ -166,7 +124,7 @@ public:
     onTransportCallback.set(onT, data);
   }
 
-  void uponTick(uint64_t time, uint64_t intended) {
+  void uponTick(pallet::Time time, pallet::Time intended) {
     // printf("BeatClock::uponTick() | tick: %lu, intended: %lu, beat: %f\n", time, intended, beat);
     BeatClockInfo info {
       this->bpm,
@@ -208,9 +166,7 @@ public:
     this->ppqnPeriod = bpmToPPQNPeriod(this->bpm, this->ppqn);
   }
 
-  virtual void setActive(bool activeState) {
-    this->active = activeState;
-  }
+
 
 };
 
@@ -233,7 +189,7 @@ public:
   }
 
 private:
-  void startTickInterval(uint64_t startTime) {
+  void startTickInterval(pallet::Time startTime) {
     auto cb = [](ClockEventInfo* info, void* ud) {
       auto bc = ((BeatClockInternalImplementation*)ud);
       bc->uponTick(info->now, info->intended);
@@ -260,7 +216,7 @@ public:
         auto lastTickTimeIntended = this->lastTickTimeIntended;
         auto now = clock->currentTime();
 
-        uint64_t startTime;
+        pallet::Time startTime;
         if (lastTickTimeIntended + this->ppqnPeriod >= now) {
           startTime = lastTickTimeIntended + this->ppqnPeriod;
         } else {
@@ -298,8 +254,36 @@ public:
 };
 
 class BeatClockMidiImplementation : public BeatClockImplementationInterface {
+  BeatClockMeanMeasurer<double, 32> meanMeasurer;
 public:
+  virtual void run(bool state) override {
+    if (state) {
+      auto cb = [](pallet::Time time, const unsigned char* buf, size_t len, void* ud) {
+        auto bc = (BeatClockMidiImplementation*)ud;
+        bc->uponMidiTick(time, buf, len);
+      };
+      this->midiInterface->setOnMidiClock(cb, this);
+    } else {
+      this->midiInterface->setOnMidiClock(nullptr, nullptr);
+    }
+  }
+  void uponMidiTick(pallet::Time time, const unsigned char* buf, size_t len) {
+    if (!(len == 1 && buf[0] == 0xF8)) { return; }
+    auto sample = time - this->lastTickTime;
+    meanMeasurer.addSample(sample);
+    this->ppqnPeriod =  meanMeasurer.mean(1.0 / 120 / 24);//default period
+    this->beatPeriod = ppqnPeriod * 24;
+    this->bpm = 1.0 / pallet::timeToS(this->beatPeriod) * 60;
+    printf("bpm %f\n", bpm);
+    this->uponTick(time, time);
+  }
+
+  virtual void setBPM(double bpm) override {
+    // do nothing
+  }
+
   void cleanup() {
+    this->run(false);
   }
 };
 
@@ -312,8 +296,8 @@ public:
   virtual double getCurrentBeat() {
     auto beatPeriod = bc->beatPeriod;
     auto now = bc->clock->currentTime();
-    auto timeSinceLastTickIntended = now - bc->lastTickTimeIntended;
-    return bc->beat + timeSinceLastTickIntended / beatPeriod;
+    auto timeSinceLastTick = now - bc->lastTickTime;
+    return bc->beat + timeSinceLastTick / beatPeriod;
   };
   virtual double getCurrentBeatPeriod() {
     return bc->beatPeriod;
@@ -354,11 +338,7 @@ public:
 
     auto tickCallback = [](BeatClockInfo* info, void* ud) {
       auto bc = (BeatClock*)ud;
-      if (bc->_sendMidiClock && bc->midiInterface) {
-        unsigned char msg[] = {0xF8};
-        bc->midiInterface->sendMidi(msg, 1);
-      }
-      bc->scheduler.uponTick();
+      bc->uponTick();
     };
 
     internalImplementation.onTickCallback.set(tickCallback, this);
@@ -366,8 +346,8 @@ public:
 
     this->scheduler.init(clock, &internalScheduleInfo);
     this->setClockSource(BeatClockType::Internal);
+    // now implementation is set
     this->implementation->setBPM(120);
-    this->implementation->run(true);
   }
 
   void setClockSource(BeatClockType mode) {
@@ -384,9 +364,8 @@ public:
     }
     if (oldImplementation) {
       // we're switching clocks
-      oldImplementation->setActive(false);
+      oldImplementation->run(false);
       implementation->setStateFromOther(*oldImplementation);
-      implementation->setActive(true);
     }
 
     // switch the beat info of the scheduler
@@ -398,6 +377,17 @@ public:
       scheduler.setBeatInfo(&midiScheduleInfo);
       break;
     }
+
+    implementation->run(true);
+  }
+
+  void uponTick() {
+    if (this->_sendMidiClock && this->midiInterface) {
+      unsigned char msg[] = {0xF8};
+      this->midiInterface->sendMidi(msg, 1);
+    }
+    this->scheduler.uponTick();
+
   }
 
   void sendMidiClock(bool state) {
@@ -423,6 +413,11 @@ public:
   }
 
   void clearBeatSyncTimeout(id_type id) {
+    return scheduler.
+      clearBeatSyncTimeout(id);
+  }
+
+  void clearBeatSyncInterval(id_type id) {
     return scheduler.
       clearBeatSyncTimeout(id);
   }

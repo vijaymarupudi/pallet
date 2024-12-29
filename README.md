@@ -35,9 +35,10 @@ have been implemented and are functional.
 
 ## What's left?
 
-* Refactor and revise the APIs for all the interfaces.
+* Refactor and revise the APIs for all the interfaces and namespace them appropriately
 * Write all the lua bindings
 * Ensure proper destruction of resources upon application exit 
+* Write extensive documentation
 * Develop the 'killer app', a sequencer that I have in mind
 
 ## Why?

@@ -26,4 +26,16 @@ namespace pallet {
     return us * 1000;
   }
 
+  constexpr PALLET_ALWAYS_INLINE double timeToS(detail::TimeArgument auto time) {
+    return time / 1000.0 / 1000.0 / 1000.0;
+  }
+
+  constexpr PALLET_ALWAYS_INLINE double timeToMs(detail::TimeArgument auto time) {
+    return time / 1000.0 / 1000.0;
+  }
+
+  constexpr PALLET_ALWAYS_INLINE double timeInUs(detail::TimeArgument auto time) {
+    return time / 1000.0;
+  }
+
 }

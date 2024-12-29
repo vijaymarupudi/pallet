@@ -35,7 +35,7 @@ public:
       printf("\n");
     }
     if (this->onMidiClockCb) {
-      this->onMidiClockCb(time, buf, len, this->onMidiUserData);
+      this->onMidiClockCb(time, buf, len, this->onMidiClockUserData);
     }
     if (this->onMidiCb) {
       this->onMidiCb(time, buf, len, this->onMidiUserData);
