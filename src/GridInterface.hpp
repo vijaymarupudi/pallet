@@ -2,38 +2,48 @@
 #include <utility>
 #include <string.h>
 #include <string>
+#include <cinttypes>
+#include <optional>
 
-static int calcQuadIndex(int x, int y) {
+static inline int calcQuadIndex(int x, int y) {
   return (x / 8) + (y / 8) * 2;
 }
 
-static std::pair<int, int> calcQuadIndexAndPointIndex(int x, int y) {
+static inline std::pair<int, int> calcQuadIndexAndPointIndex(int x, int y) {
   return std::pair(calcQuadIndex(x, y), (x % 8) + 8 * (y % 8));
 }
 
-using ConnectCallbackT = void(*)(const std::string&, bool, void*);
 
-class MonomeGridInterface {
-protected:
-  ConnectCallbackT onConnectCb = nullptr;
-  void* onConnectData = nullptr;
+
+using MonomeGridQuadRenderFunc = void(*)(int offX, int offY, uint8_t* data, void* ud0, void* ud1);
+using MonomeGridQuadDataType = uint8_t[64];
+
+class MonomeGrid {
+public:
+
+  int rows;
+  int cols;
+  int nQuads;
+  std::string id;
+  bool connected = true;
+
+  MonomeGridQuadRenderFunc quadRenderFunc;
+  void* quadRenderFuncUd0;
+  void* quadRenderFuncUd1;
 
   void (*onKeyCb)(int x, int y, int z, void*) = nullptr;
   void* onKeyData = nullptr;
 
-  using quadDataType = uint8_t[64];
+  MonomeGridQuadDataType quadData[4];
+  uint8_t quadDirtyFlags = 0xFF;
 
-public:
-  bool connected = false;
-  int rows;
-  int cols;
-  int nQuads;
-  quadDataType quadData[4];
-  uint8_t quadDirtyFlags;
-  void init() {
-    memset(&this->quadData[0][0], 0, sizeof(quadDataType) * 4);
-    this->quadDirtyFlags = 0xFF;
-  };
+  MonomeGrid(std::string id, int rows, int cols, MonomeGridQuadRenderFunc quadRenderFunc,
+             void* quadRenderFuncUd0, void* quadRenderFuncUd1) :
+    id(std::move(id)), rows(rows), cols(cols), nQuads((rows / 8) * (cols / 8)), quadRenderFunc(quadRenderFunc),
+    quadRenderFuncUd0(quadRenderFuncUd0), quadRenderFuncUd1(quadRenderFuncUd1)
+  {
+    memset(&this->quadData[0][0], 0, sizeof(MonomeGridQuadDataType) * 4);
+  }
 
   void setQuadDirty(int quadIndex) {
     this->quadDirtyFlags |= (1 << quadIndex);
@@ -43,14 +53,24 @@ public:
     return this->quadDirtyFlags & (1 << quadIndex);
   }
 
+public:
   void setOnKey(void (*cb)(int x, int y, int z, void*), void* data) {
     this->onKeyCb = cb;
     this->onKeyData = data;
   }
 
-  void setOnConnect(ConnectCallbackT cb, void* data) {
-    this->onConnectCb = cb;
-    this->onConnectData = data;
+  void uponKey(int x, int y, int z) {
+    if (this->onKeyCb) {
+      this->onKeyCb(x, y, z, onKeyData);
+    }
+  }
+
+  void uponConnectionState(bool state) {
+    this->connected = state;
+  }
+
+  bool isConnected() {
+    return this->connected;
   }
 
   void led(int x, int y, int c) {
@@ -60,7 +80,7 @@ public:
   }
 
   void clear() {
-    memset(&quadData, 0, sizeof(quadDataType) * 4);
+    memset(&quadData, 0, sizeof(MonomeGridQuadDataType) * 4);
     for (int i = 0; i < 4; i++) {
       this->setQuadDirty(i);
     }
@@ -72,14 +92,38 @@ public:
       if (this->isQuadDirty(quadIndex)) {
         int offX = (quadIndex % 2) * 8;
         int offY = (quadIndex / 2) * 8;
-        this->sendRawQuadMap(offX, offY, quadData[quadIndex]);
+        this->quadRenderFunc(offX, offY, quadData[quadIndex], this->quadRenderFuncUd0, this->quadRenderFuncUd1);
       }
     }
     this->quadDirtyFlags = 0;
   }
 
-  virtual void sendRawQuadMap(int offX, int offY, quadDataType data) = 0;
-  virtual void connect() = 0;
+  int getRows() {
+    return this->rows;
+  }
+
+  int getCols() {
+    return this->cols;
+  }
+};
+
+
+using MonomeGridInterfaceConnectCallback = void(*)(const std::string&, bool, MonomeGrid* grid, void*);
+
+class MonomeGridInterface {
+protected:
+  MonomeGridInterfaceConnectCallback onConnectCb = nullptr;
+  void* onConnectData = nullptr;
+
+public:
+
+  void setOnConnect(MonomeGridInterfaceConnectCallback cb, void* data) {
+    this->onConnectCb = cb;
+    this->onConnectData = data;
+  }
+
+  virtual void sendRawQuadMap(int offX, int offY, MonomeGridQuadDataType data) = 0;
+  virtual void connect(int idx) = 0;
 };
 
 #ifdef __linux__
@@ -101,14 +145,14 @@ static const int gridOscServerPort = 7072;
 
 class LinuxMonomeGridInterface : public MonomeGridInterface {
 public:
-  using oscAddrT = LinuxOscInterface::address_type;
-  oscAddrT serialoscdAddr;
-  oscAddrT gridAddr;
+  using address_type = LinuxOscInterface::address_type;
+  address_type serialoscdAddr;
+  address_type gridAddr;
   LinuxOscInterface oscInterface;
   std::string gridId;
+  std::optional<MonomeGrid> grid;
   bool autoReconnect = true;
   void init(LinuxPlatform* platform) {
-    MonomeGridInterface::init();
     oscInterface.init(platform);
     this->gridAddr = nullptr;
 
@@ -122,7 +166,7 @@ public:
     requestDeviceNotifications();
   }
 
-  void sendRawQuadMap(int offX, int offY, quadDataType data) override {
+  void sendRawQuadMap(int offX, int offY, MonomeGridQuadDataType data) override {
     if (!this->gridAddr) {return;}
     lo_message msg = lo_message_new();
     lo_message_add_int32(msg, offX);
@@ -134,7 +178,7 @@ public:
     lo_message_free(msg);
   }
 
-  void connect() override {
+  void connect(int id) override {
     this->oscInterface.sendMessage(this->serialoscdAddr, "/serialosc/list", "si",
                                    "localhost", this->oscInterface.port, LO_ARGS_END);
   }
@@ -146,26 +190,41 @@ public:
       int x = argv[0]->i;
       int y = argv[1]->i;
       int z = argv[2]->i;
-      if (this->onKeyCb) {
-        this->onKeyCb(x, y, z, this->onKeyData);
+      if (this->grid) {
+        this->grid->uponKey(x, y, z);
       }
+        
     } else if (strcmp(path, "/serialosc/device") == 0) {
-      if (this->connected) { return; }
+      // currently only support a single grid
+      if (this->grid) { return; }
+     
       int gridPort = argv[2]->i;
       gridId = &argv[0]->s;
       // printf("%s\n", &argv[1]->s); => "monome zero"
+      
       this->gridAddr = this->oscInterface.newAddress(gridPort);
+
+      // set port, set prefix, ask for information
       this->oscInterface.sendMessage(this->gridAddr, "/sys/port", "i", this->oscInterface.port, LO_ARGS_END);
       this->oscInterface.sendMessage(this->gridAddr, "/sys/prefix", "s", "/monome", LO_ARGS_END);
-      this->oscInterface.sendMessage(this->gridAddr, "/sys/info", NULL, LO_ARGS_END);   
+      this->oscInterface.sendMessage(this->gridAddr, "/sys/info", NULL, LO_ARGS_END);
+      
     } else if (strcmp(path, "/sys/size") == 0) {
-      this->rows = argv[0]->i;
-      this->cols = argv[1]->i;
-      this->nQuads = (this->rows / 8) * (this->cols / 8);
-      this->connected = true;
+      int rows = argv[0]->i;
+      int cols = argv[1]->i;
+
+      auto renderFunc = [](int offX, int offY, uint8_t* data, void* ud0, void* ud1) {
+        auto thi = (LinuxMonomeGridInterface*)ud0;
+        thi->sendRawQuadMap(offX, offY, data);
+      };
+
+
+      this->grid = MonomeGrid(gridId, rows, cols, renderFunc, this, nullptr);
+
       if (this->onConnectCb) {
-        this->onConnectCb(this->gridId, true, this->onConnectData);
+        this->onConnectCb(this->gridId, true, &(*this->grid), this->onConnectData);
       }
+
     } else if (strcmp(path, "/serialosc/remove") == 0) {
       this->uponDeviceChange(&argv[0]->s, false);
     } else if (strcmp(path, "/serialosc/add") == 0) {
@@ -180,33 +239,33 @@ public:
     }
 
     if (addition && deviceId == this->gridId && this->autoReconnect) {
-      this->connect();
+      this->connect(0);
     }
-    requestDeviceNotifications();
+    this->requestDeviceNotifications();
   }
 
   void requestDeviceNotifications() {
     this->oscInterface.sendMessage(this->serialoscdAddr, "/serialosc/notify",
                                    "si", "localhost", this->oscInterface.port, LO_ARGS_END);
-    
+
   }
 
   void disconnect(bool manual = true) {
-    if (connected) {
+    if (grid && grid->isConnected()) {
       this->oscInterface.freeAddress(this->gridAddr);
       this->gridAddr = nullptr;
-      this->connected = false;
+      this->grid->uponConnectionState(false);
       if (manual) {
         this->autoReconnect = false;
       }
       if (this->onConnectCb) {
-        this->onConnectCb(this->gridId, false, this->onConnectData);
+        this->onConnectCb(this->gridId, false, nullptr, this->onConnectData);
       }
     }
   }
 
   void cleanup() {
-    disconnect();
+    this->disconnect();
     this->oscInterface.freeAddress(this->serialoscdAddr);
     this->oscInterface.cleanup();
   }

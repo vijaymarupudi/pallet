@@ -68,11 +68,11 @@ int main() {
 // )");
 
 
-  LinuxAudioInterface audioInterface;
-  audioInterface.init(&clock);
+  // LinuxAudioInterface audioInterface;
+  // audioInterface.init(&clock);
 
-  LinuxMidiInterface midiInterface;
-  midiInterface.init(&platform);
+  // LinuxMidiInterface midiInterface;
+  // midiInterface.init(&platform);
   // midiInterface.monitor();
 
   // MidiParser parser;
@@ -87,19 +87,31 @@ int main() {
   // }, &parser);
 
 
-  platform.setFdNonBlocking(0);
-  platform.watchFdIn(0, [](int fd, void* ud){
-    char buf[8192];
-    ssize_t len = read(0, buf, 8192);
-    handleInput(buf, len, (LinuxAudioInterface*)ud);
-  }, &audioInterface);
+  // platform.setFdNonBlocking(0);
+  // platform.watchFdIn(0, [](int fd, void* ud){
+  //   char buf[8192];
+  //   ssize_t len = read(0, buf, 8192);
+  //   handleInput(buf, len, (LinuxAudioInterface*)ud);
+  // }, &audioInterface);
 
-  amy_reset_oscs();
+  // amy_reset_oscs();
 
-  // LinuxMonomeGridInterface gridInterface;
+  LinuxMonomeGridInterface gridInterface;
+  gridInterface.init(&platform);
+  
+  gridInterface.setOnConnect([](const std::string& id, bool state, MonomeGrid* grid, void* ud) {
+    grid->setOnKey([](int x, int y, int z, void* ud) {
+      printf("%d, %d, %d\n");
+    }, nullptr);
+    grid->clear();
+    grid->led(0, 0, 15);
+    grid->led(8, 8, 15);
+    grid->led(8, 0, 15);
+    grid->led(0, 8, 15);
+    grid->render();
+  }, nullptr);
 
-  // gridInterface.init(&platform);
-  // gridInterface.connect();
+  gridInterface.connect(0);
 
   // gridInterface.setOnKey([](int x, int y, int z, void* ud) {
   //   auto gi = (LinuxMonomeGridInterface*)ud;
@@ -117,18 +129,18 @@ int main() {
   //   gi->render();
   // }, &gridInterface);
 
-  BeatClock beatClock;
-  beatClock.init(&clock, &midiInterface);
-  beatClock.setClockSource(BeatClockType::Midi);
-  // beatClock.sendMidiClock(true);
+  // BeatClock beatClock;
+  // beatClock.init(&clock, &midiInterface);
+  // beatClock.setClockSource(BeatClockType::Midi);
+  // // beatClock.sendMidiClock(true);
 
-  beatClock.setBeatSyncInterval(1, 0, 1.0/2, [](BeatClockEventInfo* info, void* ud) {
-    printf("tick, %f\n", info->intended);
-  }, nullptr);
+  // beatClock.setBeatSyncInterval(1, 0, 1.0/2, [](BeatClockEventInfo* info, void* ud) {
+  //   printf("tick, %f\n", info->intended);
+  // }, nullptr);
 
-  beatClock.setBeatSyncInterval(1, 1.0/4, 1.0/2, [](BeatClockEventInfo* info, void* ud) {
-    printf("tock, %f\n", info->intended);
-  }, nullptr);
+  // beatClock.setBeatSyncInterval(1, 1.0/4, 1.0/2, [](BeatClockEventInfo* info, void* ud) {
+  //   printf("tock, %f\n", info->intended);
+  // }, nullptr);
 
   while (1) {
     platform.loopIter();
