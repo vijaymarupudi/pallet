@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <type_traits>
 
-namespace vjcontainers {
+namespace pallet::containers {
 
   template <class T, class V>
   using binary_operation_return_type_t = decltype(std::declval<T>()(std::declval<V>(), std::declval<V>()));

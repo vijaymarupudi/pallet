@@ -5,9 +5,8 @@
 #include <array>
 #include <optional>
 
-template <class T, size_t _capacity>
+template <class T, size_t _capacity, class index_type = size_t>
 class ThreadSafeRingBuffer {
-  using index_type = size_t;
 private:
   T storage[_capacity];
   

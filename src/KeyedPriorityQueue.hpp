@@ -4,6 +4,8 @@
 #include <functional>
 #include "PriorityQueue.hpp"
 
+namespace pallet::containers {
+
 template <class KeyType, class DataType,
           template<class> class Container = std::vector,
           class Compare = std::less<KeyType>>
@@ -16,7 +18,7 @@ class KeyedPriorityQueue {
       return compare(std::get<0>(a), std::get<0>(b));
     }
   };
-  vjcontainers::PriorityQueue<QueueEntry, Container<QueueEntry>, QueueEntryCompare> queue;
+  PriorityQueue<QueueEntry, Container<QueueEntry>, QueueEntryCompare> queue;
 public:
 
   KeyedPriorityQueue() : queue(QueueEntryCompare()) {
@@ -41,3 +43,5 @@ public:
     return queue.size();
   }
 };
+
+}

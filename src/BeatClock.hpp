@@ -7,6 +7,8 @@
 #include "macros.hpp"
 #include "MidiInterface.hpp"
 
+namespace pallet {
+
 template <class T, size_t maxLen>
 struct BeatClockMeanMeasurer {
   std::array<T, maxLen> measurements = {0};
@@ -431,3 +433,5 @@ public:
     midiImplementation.cleanup();
   }
 };
+
+}

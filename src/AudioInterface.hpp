@@ -7,6 +7,8 @@ extern "C" {
 #include "amy.h"
 }
 
+namespace pallet {
+
 
 class AudioInterface {
 
@@ -56,9 +58,13 @@ public:
 
 };
 
+}
+
 #if PALLET_CONSTANTS_PLATFORM == PALLET_CONSTANTS_PLATFORM_LINUX
 
 #include <atomic>
+
+namespace pallet {
 
 static void linuxAudioInterfaceCallback(ma_device* dev, void* inOut, const void* inIn, ma_uint32 nFrames);
 
@@ -145,6 +151,8 @@ public:
 
 static void linuxAudioInterfaceCallback(ma_device* dev, void* inOut, const void* inIn, ma_uint32 nFrames) {
   ((LinuxAudioInterface*)dev->pUserData)->audioThreadFunc(inOut, nFrames);
+}
+
 }
 
 #endif

@@ -22,7 +22,7 @@ int scale(int note) {
   return note / 7 * 12 + s[note % 7];
 }
 
-void handleInput(char* buf, ssize_t len, LinuxAudioInterface* iface) {
+void handleInput(char* buf, ssize_t len, pallet::LinuxAudioInterface* iface) {
   int processed = 0;
   for (int i = 0; i < 8192; i++) {
       if (buf[i] == '\n') {
@@ -51,11 +51,11 @@ int voiceNumber = 0;
 int nVoices = 8;
 
 int main() {
-  LinuxPlatform platform;
+  pallet::LinuxPlatform platform;
   platform.init();
-  Clock clock;
-  clock.init((Platform*)&platform);
-  LuaInterface luaInterface;
+  pallet::Clock clock;
+  clock.init((pallet::Platform*)&platform);
+  pallet::LuaInterface luaInterface;
   luaInterface.init();
   luaInterface.setClock(&clock);
 //   luaInterface.dostring(R"(
@@ -96,10 +96,10 @@ int main() {
 
   // amy_reset_oscs();
 
-  LinuxMonomeGridInterface gridInterface;
+  pallet::LinuxMonomeGridInterface gridInterface;
   gridInterface.init(&platform);
   
-  gridInterface.setOnConnect([](const std::string& id, bool state, MonomeGrid* grid, void* ud) {
+  gridInterface.setOnConnect([](const std::string& id, bool state, pallet::MonomeGrid* grid, void* ud) {
     grid->setOnKey([](int x, int y, int z, void* ud) {
       printf("%d, %d, %d\n");
     }, nullptr);

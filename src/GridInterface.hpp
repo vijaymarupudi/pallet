@@ -4,6 +4,9 @@
 #include <string>
 #include <cinttypes>
 #include <optional>
+#include "constants.hpp"
+
+namespace pallet {
 
 static inline int calcQuadIndex(int x, int y) {
   return (x / 8) + (y / 8) * 2;
@@ -126,10 +129,14 @@ public:
   virtual void connect(int idx) = 0;
 };
 
-#ifdef __linux__
+}
+
+#if PALLET_CONSTANTS_PLATFORM == PALLET_CONSTANTS_PLATFORM_LINUX
 
 #include "OscInterface.hpp"
 
+
+namespace pallet {
 
 static void monome_grid_lo_on_error_func(int num, const char *msg, const char *path)
 {
@@ -341,6 +348,6 @@ public:
   // }, nullptr);
 
 
-
+}
 
 #endif

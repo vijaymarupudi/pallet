@@ -2,6 +2,8 @@
 #include "RtMidi.h"
 #include "Platform.hpp"
 
+namespace pallet {
+
 using MidiInterfaceOnMidiCbT = void(*)(uint64_t, const unsigned char*, size_t, void*);
 
 class MidiInterface {
@@ -61,3 +63,5 @@ public:
   virtual void sendMidi(const unsigned char* buf,
                         size_t len) override;
 };
+
+}

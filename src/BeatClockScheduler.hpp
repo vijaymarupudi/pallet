@@ -9,6 +9,8 @@
 #include "IdTable.hpp"
 #include "constants.hpp"
 
+namespace pallet {
+
 using BeatClockSchedulerIdT = std::conditional_t<pallet::constants::isEmbeddedDevice,
                               uint8_t, uint32_t>;
 
@@ -46,8 +48,8 @@ private:
   using ContainerType = std::conditional_t<pallet::constants::isEmbeddedDevice,
                                            StaticVector<T, 256>,
                                            std::vector<T>>;
-  KeyedPriorityQueue<double, id_type, ContainerType, std::greater<double>> queue;
-  IdTable<BeatClockEvent, ContainerType, id_type> idTable;
+  containers::KeyedPriorityQueue<double, id_type, ContainerType, std::greater<double>> queue;
+  containers::IdTable<BeatClockEvent, ContainerType, id_type> idTable;
   BeatClockSchedulerInformationInterface* beatInfo;
 public:
   bool clockTimeoutStatus = false;
@@ -93,3 +95,4 @@ public:
   void uponTick();
 };
 
+}

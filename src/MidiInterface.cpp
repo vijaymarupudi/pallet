@@ -3,6 +3,8 @@
 #include <vector>
 #include "MidiInterface.hpp"
 
+namespace pallet {
+
 void LinuxMidiInterface::sendMidi(const unsigned char* buf,
                                   size_t len) {
   midiOut.sendMessage(buf, len);
@@ -37,7 +39,7 @@ void LinuxMidiInterface::init(LinuxPlatform* platform) {
   threadReadFd = fds[0];
   threadWriteFd = fds[1];
   platform->setFdNonBlocking(threadReadFd);
-  platform->watchFdIn(threadReadFd, [](int fd, void* ud) {
+  platform->watchFdIn(threadReadFd, [](int fd, int revents, void* ud) {
     auto mface = (LinuxMidiInterface*)ud;
     LinuxMidiInterfaceMessage messages[16];
     ssize_t len = read(fd, &messages[0],
@@ -54,3 +56,4 @@ void LinuxMidiInterface::init(LinuxPlatform* platform) {
   midiIn.openVirtualPort("pallet");
 }
 
+}

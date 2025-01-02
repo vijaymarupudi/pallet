@@ -1,6 +1,7 @@
 #include "BeatClockScheduler.hpp"
 #include <cmath>
 
+namespace pallet {
 
 static void beatClockSchedulerCallback(ClockEventInfo* info, void* ud) {
   // This timer has expired
@@ -31,7 +32,6 @@ void BeatClockScheduler::timer(pallet::Time time, bool off) {
     clockTimeoutStatus = false;
   }
   
-
   // turn off
   if (off) {
     return;
@@ -207,4 +207,6 @@ void BeatClockScheduler::process() {
 
 void BeatClockScheduler::uponTick() {
   this->process();
+}
+
 }

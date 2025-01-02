@@ -1,5 +1,7 @@
 #include "Clock.hpp"
 
+namespace pallet {
+
 static void clock_timer_callback(void* data);
 
 void Clock::init(Platform* platform) {
@@ -41,7 +43,6 @@ Clock::id_type Clock::setIntervalAbsolute(uint64_t goal,
                                           uint64_t period,
                                           ClockCbT callback,
                                           void* callbackUserData){
-  auto now = this->currentTime();
   auto id = idTable.push(ClockEvent {
       goal - period, period, callback, callbackUserData, false
     });
@@ -82,7 +83,6 @@ void Clock::processEvent(Clock::id_type id, uint64_t now, uint64_t goal) {
     auto now = event.prev + event.period;
     event.prev = now;
     queue.push(now + event.period, id);
-
     this->updateWaitingTime();
   } else {
     // we will never need this event again
@@ -123,4 +123,6 @@ void Clock::process() {
 
 static void clock_timer_callback(void* data) {
   ((Clock*)data)->process();
+}
+
 }

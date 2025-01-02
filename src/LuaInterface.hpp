@@ -2,6 +2,8 @@
 #include "Clock.hpp"
 #include "lua.hpp"
 
+namespace pallet {
+
 class LuaInterface {
 public:
   Clock* clock;
@@ -15,8 +17,11 @@ public:
   void setClock(Clock* clock) {
     this->clock = clock;
   }
-
 };
 
 extern LuaInterface* luaInterface;
+
+}
+
+
 

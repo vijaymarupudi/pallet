@@ -37,6 +37,7 @@
 //   return {res, underflow};
 // }
 
+namespace pallet {
 
 template <class UIntType>
 std::pair<UIntType, bool> nanosecondAdditionHelper(UIntType a, UIntType b) {
@@ -84,7 +85,7 @@ static uint64_t timespecToTime(struct timespec* reference, struct timespec* spec
   return (s * 1000000000) + ns;
 }
 
-static void timerCallback(int fd, void* data);
+static void timerCallback(int fd, int revents, void* data);
 
 static void linuxSetThreadToHighPriority() {
   // increase the niceness of the process
@@ -147,27 +148,66 @@ void LinuxPlatform::uponTimer() {
   }
 }
 
-void LinuxPlatform::watchFdIn(int fd, void (*callback)(int, void*), void* userData) {
-  this->fdCallbacks[fd] = std::tuple(POLLIN, callback, userData);
+
+LinuxPlatform::FdPollState& LinuxPlatform::findOrCreateFdPollState(int fd) {
+  auto it = this->fdCallbacks.find(fd);
+  if (it == this->fdCallbacks.end()) {
+    return (this->fdCallbacks[fd] = FdPollState({0, nullptr, nullptr}));
+  } else {
+    return std::get<1>(*it);
+  }
 }
+
+void LinuxPlatform::watchFdEvents(int fd, int events, FdCallback callback, void* userData) {
+  auto& state = this->findOrCreateFdPollState(fd);
+  state.events |= events;
+  state.callback = callback;
+  state.ud = userData;
+}
+
+void LinuxPlatform::watchFdIn(int fd, FdCallback callback, void* userData) {
+  return watchFdEvents(fd, POLLIN, callback, userData);
+}
+void LinuxPlatform::watchFdOut(int fd, FdCallback callback, void* userData) {
+  return watchFdEvents(fd, POLLOUT, callback, userData);
+}
+
+void LinuxPlatform::unwatchFdIn(int fd) {
+  this->unwatchFdEvents(fd, POLLIN);
+}
+
+void LinuxPlatform::unwatchFdOut(int fd) {
+  this->unwatchFdEvents(fd, POLLOUT);
+}
+
+void LinuxPlatform::unwatchFdEvents(int fd, int events) {
+  auto it = this->fdCallbacks.find(fd);
+  if (it != this->fdCallbacks.end()) {
+    auto& [fd, state] = *it;
+    state.events &= ~events;
+    if (!state.events) {
+      this->removeFd(fd);
+    }
+  }
+}
+
 void LinuxPlatform::removeFd(int fd) {
   this->fdCallbacks.erase(fd);
 }
 void LinuxPlatform::loopIter() {
   int i = 0;
-  for (const auto& [fd, value] : this->fdCallbacks) {
-    const auto& [events, cb, data] = value;
+  for (const auto& [fd, state] : this->fdCallbacks) {
     this->pollFds[i].fd = fd;
-    this->pollFds[i].events = events;
+    this->pollFds[i].events = state.events;
     i++;
   }
   int len = i;
   poll(this->pollFds, len, -1);
   for (i = 0; i < len; i++) {
-    if (this->pollFds[i].revents & POLLIN) {
+    if (this->pollFds[i].revents) {
       int fd = this->pollFds[i].fd;
-      auto& [events, cb, data] = this->fdCallbacks[fd];
-      cb(fd, data);
+      auto& state = this->fdCallbacks[fd];
+      state.callback(fd, this->pollFds[i].revents, state.ud);
     }
   }
 }
@@ -182,8 +222,10 @@ void LinuxPlatform::cleanup() {
   if (this->cpu_dma_latency_fd >= 0) { close(this->cpu_dma_latency_fd); }
 }
 
-static void timerCallback(int fd, void* data) {
+static void timerCallback(int fd, int revents, void* data) {
   auto platform = ((LinuxPlatform*) data);
   platform->uponTimer();
+}
+
 }
 #endif

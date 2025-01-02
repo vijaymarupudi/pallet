@@ -5,6 +5,8 @@
 #include <inttypes.h>
 #include <string.h>
 
+namespace pallet {
+
 LuaInterface* luaInterface;
 
 static void l_print_single(lua_State* L, int index) {
@@ -244,4 +246,6 @@ static int l_clock_current_time(lua_State* L) {
   auto time = luaInterface->clock->currentTime();
   lua_pushinteger(L, time);
   return 1;
+}
+
 }

@@ -5,6 +5,7 @@
 #include <inttypes.h>
 #include "StaticVector.hpp"
 
+namespace pallet::containers {
 template <class EntryType, template<class> class Container, class id_type = uint32_t>
 class IdTable {
   struct Space {
@@ -92,3 +93,4 @@ public:
     }
   }
 };
+}

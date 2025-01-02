@@ -5,6 +5,8 @@
 #include "lo/lo.h"
 #include "Platform.hpp"
 
+namespace pallet {
+
 static void oscInterfaceLoOnErrorFunc(int num, const char *msg, const char *path)
 {
   printf("liblo server error %d in path %s: %s\n", num, path, msg);
@@ -21,7 +23,7 @@ static int oscInterfaceLoGenericOscCallback(const char *path, const char *types,
                                                  lo_arg ** argv,
                                                  int argc, lo_message data, void *user_data);
 
-static void oscInterfaceLoServerFdReadyCallback(int fd, void* userData);
+static void oscInterfaceLoServerFdReadyCallback(int fd, int revents, void* userData);
 
 
 class LinuxOscInterface {
@@ -106,8 +108,11 @@ static int oscInterfaceLoGenericOscCallback(const char *path, const char *types,
   return 0;
 }
 
-static void oscInterfaceLoServerFdReadyCallback(int fd, void* userData) {
+static void oscInterfaceLoServerFdReadyCallback(int fd, int revents, void* userData) {
   auto server = ((LinuxOscInterface*)userData)->server;
   lo_server_recv_noblock(server, 0);
 }
+
+}
+
 #endif

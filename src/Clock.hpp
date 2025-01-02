@@ -9,6 +9,7 @@
 #include "constants.hpp"
 #include "time.hpp"
 
+namespace pallet {
 
 using ClockIdT = std::conditional_t<pallet::constants::isEmbeddedDevice,
                               uint8_t, uint32_t>;
@@ -40,8 +41,8 @@ private:
                                            StaticVector<T, 256>,
                                            std::vector<T>>;
 
-  KeyedPriorityQueue<uint64_t, id_type, ContainerType, std::greater<uint64_t>> queue;
-  IdTable<ClockEvent, ContainerType, id_type> idTable;
+  containers::KeyedPriorityQueue<uint64_t, id_type, ContainerType, std::greater<uint64_t>> queue;
+  containers::IdTable<ClockEvent, ContainerType, id_type> idTable;
   Platform* platform;
   bool platformTimerStatus = false;
   uint64_t waitingTime = 0;
@@ -68,3 +69,5 @@ public:
   void updateWaitingTime();
   void process();
 };
+
+}
