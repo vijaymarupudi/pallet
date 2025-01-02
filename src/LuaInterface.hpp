@@ -11,7 +11,8 @@ public:
 private:
   void bind();
 public:
-  void init();
+  LuaInterface();
+  ~LuaInterface();
   void dostring(const char* str);
   void cleanup();
   void setClock(Clock* clock) {

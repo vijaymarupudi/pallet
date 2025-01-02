@@ -31,11 +31,11 @@ struct BeatClockMeanMeasurer {
 
     T total = 0;
     if (len == maxLen) {
-      for (int i = 0; i < len; i++) {
+      for (size_t i = 0; i < len; i++) {
         total += measurements[i] / maxLen;
       }
     } else {
-      for (int i = 0; i < len; i++) {
+      for (size_t i = 0; i < len; i++) {
         total += measurements[i] / len;
       }
     }
@@ -281,6 +281,7 @@ public:
   }
 
   virtual void setBPM(double bpm) override {
+    (void)bpm;
     // do nothing
   }
 
@@ -339,6 +340,7 @@ public:
     midiScheduleInfo.init(&midiImplementation);
 
     auto tickCallback = [](BeatClockInfo* info, void* ud) {
+      (void)info;
       auto bc = (BeatClock*)ud;
       bc->uponTick();
     };

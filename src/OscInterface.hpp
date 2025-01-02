@@ -29,16 +29,15 @@ static void oscInterfaceLoServerFdReadyCallback(int fd, int revents, void* userD
 class LinuxOscInterface {
 public:
   using address_type = lo_address;
-  LinuxPlatform* platform;
+  LinuxPlatform& platform;
   lo_server server = nullptr;
   int port;
   OscInterfaceCallback onMessageCb;
   void* onMessageUserData;
   
-  void init(LinuxPlatform* platform) {
+  LinuxOscInterface(LinuxPlatform& platform) : platform(platform) {
     onMessageCb = nullptr;
     onMessageUserData = nullptr;
-    this->platform = platform;
   }
 
   void setOnMessage(OscInterfaceCallback cb, void* userData) {
@@ -54,7 +53,7 @@ public:
     server = lo_server_new(buf, oscInterfaceLoOnErrorFunc);
     lo_server_add_method(this->server, NULL, NULL, oscInterfaceLoGenericOscCallback, this);
     int fd = lo_server_get_socket_fd(this->server);
-    platform->watchFdIn(fd, oscInterfaceLoServerFdReadyCallback, this);
+    this->platform.watchFdIn(fd, oscInterfaceLoServerFdReadyCallback, this);
   }
 
   void uponMessage(const char *path, const char *types,
@@ -91,9 +90,9 @@ public:
     lo_address_free(addr);
   }
 
-  void cleanup() {
+  ~LinuxOscInterface() {
     int fd = lo_server_get_socket_fd(this->server);
-    platform->removeFd(fd);
+    this->platform.removeFd(fd);
     lo_server_free(server);
   }
 };
@@ -109,6 +108,8 @@ static int oscInterfaceLoGenericOscCallback(const char *path, const char *types,
 }
 
 static void oscInterfaceLoServerFdReadyCallback(int fd, int revents, void* userData) {
+  (void)fd;
+  (void)revents;
   auto server = ((LinuxOscInterface*)userData)->server;
   lo_server_recv_noblock(server, 0);
 }

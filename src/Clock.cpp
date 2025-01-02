@@ -4,13 +4,12 @@ namespace pallet {
 
 static void clock_timer_callback(void* data);
 
-void Clock::init(Platform* platform) {
-  this->platform = platform;
-  this->platform->setOnTimer(clock_timer_callback, this);
+Clock::Clock(Platform& platform) : platform(platform) {
+  this->platform.setOnTimer(clock_timer_callback, this);
 }
 
 uint64_t Clock::currentTime() {
-  return platform->currentTime();
+  return platform.currentTime();
 }
 
 Clock::id_type Clock::setTimeout(uint64_t duration,
@@ -94,14 +93,14 @@ void Clock::updateWaitingTime() {
   if (queue.size() == 0) {
     this->waitingTime = 0;
     this->platformTimerStatus = false;
-    this->platform->timer(0, true);
+    this->platform.timer(0, true);
     return;
   }
   auto [ttime, tevent] = this->queue.top();
   if (this->platformTimerStatus && this->waitingTime == ttime) { return; }
   else {
     this->waitingTime = ttime;
-    this->platform->timer(waitingTime);
+    this->platform.timer(waitingTime);
     this->platformTimerStatus = true;
   }
 }

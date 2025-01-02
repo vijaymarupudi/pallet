@@ -29,6 +29,11 @@ add_custom_command(OUTPUT filesystem.h
                    COMMAND ${BYTECODE_COMPILER_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/filesystem ${CMAKE_CURRENT_BINARY_DIR}/filesystem.h
                    DEPENDS bytecode-compiler ${FILESYSTEM_FILES})
 
+add_compile_options(-Wall -Wextra -pedantic -Werror)
+# add_compile_options(-fsanitize=address)
+# add_link_options(-fsanitize=address)
+
+
 add_executable(main src/main.cpp src/LuaInterface.cpp src/Platform.cpp src/Clock.cpp src/MidiInterface.cpp
                     src/BeatClockScheduler.cpp filesystem.h)
 
@@ -39,5 +44,3 @@ target_include_directories(main PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 add_executable(test src/test.cpp)
 set_property(TARGET test PROPERTY CXX_STANDARD 23)
 
-# add_compile_options(-fsanitize=address)
-# add_link_options(-fsanitize=address)

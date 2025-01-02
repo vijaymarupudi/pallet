@@ -43,11 +43,11 @@ private:
 
   containers::KeyedPriorityQueue<uint64_t, id_type, ContainerType, std::greater<uint64_t>> queue;
   containers::IdTable<ClockEvent, ContainerType, id_type> idTable;
-  Platform* platform;
+  Platform& platform;
   bool platformTimerStatus = false;
   uint64_t waitingTime = 0;
 public:
-  void init(Platform* platform);
+  Clock(Platform& platform);
   uint64_t currentTime();
   id_type setTimeout(uint64_t duration,
                      ClockCbT callback,

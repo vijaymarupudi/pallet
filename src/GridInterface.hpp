@@ -24,10 +24,11 @@ using MonomeGridQuadDataType = uint8_t[64];
 class MonomeGrid {
 public:
 
+  std::string id;
   int rows;
   int cols;
   int nQuads;
-  std::string id;
+  
   bool connected = true;
 
   MonomeGridQuadRenderFunc quadRenderFunc;
@@ -138,16 +139,6 @@ public:
 
 namespace pallet {
 
-static void monome_grid_lo_on_error_func(int num, const char *msg, const char *path)
-{
-  printf("liblo server error %d in path %s: %s\n", num, path, msg);
-}
-
-static void monome_grid_lo_server_fd_ready_callback(int fd, void* userData);
-static int monome_grid_lo_generic_osc_callback(const char *path, const char *types,
-                    lo_arg ** argv,
-                    int argc, lo_message data, void *user_data);
-
 static const int gridOscServerPort = 7072;
 
 class LinuxMonomeGridInterface : public MonomeGridInterface {
@@ -159,8 +150,8 @@ public:
   std::string gridId;
   std::optional<MonomeGrid> grid;
   bool autoReconnect = true;
-  void init(LinuxPlatform* platform) {
-    oscInterface.init(platform);
+  
+  LinuxMonomeGridInterface(LinuxPlatform& platform) : oscInterface(platform) {
     this->gridAddr = nullptr;
 
     serialoscdAddr = oscInterface.newAddress(12002);
@@ -186,6 +177,7 @@ public:
   }
 
   void connect(int id) override {
+    (void)id;
     this->oscInterface.sendMessage(this->serialoscdAddr, "/serialosc/list", "si",
                                    "localhost", this->oscInterface.port, LO_ARGS_END);
   }
@@ -193,6 +185,10 @@ public:
   void uponOscMessage(const char *path, const char *types,
                       lo_arg ** argv,
                       int argc, lo_message data) {
+    (void)types;
+    (void)argc;
+    (void)data;
+
     if (strcmp(path, "/monome/grid/key") == 0) {
       int x = argv[0]->i;
       int y = argv[1]->i;
@@ -221,6 +217,7 @@ public:
       int cols = argv[1]->i;
 
       auto renderFunc = [](int offX, int offY, uint8_t* data, void* ud0, void* ud1) {
+        (void)ud1;
         auto thi = (LinuxMonomeGridInterface*)ud0;
         thi->sendRawQuadMap(offX, offY, data);
       };
@@ -271,10 +268,9 @@ public:
     }
   }
 
-  void cleanup() {
+  ~LinuxMonomeGridInterface() {
     this->disconnect();
     this->oscInterface.freeAddress(this->serialoscdAddr);
-    this->oscInterface.cleanup();
   }
 };
 

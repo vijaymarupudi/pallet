@@ -103,7 +103,7 @@ static void linuxSetThreadToHighPriority() {
   }
 }
 
-void LinuxPlatform::init() {
+LinuxPlatform::LinuxPlatform() {
   // get reference time
   clock_gettime(CLOCK_MONOTONIC, &referenceTime);
 
@@ -130,8 +130,8 @@ uint64_t LinuxPlatform::currentTime() {
 
 void LinuxPlatform::timer(uint64_t time, bool off) {
   // if off = true, turn off
-  struct timespec it_interval = {0};
-  struct timespec it_value = {0};
+  struct timespec it_interval = {};
+  struct timespec it_value = {};
   if (!off) {
     timeToTimespec(&this->referenceTime, time, &it_value);
   }
@@ -217,12 +217,15 @@ void LinuxPlatform::setFdNonBlocking(int fd) {
   fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 }
 
-void LinuxPlatform::cleanup() {
+
+LinuxPlatform::~LinuxPlatform() {
   close(this->timerfd);
   if (this->cpu_dma_latency_fd >= 0) { close(this->cpu_dma_latency_fd); }
 }
 
 static void timerCallback(int fd, int revents, void* data) {
+  (void)fd;
+  (void)revents;
   auto platform = ((LinuxPlatform*) data);
   platform->uponTimer();
 }

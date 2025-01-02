@@ -18,7 +18,7 @@ static void l_print_single(lua_State* L, int index) {
   } else if (typ == LUA_TNUMBER) {
     if (lua_isinteger(L, index)) {
       int64_t number = luaL_checknumber(L, index);
-      printf("%lld", number);
+      printf("%ld", number);
     } else {
       float number = luaL_checknumber(L, index);
       printf("%f", number);
@@ -105,7 +105,7 @@ static void l_bind_clock(lua_State* L) {
 
 static const struct filesystem_entry* l_find_filesystem_entry(const struct filesystem_entry* entries, unsigned int entries_count, const char* fname) {
   auto low = entries;
-  auto high = low + filesystem_lua_modules_count;
+  auto high = low + entries_count;
   while (low < high) {
     auto mid = low + ((high - low) / 2);
     auto cmp = strcmp(fname, mid->filename);
@@ -126,6 +126,7 @@ struct ReaderState {
 };
 
 const char* l_lua_reader(lua_State* L, void* ud, size_t* size) {
+  (void)L;
   auto state = (ReaderState*)ud;
   if (!state->state) {
     *size = state->size;
@@ -176,7 +177,7 @@ void LuaInterface::bind() {
     lua_setglobal(L, "require");
 }
 
-void LuaInterface::init() {
+LuaInterface::LuaInterface() {
   this->L = luaL_newstate();
   l_open_libs(this->L);
   l_open_io(this->L);
@@ -190,7 +191,7 @@ void LuaInterface::dostring(const char* str) {
 }
 
 
-void LuaInterface::cleanup() {
+LuaInterface::~LuaInterface() {
   lua_close(this->L);
 }
 
@@ -204,6 +205,7 @@ static uint64_t l_clock_get_time_value(lua_State* L, int index) {
 
 
 static void l_clock_set_timeout_cb(ClockEventInfo* info, void* data) {
+  (void)info;
   int ref = reinterpret_cast<intptr_t>(data);
   lua_rawgeti(luaInterface->L, LUA_REGISTRYINDEX, ref);
   luaL_unref(luaInterface->L, LUA_REGISTRYINDEX, ref);
@@ -212,6 +214,7 @@ static void l_clock_set_timeout_cb(ClockEventInfo* info, void* data) {
 }
 
 static void l_clock_set_interval_cb(ClockEventInfo* info, void* data) {
+  (void)info;
   int ref = reinterpret_cast<intptr_t>(data);
   lua_rawgeti(luaInterface->L, LUA_REGISTRYINDEX, ref);
   // the function is now at the top of the stack

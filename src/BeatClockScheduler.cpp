@@ -4,6 +4,7 @@
 namespace pallet {
 
 static void beatClockSchedulerCallback(ClockEventInfo* info, void* ud) {
+  (void)info;
   // This timer has expired
   ((BeatClockScheduler*)ud)->clockTimeoutStatus = false;
   ((BeatClockScheduler*)ud)->process();
@@ -91,7 +92,6 @@ BeatClockScheduler::id_type BeatClockScheduler::setBeatIntervalAbsolute(double g
                                               double period,
                                               BeatClockCbT callback,
                                               void* callbackUserData){
-  auto now = this->beatInfo->getCurrentBeat();
   auto id = idTable.push(BeatClockEvent {
       goal - period, period, callback, callbackUserData, false
     });

@@ -105,12 +105,13 @@ public:
       ma_encoder_init_file("out.wav", &config, &encoder);
       ma_pcm_rb_init(ma_format_f32, 2, 48000, NULL, NULL, &recordingRingBuffer);
       this->recording = true;
-      this->recordingIntervalId = this->clock->setInterval(pallet::timeInMs(100), [](ClockEventInfo* _, void* ud) {
+      this->recordingIntervalId = this->clock->setInterval(pallet::timeInMs(100), [](ClockEventInfo* info, void* ud) {
+        (void)info;
         auto iface = (LinuxAudioInterface*)ud;
         if (!iface->recording) { return; }
         float* buf;
         ma_uint32 nFrames = 8192;
-        auto res = ma_pcm_rb_acquire_read(&iface->recordingRingBuffer, &nFrames, (void**)&buf);
+        ma_pcm_rb_acquire_read(&iface->recordingRingBuffer, &nFrames, (void**)&buf);
         if (nFrames != 0) {
           ma_encoder_write_pcm_frames(&iface->encoder, buf, nFrames, nullptr);
         }
@@ -131,6 +132,7 @@ public:
   }
 
   void audioThreadFunc(void* inOut, ma_uint32 nFrames) {
+    (void)nFrames;
     float* out = reinterpret_cast<float*>(inOut);
     amy_prepare_buffer();
     amy_render(0, AMY_OSCS, 0);
@@ -150,6 +152,7 @@ public:
 };
 
 static void linuxAudioInterfaceCallback(ma_device* dev, void* inOut, const void* inIn, ma_uint32 nFrames) {
+  (void)inIn;
   ((LinuxAudioInterface*)dev->pUserData)->audioThreadFunc(inOut, nFrames);
 }
 

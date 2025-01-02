@@ -54,11 +54,10 @@ public:
   int timerfd;
   struct pollfd pollFds[16];
   std::map<int, FdPollState> fdCallbacks;
-  void init();
-  virtual uint64_t currentTime() override;
-  virtual void timer(uint64_t time, bool off = false) override;
   void uponTimer();
-  
+
+  LinuxPlatform();
+  ~LinuxPlatform();
   void watchFdIn(int fd, FdCallback callback, void* userData);
   void watchFdOut(int fd, FdCallback callback, void* userData);
   void watchFdEvents(int fd, int events, FdCallback callback, void* userData);
@@ -69,6 +68,9 @@ public:
   void loopIter();
   void cleanup();
   void setFdNonBlocking(int fd);
+
+  virtual uint64_t currentTime() override;
+  virtual void timer(uint64_t time, bool off = false) override;
 };
 
 
@@ -151,6 +153,7 @@ public:
 };
 
 static void fdManagerPlatformCallback(int fd, int revents, void* ud) {
+  (void)fd;
   auto thi = (FdManager*)ud;
   thi->uponReady(revents);
 }

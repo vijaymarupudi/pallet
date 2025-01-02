@@ -26,23 +26,7 @@ public:
     this->monitoring = state;
   }
 
-  void internalOnMidi(uint64_t time, const unsigned char* buf, size_t len, void* ud) {
-    if (this->monitoring) {
-      if (len == 0) { return; }
-      printf("midi in | time: %lu, message: ", time);
-      printf("0x%02X", buf[0]);
-      for (int i = 1; i < len; i++) {
-        printf(", 0x%02X", buf[i]);
-      }
-      printf("\n");
-    }
-    if (this->onMidiClockCb) {
-      this->onMidiClockCb(time, buf, len, this->onMidiClockUserData);
-    }
-    if (this->onMidiCb) {
-      this->onMidiCb(time, buf, len, this->onMidiUserData);
-    }
-  }
+  void internalOnMidi(uint64_t time, const unsigned char* buf, size_t len);
   
   virtual void sendMidi(const unsigned char* buf, size_t len) = 0;
   
@@ -56,10 +40,9 @@ public:
   int threadWriteFd;
   RtMidiIn midiIn;
   RtMidiOut midiOut;
-  LinuxPlatform* platform;
+  LinuxPlatform& platform;
 
-  LinuxMidiInterface() {};
-  void init(LinuxPlatform* platform);
+  LinuxMidiInterface(LinuxPlatform& platform);
   virtual void sendMidi(const unsigned char* buf,
                         size_t len) override;
 };

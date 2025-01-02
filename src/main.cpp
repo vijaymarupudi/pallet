@@ -52,11 +52,8 @@ int nVoices = 8;
 
 int main() {
   pallet::LinuxPlatform platform;
-  platform.init();
-  pallet::Clock clock;
-  clock.init((pallet::Platform*)&platform);
+  pallet::Clock clock(platform);
   pallet::LuaInterface luaInterface;
-  luaInterface.init();
   luaInterface.setClock(&clock);
 //   luaInterface.dostring(R"(
 // local pallet = require("pallet")
@@ -71,9 +68,8 @@ int main() {
   // LinuxAudioInterface audioInterface;
   // audioInterface.init(&clock);
 
-  // LinuxMidiInterface midiInterface;
-  // midiInterface.init(&platform);
-  // midiInterface.monitor();
+  pallet::LinuxMidiInterface midiInterface(platform);
+  midiInterface.monitor();
 
   // MidiParser parser;
   // parser.noteOn([](int chan, int note, int vel) {
@@ -96,13 +92,17 @@ int main() {
 
   // amy_reset_oscs();
 
-  pallet::LinuxMonomeGridInterface gridInterface;
-  gridInterface.init(&platform);
+  pallet::LinuxMonomeGridInterface gridInterface(platform);
+  
   
   gridInterface.setOnConnect([](const std::string& id, bool state, pallet::MonomeGrid* grid, void* ud) {
     grid->setOnKey([](int x, int y, int z, void* ud) {
-      printf("%d, %d, %d\n");
+      (void)ud;
+      printf("%d, %d, %d\n", x, y, z);
     }, nullptr);
+    (void)ud;
+    (void)state;
+    (void)id;
     grid->clear();
     grid->led(0, 0, 15);
     grid->led(8, 8, 15);
