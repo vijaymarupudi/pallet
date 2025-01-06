@@ -143,7 +143,7 @@ int main() {
   // }, nullptr);
 
   int d = luaInterface.dostring(R"(
-local clock = require("_pallet").clock
+local clock = require("pallet").clock
 
 local id = clock.setInterval(100000000, function() print("wow!") end)
 )");

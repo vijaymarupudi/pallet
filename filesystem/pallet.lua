@@ -1,6 +1,5 @@
-local _pallet = require('_pallet')
+local __pallet = require('__pallet')
 
 return {
-   clock = _pallet.clock
+   clock = __pallet.clock
 }
-

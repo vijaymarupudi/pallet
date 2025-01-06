@@ -154,7 +154,7 @@ LuaInterface& getLuaInterfaceObject(lua_State* L) {
 
 static int l_open_function(lua_State* L) {
   const char* lname = lua_tostring(L, -1);
-  if (strcmp(lname, "_pallet") == 0) {
+  if (strcmp(lname, "__pallet") == 0) {
     return getPalletCTable(L);
   } else {
     const struct filesystem_entry* entry =
