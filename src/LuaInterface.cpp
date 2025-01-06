@@ -4,12 +4,35 @@
 #include <utility>
 #include <inttypes.h>
 #include <string.h>
+#include <type_traits>
+#include <string_view>
 
 namespace pallet {
 
-LuaInterface* luaInterface;
+void luaPush(lua_State* L, std::string_view str) {
+  lua_pushlstring(L, str.data(), str.size());
+}
 
-static void l_print_single(lua_State* L, int index) {
+void luaPush(lua_State* L, void* ptr) {
+  lua_pushlightuserdata(L, ptr);
+}
+
+void luaPush(lua_State* L, const lua_CFunction func) {
+  lua_pushcfunction(L, func);
+}
+
+template <class T, class = std::enable_if_t<std::is_integral_v<T>>>
+void luaPush(lua_State* L, const T integer) {
+  lua_pushinteger(L, static_cast<lua_Integer>(integer));
+}
+
+void luaRawSetTable(lua_State* L, int tableIndex, const auto& key, const auto& value) {
+  luaPush(L, key);
+  luaPush(L, value);
+  lua_rawset(L, tableIndex);
+}
+
+static void luaPrintSingle(lua_State* L, int index) {
   int typ = lua_type(L, index);
   if (typ == LUA_TSTRING) {
     size_t len;
@@ -44,10 +67,10 @@ static void l_print_single(lua_State* L, int index) {
   }
 }
 
-static int luaprint(lua_State* L) {
+static int luaPrint(lua_State* L) {
   int top = lua_gettop(L);
   for (int i = 1; i < top + 1; i++) {
-    l_print_single(L, i);
+    luaPrintSingle(L, i);
     if (i != top) {
       putc(' ', stdout);
     }
@@ -57,7 +80,7 @@ static int luaprint(lua_State* L) {
 }
 
 static void l_open_io(lua_State* L) {
-  lua_register(L, "print", luaprint);
+  lua_register(L, "print", luaPrint);
 }
 
 static const luaL_Reg loadedlibs[] = {
@@ -77,30 +100,6 @@ static void l_open_libs(lua_State* L) {
     luaL_requiref(L, lib->name, lib->func, 1);
     lua_pop(L, 1);  /* remove lib */
   }
-}
-
-static void l_clock_set_timeout_cb(ClockEventInfo* info, void* data);
-static int l_clock_set_timeout(lua_State* L);
-static int l_clock_set_interval(lua_State* L);
-static int l_clock_current_time(lua_State* L);
-static int l_clock_clear_timeout(lua_State* L);
-
-static void l_bind_lua_func(lua_State* L, int table, const char* field, lua_CFunction f) {
-  lua_pushcfunction(L, f);
-  lua_setfield(L, table, field);
-}
-
-static void l_bind_clock(lua_State* L) {
-  lua_newtable(L);
-  lua_pushvalue(L, -1);
-  lua_setfield(L, -3, "clock");
-  // -1 is the clock table
-  auto clock_table = lua_gettop(L);
-  l_bind_lua_func(L, clock_table, "setTimeout", l_clock_set_timeout);
-  l_bind_lua_func(L, clock_table, "setInterval", l_clock_set_interval);
-  l_bind_lua_func(L, clock_table, "currentTime", l_clock_current_time);
-  l_bind_lua_func(L, clock_table, "clearTimeout", l_clock_clear_timeout);
-  l_bind_lua_func(L, clock_table, "clearInterval", l_clock_clear_timeout);
 }
 
 static const struct filesystem_entry* l_find_filesystem_entry(const struct filesystem_entry* entries, unsigned int entries_count, const char* fname) {
@@ -137,16 +136,26 @@ const char* l_lua_reader(lua_State* L, void* ud, size_t* size) {
   }
 }
 
+int getRegistryEntry(lua_State* L, const void* key) {
+  lua_rawgetp(L, LUA_REGISTRYINDEX, key);
+  return 1;
+}
+
+int getPalletCTable(lua_State* L) {
+  return getRegistryEntry(L, &__palletCTableRegistryIndex);
+}
+
+LuaInterface& getLuaInterfaceObject(lua_State* L) {
+  getRegistryEntry(L, &__luaInterfaceRegistryIndex);
+  void* ret = lua_touserdata(L, -1);
+  lua_pop(L, 1);
+  return *static_cast<LuaInterface*>(ret);
+}
+
 static int l_open_function(lua_State* L) {
   const char* lname = lua_tostring(L, -1);
   if (strcmp(lname, "_pallet") == 0) {
-    int top = lua_gettop(L);
-    lua_newtable(L);
-    if (luaInterface->clock) {
-      l_bind_clock(L);
-    }
-    lua_settop(L, top + 1);
-    return 1;
+    return getPalletCTable(L);
   } else {
     const struct filesystem_entry* entry =
       l_find_filesystem_entry(&filesystem_lua_modules[0],
@@ -171,23 +180,30 @@ static int l_require(lua_State* L) {
   return 1;
 }
 
-void LuaInterface::bind() {
-    auto L = this->L;
-    lua_pushcfunction(L, l_require);
-    lua_setglobal(L, "require");
+void LuaInterface::setupRequire() {
+  auto L = this->L;
+  luaPush(L, l_require);
+  lua_setglobal(L, "require");
 }
 
 LuaInterface::LuaInterface() {
   this->L = luaL_newstate();
   l_open_libs(this->L);
   l_open_io(this->L);
-  luaInterface = this;
-  this->clock = nullptr;
-  this->bind();
+
+  // Setting up lightuserdata for the LuaInterface object
+  luaPush(this->L, this);
+  lua_rawsetp(this->L, LUA_REGISTRYINDEX, &__luaInterfaceRegistryIndex);
+
+  // Setting up __pallet table
+  lua_newtable(this->L);
+  lua_rawsetp(this->L, LUA_REGISTRYINDEX, &__palletCTableRegistryIndex);
+
+  this->setupRequire();
 }
 
-void LuaInterface::dostring(const char* str) {
-    luaL_dostring(this->L, str);
+int LuaInterface::dostring(const char* str) {
+  return luaL_dostring(this->L, str);
 }
 
 
@@ -195,7 +211,54 @@ LuaInterface::~LuaInterface() {
   lua_close(this->L);
 }
 
-static uint64_t l_clock_get_time_value(lua_State* L, int index) {
+
+
+static void luaClockSetTimeoutCb(ClockEventInfo* info, void* data);
+static void luaClockSetIntervalCb(ClockEventInfo* info, void* data);
+static int luaClockSetTimeout(lua_State* L);
+static int luaClockSetInterval(lua_State* L);
+static int luaClockCurrentTime(lua_State* L);
+static int luaClockClearTimeout(lua_State* L);
+
+
+static void bindClock(lua_State* L) {
+  auto start = lua_gettop(L);
+  lua_newtable(L); // clock
+  int clockTableIndex = lua_gettop(L);
+  luaRawSetTable(L, clockTableIndex, "setTimeout", luaClockSetTimeout);
+  luaRawSetTable(L, clockTableIndex, "setInterval", luaClockSetInterval);
+  luaRawSetTable(L, clockTableIndex, "currentTime", luaClockCurrentTime);
+  luaRawSetTable(L, clockTableIndex, "clearTimeout", luaClockClearTimeout);
+  luaRawSetTable(L, clockTableIndex, "clearInterval", luaClockClearTimeout);
+  getPalletCTable(L);
+  auto palletCTableIndex = lua_gettop(L);
+  lua_pushliteral(L, "clock");
+  lua_pushvalue(L, clockTableIndex);
+  lua_rawset(L, palletCTableIndex);
+  lua_settop(L, start);
+}
+
+void LuaInterface::setClock(Clock& clock) {
+  this->clock = &clock;
+  bindClock(this->L);
+}
+
+//   When freeing:
+
+// I have id
+
+// I need to free the callbackState and the clockState
+
+// When calling back:
+
+// I have callbackStateId
+
+// If timeout: I need to free the callbackState and the functionRef
+
+// If interval: nothing needs to be freed
+
+
+static uint64_t luaClockGetTimeArgument(lua_State* L, int index) {
   if (lua_isinteger(L, index)) {
     return lua_tointeger(L, index);
   } else {
@@ -203,51 +266,86 @@ static uint64_t l_clock_get_time_value(lua_State* L, int index) {
   }
 }
 
-
-static void l_clock_set_timeout_cb(ClockEventInfo* info, void* data) {
-  (void)info;
-  int ref = reinterpret_cast<intptr_t>(data);
-  lua_rawgeti(luaInterface->L, LUA_REGISTRYINDEX, ref);
-  luaL_unref(luaInterface->L, LUA_REGISTRYINDEX, ref);
-  // the function is now at the top of the stack
-  lua_call(luaInterface->L, 0, 0);
-}
-
-static void l_clock_set_interval_cb(ClockEventInfo* info, void* data) {
-  (void)info;
-  int ref = reinterpret_cast<intptr_t>(data);
-  lua_rawgeti(luaInterface->L, LUA_REGISTRYINDEX, ref);
-  // the function is now at the top of the stack
-  lua_call(luaInterface->L, 0, 0);
-}
-
-
-static int l_clock_set_timeout(lua_State* L) {
-  uint64_t time = l_clock_get_time_value(L, 1);
+static int luaClockSetTimeout(lua_State* L) {
+  uint64_t time = luaClockGetTimeArgument(L, 1);
   int functionRef = luaL_ref(L, LUA_REGISTRYINDEX);
-  auto id = luaInterface->clock->setTimeout(time, l_clock_set_timeout_cb, (void*)(intptr_t)functionRef);
-  lua_pushinteger(L, id);
-  return 1;
-}
-static int l_clock_set_interval(lua_State* L) {
-  uint64_t time = l_clock_get_time_value(L, 1);
-  int functionRef = luaL_ref(L, LUA_REGISTRYINDEX);
-  auto id = luaInterface->clock->setInterval(time, l_clock_set_interval_cb, (void*)(intptr_t)functionRef);
-  lua_pushinteger(L, id);
+  // the user's function is at the top of the stack
+  lua_rawseti(L, LUA_REGISTRYINDEX, functionRef);
+  auto luaInterface = getLuaInterfaceObject(L);
+  auto id = luaInterface.clockCallbackState.push(LuaInterface::ClockCallbackStateEntry {
+      luaInterface, 0, 0, functionRef
+    });
+  auto& state = luaInterface.clockCallbackState[id];
+  auto cid = luaInterface.clock->setTimeout(time, luaClockSetTimeoutCb, &state);
+  state.id = id;
+  state.clockId = cid;
+  state.luaFunctionRef = functionRef;
+  luaPush(L, id);
   return 1;
 }
 
-static int l_clock_clear_timeout(lua_State* L) {
+static int luaClockSetInterval(lua_State* L) {
+  uint64_t time = luaClockGetTimeArgument(L, 1);
+  int functionRef = luaL_ref(L, LUA_REGISTRYINDEX);
+  // the user's function is at the top of the stack
+  lua_rawseti(L, LUA_REGISTRYINDEX, functionRef);
+  auto luaInterface = getLuaInterfaceObject(L);
+  auto id = luaInterface.clockCallbackState.push(LuaInterface::ClockCallbackStateEntry {luaInterface, 0, 0, functionRef});
+  auto& state = luaInterface.clockCallbackState[id];
+  auto cid = luaInterface.clock->setInterval(time, luaClockSetIntervalCb, &state);
+  state.id = id;
+  state.clockId = cid;
+  state.luaFunctionRef = functionRef;
+  luaPush(L, id);
+  return 1;
+}
+
+static void luaClockStateCleanup(LuaInterface::ClockCallbackStateEntry& entry, bool cancel = false) {
+  auto& luaInterface = entry.luaInterface;
+  auto L = luaInterface.L;
+  auto id = entry.id;
+  auto clockId = entry.clockId;
+  auto ref = entry.luaFunctionRef;
+
+  if (cancel) {
+    luaInterface.clock->clearTimeout(clockId);
+  }
+
+  luaL_unref(L, LUA_REGISTRYINDEX, ref);
+  luaInterface.clockCallbackState.free(id);
+}
+
+static void luaClockSetTimeoutCb(ClockEventInfo* info, void* data) {
+  (void)info;
+  auto& state = *static_cast<LuaInterface::ClockCallbackStateEntry*>(data);
+  auto& luaInterface = state.luaInterface;
+  auto ref = state.luaFunctionRef;
+  lua_rawgeti(luaInterface.L, LUA_REGISTRYINDEX, ref);
+  lua_call(luaInterface.L, 0, 0);
+  luaClockStateCleanup(state);
+}
+
+static void luaClockSetIntervalCb(ClockEventInfo* info, void* data) {
+  (void)info;
+  auto& state = *static_cast<LuaInterface::ClockCallbackStateEntry*>(data);
+  auto& luaInterface = state.luaInterface;
+  auto ref = state.luaFunctionRef;
+  lua_rawgeti(luaInterface.L, LUA_REGISTRYINDEX, ref);
+  lua_call(luaInterface.L, 0, 0);
+}
+
+static int luaClockClearTimeout(lua_State* L) {
   int id = luaL_checkinteger(L, 1);
-  int functionRef = (intptr_t)luaInterface->clock->getTimeoutUserData(id);
-  luaL_unref(L, LUA_REGISTRYINDEX, functionRef);
-  luaInterface->clock->clearTimeout(id);
+  auto& luaInterface = getLuaInterfaceObject(L);
+  auto& state = luaInterface.clockCallbackState[id];
+  luaClockStateCleanup(state, true);
   return 0;
 }
 
-static int l_clock_current_time(lua_State* L) {
-  auto time = luaInterface->clock->currentTime();
-  lua_pushinteger(L, time);
+static int luaClockCurrentTime(lua_State* L) {
+  auto luaInterface = getLuaInterfaceObject(L);
+  auto time = luaInterface.clock->currentTime();
+  luaPush(L, time);
   return 1;
 }
 

@@ -54,7 +54,7 @@ int main() {
   pallet::LinuxPlatform platform;
   pallet::Clock clock(platform);
   pallet::LuaInterface luaInterface;
-  luaInterface.setClock(&clock);
+  luaInterface.setClock(clock);
 //   luaInterface.dostring(R"(
 // local pallet = require("pallet")
 // pallet.clock.setInterval((1/60) * 1000 * 1000, function()
@@ -141,6 +141,18 @@ int main() {
   // beatClock.setBeatSyncInterval(1, 1.0/4, 1.0/2, [](BeatClockEventInfo* info, void* ud) {
   //   printf("tock, %f\n", info->intended);
   // }, nullptr);
+
+  int d = luaInterface.dostring(R"(
+local clock = require("_pallet").clock
+
+local id = clock.setTimeout(1000000000, function() print("wow!") end)
+print("wow")
+-- print("Hello!")
+)");
+
+  if (d) {
+    printf("msg: %s\n", lua_tostring(luaInterface.L, -1));
+  }
 
   while (1) {
     platform.loopIter();

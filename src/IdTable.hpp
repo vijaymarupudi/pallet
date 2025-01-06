@@ -3,10 +3,12 @@
 #include <algorithm>
 #include <array>
 #include <inttypes.h>
+#include <vector>
 #include "StaticVector.hpp"
 
 namespace pallet::containers {
-template <class EntryType, template<class> class Container, class id_type = uint32_t>
+
+template <class EntryType, template<class> class Container = std::vector, class id_type = uint32_t>
 class IdTable {
   struct Space {
     alignas(EntryType) std::byte bytes[sizeof(EntryType)];
@@ -37,10 +39,13 @@ class IdTable {
   Container<id_type> freeVector;
 public:
 
-  IdTable() {
-    storage.reserve(256);
-    freeVector.reserve(256);
+  IdTable() {}
+
+  void reserve(size_t n) {
+    storage.reserve(n);
+    freeVector.reserve(n);
   }
+
   template <class T>
   id_type push(T&& item) {
     if (freeVector.size() != 0) {

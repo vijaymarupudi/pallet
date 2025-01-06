@@ -3,6 +3,8 @@
 #include <inttypes.h>
 #include <stdio.h>
 
+namespace pallet::containers {
+
 template <class ItemType, size_t _capacity>
 class StaticVector {
 public:
@@ -124,3 +126,5 @@ public:
   }
 
 };
+
+}

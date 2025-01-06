@@ -46,7 +46,7 @@ private:
 
   template <class T>
   using ContainerType = std::conditional_t<pallet::constants::isEmbeddedDevice,
-                                           StaticVector<T, 256>,
+                                           pallet::containers::StaticVector<T, 256>,
                                            std::vector<T>>;
   containers::KeyedPriorityQueue<double, id_type, ContainerType, std::greater<double>> queue;
   containers::IdTable<BeatClockEvent, ContainerType, id_type> idTable;

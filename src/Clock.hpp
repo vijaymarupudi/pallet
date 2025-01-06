@@ -38,7 +38,7 @@ private:
 
   template <class T>
   using ContainerType = std::conditional_t<pallet::constants::isEmbeddedDevice,
-                                           StaticVector<T, 256>,
+                                           pallet::containers::StaticVector<T, 256>,
                                            std::vector<T>>;
 
   containers::KeyedPriorityQueue<uint64_t, id_type, ContainerType, std::greater<uint64_t>> queue;
