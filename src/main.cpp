@@ -68,8 +68,8 @@ int main() {
   // LinuxAudioInterface audioInterface;
   // audioInterface.init(&clock);
 
-  pallet::LinuxMidiInterface midiInterface(platform);
-  midiInterface.monitor();
+  // pallet::LinuxMidiInterface midiInterface(platform);
+  // midiInterface.monitor();
 
   // MidiParser parser;
   // parser.noteOn([](int chan, int note, int vel) {
@@ -145,9 +145,7 @@ int main() {
   int d = luaInterface.dostring(R"(
 local clock = require("_pallet").clock
 
-local id = clock.setTimeout(1000000000, function() print("wow!") end)
-print("wow")
--- print("Hello!")
+local id = clock.setInterval(100000000, function() print("wow!") end)
 )");
 
   if (d) {

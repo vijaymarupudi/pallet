@@ -268,10 +268,9 @@ static uint64_t luaClockGetTimeArgument(lua_State* L, int index) {
 
 static int luaClockSetTimeout(lua_State* L) {
   uint64_t time = luaClockGetTimeArgument(L, 1);
+  // the user's function is at the top of the stack, so store it at the index
   int functionRef = luaL_ref(L, LUA_REGISTRYINDEX);
-  // the user's function is at the top of the stack
-  lua_rawseti(L, LUA_REGISTRYINDEX, functionRef);
-  auto luaInterface = getLuaInterfaceObject(L);
+  auto& luaInterface = getLuaInterfaceObject(L);
   auto id = luaInterface.clockCallbackState.push(LuaInterface::ClockCallbackStateEntry {
       luaInterface, 0, 0, functionRef
     });
@@ -286,10 +285,9 @@ static int luaClockSetTimeout(lua_State* L) {
 
 static int luaClockSetInterval(lua_State* L) {
   uint64_t time = luaClockGetTimeArgument(L, 1);
-  int functionRef = luaL_ref(L, LUA_REGISTRYINDEX);
   // the user's function is at the top of the stack
-  lua_rawseti(L, LUA_REGISTRYINDEX, functionRef);
-  auto luaInterface = getLuaInterfaceObject(L);
+  int functionRef = luaL_ref(L, LUA_REGISTRYINDEX);
+  auto& luaInterface = getLuaInterfaceObject(L);
   auto id = luaInterface.clockCallbackState.push(LuaInterface::ClockCallbackStateEntry {luaInterface, 0, 0, functionRef});
   auto& state = luaInterface.clockCallbackState[id];
   auto cid = luaInterface.clock->setInterval(time, luaClockSetIntervalCb, &state);
@@ -343,7 +341,7 @@ static int luaClockClearTimeout(lua_State* L) {
 }
 
 static int luaClockCurrentTime(lua_State* L) {
-  auto luaInterface = getLuaInterfaceObject(L);
+  auto& luaInterface = getLuaInterfaceObject(L);
   auto time = luaInterface.clock->currentTime();
   luaPush(L, time);
   return 1;
