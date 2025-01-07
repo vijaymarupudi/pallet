@@ -2,6 +2,7 @@
 #include <array>
 #include <inttypes.h>
 #include <stdio.h>
+#include "containerUtils.hpp"
 
 namespace pallet::containers {
 
@@ -10,32 +11,7 @@ class StaticVector {
 public:
   using size_type = size_t;
 private:
-  struct Space {
-    alignas(ItemType) std::byte bytes[sizeof(ItemType)];
-    ItemType* ptr() {
-      return reinterpret_cast<ItemType*>(this);
-    }
-    const ItemType* ptr() const {
-      return reinterpret_cast<const ItemType*>(this);
-    }
-    template<class... Args>
-    void construct(Args ...args) {
-      new (this) ItemType(std::forward<Args>(args)...);
-    }
-
-    ItemType& ref() {
-      return *(this->ptr());
-    }
-    
-    const ItemType& ref() const {
-      return *(this->ptr());
-    }
-    
-    void destroy() {
-      this->ptr()->~ItemType();
-    }
-  };
-  std::array<Space, _capacity> storage;
+  std::array<Space<ItemType>, _capacity> storage;
   size_type top;
 public:
   StaticVector() : top(0) {}

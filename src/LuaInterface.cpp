@@ -102,7 +102,7 @@ static void l_open_libs(lua_State* L) {
   }
 }
 
-static const struct filesystem_entry* l_find_filesystem_entry(const struct filesystem_entry* entries, unsigned int entries_count, const char* fname) {
+static const struct filesystem_entry* findFilesystemEntry(const struct filesystem_entry* entries, unsigned int entries_count, const char* fname) {
   auto low = entries;
   auto high = low + entries_count;
   while (low < high) {
@@ -158,7 +158,7 @@ static int l_open_function(lua_State* L) {
     return getPalletCTable(L);
   } else {
     const struct filesystem_entry* entry =
-      l_find_filesystem_entry(&filesystem_lua_modules[0],
+      findFilesystemEntry(&filesystem_lua_modules[0],
                               filesystem_lua_modules_count,
                               lname);
 
@@ -210,8 +210,6 @@ int LuaInterface::dostring(const char* str) {
 LuaInterface::~LuaInterface() {
   lua_close(this->L);
 }
-
-
 
 static void luaClockSetTimeoutCb(ClockEventInfo* info, void* data);
 static void luaClockSetIntervalCb(ClockEventInfo* info, void* data);
