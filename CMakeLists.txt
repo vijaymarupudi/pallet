@@ -33,14 +33,19 @@ add_compile_options(-Wall -Wextra -pedantic -Werror)
 # add_compile_options(-fsanitize=address)
 # add_link_options(-fsanitize=address)
 
+set(CXX_FILES src/LuaInterface.cpp src/Platform.cpp src/Clock.cpp src/MidiInterface.cpp src/BeatClockScheduler.cpp)
 
-add_executable(main src/main.cpp src/LuaInterface.cpp src/Platform.cpp src/Clock.cpp src/MidiInterface.cpp
-                    src/BeatClockScheduler.cpp filesystem.h)
+add_library(pallet STATIC ${CXX_FILES})
+set_property(TARGET pallet PROPERTY CXX_STANDARD 23)
+target_link_libraries(pallet PUBLIC RT::RtMidi Miniaudio::Miniaudio Lua::Lua Amy::Amy PkgConfig::SDL2 PkgConfig::LO)
+target_include_directories(pallet PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 
+add_executable(main src/main.cpp)
 set_property(TARGET main PROPERTY CXX_STANDARD 23)
-target_link_libraries(main RT::RtMidi Miniaudio::Miniaudio Lua::Lua Amy::Amy PkgConfig::SDL2 PkgConfig::LO)
+target_link_libraries(main pallet)
 target_include_directories(main PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(test src/test.cpp)
+target_link_libraries(test pallet)
 set_property(TARGET test PROPERTY CXX_STANDARD 23)
 

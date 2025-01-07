@@ -1,14 +1,18 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sstream>
-#include <pthread.h>
-#include <cstring>
-#include "time.hpp"
+#include <cstdio>
+#include "Platform.hpp"
+#include "Clock.hpp"
 
 int main()
   
 {
+
+  auto platform = pallet::LinuxPlatform();
+  auto clock = pallet::Clock(platform);
+
+  while (true) {
+    platform.loopIter();
+  }
+  
   // Wow var;
   return 0;
 

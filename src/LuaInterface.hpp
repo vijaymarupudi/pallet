@@ -29,16 +29,18 @@ public:
     LuaInterface& luaInterface;
     id_type id;
     Clock::id_type clockId;
-    int luaFunctionRef;
+    int luaFunctionRef = 0;
   };
 
-  // I need pointer stability, cannot use vector
+  // I need pointer stability, cannot use std::vector
   template <class T>
   using IdTableContainer = std::conditional_t<pallet::constants::isEmbeddedDevice,
                                               containers::StaticVector<T, 256>,
                                               std::deque<T>>;
   Clock* clock = nullptr;
-  containers::IdTable<ClockCallbackStateEntry, IdTableContainer, id_type> clockCallbackState;
+  containers::IdTable<ClockCallbackStateEntry,
+                      IdTableContainer,
+                      id_type> clockCallbackState;
 
   /*
    * Grid binding state

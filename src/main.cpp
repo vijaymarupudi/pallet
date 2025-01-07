@@ -16,6 +16,8 @@
 #include "AudioInterface.hpp"
 #include "MidiParser.hpp"
 #include <cmath>
+#include <array>
+#include <tuple>
 
 int scale(int note) {
   const int s[] = {0, 2, 3, 5, 7, 8, 10};
@@ -43,9 +45,6 @@ void handleInput(char* buf, ssize_t len, pallet::LinuxAudioInterface* iface) {
   }
 
 }
-
-#include <array>
-#include <tuple>
 
 int voiceNumber = 0;
 int nVoices = 8;
