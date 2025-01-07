@@ -211,13 +211,101 @@ LuaInterface::~LuaInterface() {
   lua_close(this->L);
 }
 
+
+
+/*
+ * Grid bindings
+ */
+
+  static int luaGridLed(lua_State* L) {
+    auto grid = reinterpret_cast<MonomeGrid*>(lua_touserdata(L, 1));
+    int x = luaL_checkinteger(L, 2);
+    int y = luaL_checkinteger(L, 3);
+    int z = luaL_checkinteger(L, 4);
+    grid->led(x - 1, y - 1, z);
+    return 0;
+  }
+
+  static int luaGridClear(lua_State* L) {
+    auto grid = reinterpret_cast<MonomeGrid*>(lua_touserdata(L, 1));
+    grid->clear();
+    return 0;
+  }
+
+  static int luaGridRender(lua_State* L) {
+    auto grid = reinterpret_cast<MonomeGrid*>(lua_touserdata(L, 1));
+    grid->render();
+    return 0;
+  }
+
+  static int luaGridSetOnKey(lua_State* L) {
+    auto grid = reinterpret_cast<MonomeGrid*>(lua_touserdata(L, 1));
+    int functionRef = luaL_ref(L, LUA_REGISTRYINDEX);
+    auto& iface = getLuaInterfaceObject(L);
+    iface.gridKeyFunction = functionRef;
+    grid->setOnKey([](int x, int y, int z, void* ud) {
+      auto thi = (LuaInterface*)ud;
+      lua_rawgeti(thi->L, LUA_REGISTRYINDEX, thi->gridKeyFunction);
+      luaPush(thi->L, x + 1);
+      luaPush(thi->L, y + 1);
+      luaPush(thi->L, z);
+      lua_call(thi->L, 3, 0);
+    }, &iface);
+    return 0;
+  }
+  
+
+  static int luaGridConnect(lua_State* L) {
+    int id = luaL_checkinteger(L, -2);
+    // connect callback is the first argument
+    int functionRef = luaL_ref(L, LUA_REGISTRYINDEX);
+    auto& iface = getLuaInterfaceObject(L);
+    iface.gridOnConnectFunction = functionRef;
+    iface.gridInterface->setOnConnect([](const std::string& id, bool state,
+                                         MonomeGrid* grid, void* ud) {
+      (void)id;
+      (void)state;
+      auto thi = (LuaInterface*)ud;
+      lua_rawgeti(thi->L, LUA_REGISTRYINDEX, thi->gridOnConnectFunction);
+      luaPush(thi->L, grid);
+      lua_call(thi->L, 1, 0);
+    }, &iface);
+    iface.gridInterface->connect(id);
+    return 0;
+  }
+
+static void bindGrid(lua_State* L) {
+  lua_newtable(L);
+  int gridTableIndex = lua_gettop(L);
+  luaRawSetTable(L, gridTableIndex, "connect", luaGridConnect);
+  luaRawSetTable(L, gridTableIndex, "led", luaGridLed);
+  luaRawSetTable(L, gridTableIndex, "clear", luaGridClear);
+  luaRawSetTable(L, gridTableIndex, "render", luaGridRender);
+  luaRawSetTable(L, gridTableIndex, "setOnKey", luaGridSetOnKey);
+  getPalletCTable(L);
+  int palletCTableIndex = lua_gettop(L);
+  lua_pushliteral(L, "grid");
+  lua_pushvalue(L, gridTableIndex);
+  lua_rawset(L, palletCTableIndex);
+}
+
+  void LuaInterface::setMonomeGridInterface(MonomeGridInterface& gridInterface) {
+    this->gridInterface = &gridInterface;
+    bindGrid(this->L);
+  }
+
+  /*
+   *
+   * Clock bindings
+   * 
+   */
+
 static void luaClockSetTimeoutCb(ClockEventInfo* info, void* data);
 static void luaClockSetIntervalCb(ClockEventInfo* info, void* data);
 static int luaClockSetTimeout(lua_State* L);
 static int luaClockSetInterval(lua_State* L);
 static int luaClockCurrentTime(lua_State* L);
 static int luaClockClearTimeout(lua_State* L);
-
 
 static void bindClock(lua_State* L) {
   auto start = lua_gettop(L);
@@ -240,21 +328,6 @@ void LuaInterface::setClock(Clock& clock) {
   this->clock = &clock;
   bindClock(this->L);
 }
-
-//   When freeing:
-
-// I have id
-
-// I need to free the callbackState and the clockState
-
-// When calling back:
-
-// I have callbackStateId
-
-// If timeout: I need to free the callbackState and the functionRef
-
-// If interval: nothing needs to be freed
-
 
 static uint64_t luaClockGetTimeArgument(lua_State* L, int index) {
   if (lua_isinteger(L, index)) {
@@ -344,5 +417,4 @@ static int luaClockCurrentTime(lua_State* L) {
   luaPush(L, time);
   return 1;
 }
-
 }

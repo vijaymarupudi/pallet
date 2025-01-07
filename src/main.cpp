@@ -10,7 +10,7 @@
 #include "lua.hpp"
 #include "Clock.hpp"
 #include "BeatClock.hpp"
-#include "GridInterface.hpp"
+#include "MonomeGridInterface.hpp"
 #include "LuaInterface.hpp"
 #include "MidiInterface.hpp"
 #include "AudioInterface.hpp"
@@ -53,99 +53,32 @@ int nVoices = 8;
 int main() {
   pallet::LinuxPlatform platform;
   pallet::Clock clock(platform);
+  pallet::LinuxMonomeGridInterface gridInterface(platform);
   pallet::LuaInterface luaInterface;
   luaInterface.setClock(clock);
-//   luaInterface.dostring(R"(
-// local pallet = require("pallet")
-// pallet.clock.setInterval((1/60) * 1000 * 1000, function()
-//   local now = pallet.clock.currentTime()
-//   print(now)
-// end)
-
-// )");
-
-
-  // LinuxAudioInterface audioInterface;
-  // audioInterface.init(&clock);
-
-  // pallet::LinuxMidiInterface midiInterface(platform);
-  // midiInterface.monitor();
-
-  // MidiParser parser;
-  // parser.noteOn([](int chan, int note, int vel) {
-  //   char buf[1024];
-  //   snprintf(buf, 1024, "r%dn%dl%fZ", chan, note, vel ? 1.0 : 0.0);
-  //   amy_play_message(buf);
-  // });
-
-  // midiInterface.setOnMidi([](uint64_t time, const unsigned char* buf, size_t len, void* ud) {
-  //   ((MidiParser*)ud)->uponMidi(buf, len);
-  // }, &parser);
-
-
-  // platform.setFdNonBlocking(0);
-  // platform.watchFdIn(0, [](int fd, void* ud){
-  //   char buf[8192];
-  //   ssize_t len = read(0, buf, 8192);
-  //   handleInput(buf, len, (LinuxAudioInterface*)ud);
-  // }, &audioInterface);
-
-  // amy_reset_oscs();
-
-  pallet::LinuxMonomeGridInterface gridInterface(platform);
+  luaInterface.setMonomeGridInterface(gridInterface);
   
-  
-  gridInterface.setOnConnect([](const std::string& id, bool state, pallet::MonomeGrid* grid, void* ud) {
-    grid->setOnKey([](int x, int y, int z, void* ud) {
-      (void)ud;
-      printf("%d, %d, %d\n", x, y, z);
-    }, nullptr);
-    (void)ud;
-    (void)state;
-    (void)id;
-    grid->clear();
-    grid->led(0, 0, 15);
-    grid->led(8, 8, 15);
-    grid->led(8, 0, 15);
-    grid->led(0, 8, 15);
-    grid->render();
-  }, nullptr);
-
-  gridInterface.connect(0);
-
-  // gridInterface.setOnKey([](int x, int y, int z, void* ud) {
-  //   auto gi = (LinuxMonomeGridInterface*)ud;
-  //   gi->clear();
-  //   int note = scale(x + y * 16) % 128;
-  //   char buf[1024];
-  //   if (z == 1) {
-  //     snprintf(buf, 1024, "r0n%dl1Z", note);
-  //     gi->led(x, y, z * 15);
-  //   } else {
-  //     snprintf(buf, 1024, "r0dl0Z");
-  //     gi->led(x, y, z * 15);
-  //   }
-  //   amy_play_message(buf);
-  //   gi->render();
-  // }, &gridInterface);
-
-  // BeatClock beatClock;
-  // beatClock.init(&clock, &midiInterface);
-  // beatClock.setClockSource(BeatClockType::Midi);
-  // // beatClock.sendMidiClock(true);
-
-  // beatClock.setBeatSyncInterval(1, 0, 1.0/2, [](BeatClockEventInfo* info, void* ud) {
-  //   printf("tick, %f\n", info->intended);
-  // }, nullptr);
-
-  // beatClock.setBeatSyncInterval(1, 1.0/4, 1.0/2, [](BeatClockEventInfo* info, void* ud) {
-  //   printf("tock, %f\n", info->intended);
-  // }, nullptr);
-
   int d = luaInterface.dostring(R"(
 local clock = require("pallet").clock
+local grid = require("pallet").grid
+grid.connect(1, function(g)
+  g:setOnKey(function(x, y, z)
+  print(x, y, z)
+  g:clear()
+  g:led(x, y, z * 15)
+  g:render()    
+  end)
+  local state = 0
+  clock.setInterval(50000000, function()
+    g:clear()
+    if state == 0 then state = 1 else state = 0 end
+    g:led(1, 1, state * 15)
+    g:render()
+  end)
+end)
 
-local id = clock.setInterval(100000000, function() print("wow!") end)
+
+
 )");
 
   if (d) {

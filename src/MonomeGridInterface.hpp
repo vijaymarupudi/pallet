@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Platform.hpp"
 #include <utility>
 #include <string.h>
