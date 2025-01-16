@@ -4,9 +4,9 @@
 #include <inttypes.h>
 #include <type_traits>
 #include <vector>
-#include "KeyedPriorityQueue.hpp"
-#include "StaticVector.hpp"
-#include "IdTable.hpp"
+#include "containers/KeyedPriorityQueue.hpp"
+#include "containers/StaticVector.hpp"
+#include "containers/IdTable.hpp"
 #include "constants.hpp"
 
 namespace pallet {

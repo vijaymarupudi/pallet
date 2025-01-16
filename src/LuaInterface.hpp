@@ -4,10 +4,10 @@
 
 #include "lua.hpp"
 
-#include "IdTable.hpp"
+#include "containers/IdTable.hpp"
 #include "Clock.hpp"
 #include "MonomeGridInterface.hpp"
-#include "StaticVector.hpp"
+#include "containers/StaticVector.hpp"
 
 namespace pallet {
 
