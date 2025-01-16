@@ -22,7 +22,6 @@ add_subdirectory(third-party/miniaudio)
 add_subdirectory(third-party/lua)
 add_subdirectory(third-party/amy)
 
-
 file(GLOB FILESYSTEM_FILES filesystem/**/*)
 
 add_custom_command(OUTPUT filesystem.h

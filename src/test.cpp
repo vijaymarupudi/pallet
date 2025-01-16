@@ -1,11 +1,13 @@
 #include <cstdio>
 #include "Platform.hpp"
 #include "Clock.hpp"
+#include "time.hpp"
+#include <string>
+
 
 int main()
   
 {
-
   auto platform = pallet::LinuxPlatform();
   auto clock = pallet::Clock(platform);
 
@@ -15,6 +17,4 @@ int main()
   
   // Wow var;
   return 0;
-
-
 }
