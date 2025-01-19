@@ -1,36 +1,16 @@
-#include "LuaInterface.hpp"
-#include "filesystem.h"
 #include <algorithm>
 #include <utility>
 #include <inttypes.h>
 #include <string.h>
 #include <type_traits>
-#include <string_view>
+
+#include "LuaInterface.hpp"
+#include "filesystem.h"
+#include "luaHelper.hpp"
 
 namespace pallet {
 
-void luaPush(lua_State* L, std::string_view str) {
-  lua_pushlstring(L, str.data(), str.size());
-}
-
-void luaPush(lua_State* L, void* ptr) {
-  lua_pushlightuserdata(L, ptr);
-}
-
-void luaPush(lua_State* L, const lua_CFunction func) {
-  lua_pushcfunction(L, func);
-}
-
-template <class T, class = std::enable_if_t<std::is_integral_v<T>>>
-void luaPush(lua_State* L, const T integer) {
-  lua_pushinteger(L, static_cast<lua_Integer>(integer));
-}
-
-void luaRawSetTable(lua_State* L, int tableIndex, const auto& key, const auto& value) {
-  luaPush(L, key);
-  luaPush(L, value);
-  lua_rawset(L, tableIndex);
-}
+using namespace pallet::luaHelper;
 
 static void luaPrintSingle(lua_State* L, int index) {
   int typ = lua_type(L, index);
@@ -40,10 +20,10 @@ static void luaPrintSingle(lua_State* L, int index) {
     fwrite(str, 1, len, stdout);
   } else if (typ == LUA_TNUMBER) {
     if (lua_isinteger(L, index)) {
-      int64_t number = luaL_checknumber(L, index);
+      int64_t number = luaCheckedPull<int64_t>(L, index);
       printf("%ld", number);
     } else {
-      float number = luaL_checknumber(L, index);
+      float number = luaCheckedPull<float>(L, index);
       printf("%f", number);
     }
 
@@ -147,9 +127,9 @@ int getPalletCTable(lua_State* L) {
 
 LuaInterface& getLuaInterfaceObject(lua_State* L) {
   getRegistryEntry(L, &__luaInterfaceRegistryIndex);
-  void* ret = lua_touserdata(L, -1);
+  auto ret = luaPull<LuaInterface*>(L, -1);
   lua_pop(L, 1);
-  return *static_cast<LuaInterface*>(ret);
+  return *ret;
 }
 
 static int l_open_function(lua_State* L) {
@@ -212,41 +192,40 @@ LuaInterface::~LuaInterface() {
 }
 
 
-
 /*
  * Grid bindings
  */
 
   static int luaGridLed(lua_State* L) {
-    auto grid = reinterpret_cast<MonomeGrid*>(lua_touserdata(L, 1));
-    int x = luaL_checkinteger(L, 2);
-    int y = luaL_checkinteger(L, 3);
-    int z = luaL_checkinteger(L, 4);
+    auto grid = luaCheckedPull<MonomeGrid*>(L, 1);
+    int x = luaCheckedPull<int>(L, 2);
+    int y = luaCheckedPull<int>(L, 3);
+    int z = luaCheckedPull<int>(L, 4);
     grid->led(x - 1, y - 1, z);
     return 0;
   }
 
 static int luaGridAll(lua_State* L) {
-    auto grid = reinterpret_cast<MonomeGrid*>(lua_touserdata(L, 1));
-    int z = luaL_checkinteger(L, 2);
-    grid->all(z);
-    return 0;
+  auto grid = luaCheckedPull<MonomeGrid*>(L, 1);
+  int z = luaCheckedPull<int>(L, 2);
+  grid->all(z);
+  return 0;
 }
 
   static int luaGridClear(lua_State* L) {
-    auto grid = reinterpret_cast<MonomeGrid*>(lua_touserdata(L, 1));
+    auto grid = luaCheckedPull<MonomeGrid*>(L, 1);
     grid->clear();
     return 0;
   }
 
   static int luaGridRender(lua_State* L) {
-    auto grid = reinterpret_cast<MonomeGrid*>(lua_touserdata(L, 1));
+    auto grid = luaCheckedPull<MonomeGrid*>(L, 1);
     grid->render();
     return 0;
   }
 
   static int luaGridSetOnKey(lua_State* L) {
-    auto grid = reinterpret_cast<MonomeGrid*>(lua_touserdata(L, 1));
+    auto grid = luaCheckedPull<MonomeGrid*>(L, 1);
     int functionRef = luaL_ref(L, LUA_REGISTRYINDEX);
     auto& iface = getLuaInterfaceObject(L);
     iface.gridKeyFunction = functionRef;
@@ -260,10 +239,10 @@ static int luaGridAll(lua_State* L) {
     }, &iface);
     return 0;
   }
-  
+
 
   static int luaGridConnect(lua_State* L) {
-    int id = luaL_checkinteger(L, -2);
+    int id = luaCheckedPull<int>(L, -2);
     // connect callback is the first argument
     int functionRef = luaL_ref(L, LUA_REGISTRYINDEX);
     auto& iface = getLuaInterfaceObject(L);
@@ -305,7 +284,7 @@ static void bindGrid(lua_State* L) {
   /*
    *
    * Clock bindings
-   * 
+   *
    */
 
 static void luaClockSetTimeoutCb(ClockEventInfo* info, void* data);
@@ -412,7 +391,7 @@ static void luaClockSetIntervalCb(ClockEventInfo* info, void* data) {
 }
 
 static int luaClockClearTimeout(lua_State* L) {
-  int id = luaL_checkinteger(L, 1);
+  int id = luaCheckedPull<int>(L, 1);
   auto& luaInterface = getLuaInterfaceObject(L);
   auto& state = luaInterface.clockCallbackState[id];
   luaClockStateCleanup(state, true);
@@ -424,5 +403,26 @@ static int luaClockCurrentTime(lua_State* L) {
   auto time = luaInterface.clock->currentTime();
   luaPush(L, time);
   return 1;
+}
+
+// static int luaBeatClockSyncTimeout(lua_State* L) {
+//   auto& luaInterface = getLuaInterfaceObject(L);
+//   auto beatClock = luaInterface.beatClock;
+//   (void)beatClock;
+//   return 1;
+// }
+
+static void bindBeatClock(lua_State* L) {
+  (void)L;
+  // auto start = lua_gettop(L);
+  // lua_newtable(L); // BeatClock
+  // int beatClockTableIndex = lua_gettop(L);
+  // luaRawSetTable(L, beatClockTableIndex, "setBeatSyncTimeout", luaClockClearTimeout);
+
+}
+
+void LuaInterface::setBeatClock(BeatClock& beatClock) {
+  this->beatClock = &beatClock;
+  bindBeatClock(this->L);
 }
 }

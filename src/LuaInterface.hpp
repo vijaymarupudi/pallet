@@ -5,9 +5,10 @@
 #include "lua.hpp"
 
 #include "containers/IdTable.hpp"
+#include "containers/StaticVector.hpp"
 #include "Clock.hpp"
 #include "MonomeGridInterface.hpp"
-#include "containers/StaticVector.hpp"
+#include "BeatClock.hpp"
 
 namespace pallet {
 
@@ -50,6 +51,12 @@ public:
   int gridOnConnectFunction = 0;
   int gridKeyFunction = 0;
 
+  /*
+   * BeatClock binding state
+   */
+
+  BeatClock* beatClock;
+
 private:
   void setupRequire();
 public:
@@ -58,6 +65,7 @@ public:
   int dostring(const char* str);
   void setClock(Clock& clock);
   void setMonomeGridInterface(MonomeGridInterface& gridInterface);
+  void setBeatClock(BeatClock& beatClock);
 };
 
 }
