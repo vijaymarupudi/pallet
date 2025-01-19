@@ -85,6 +85,13 @@ public:
     this->setQuadDirty(quadIndex);
   }
 
+  void all(int z) {
+    memset(&quadData, z, sizeof(MonomeGridQuadDataType) * 4);
+    for (int i = 0; i < 4; i++) {
+      this->setQuadDirty(i);
+    }
+  }
+
   void clear() {
     memset(&quadData, 0, sizeof(MonomeGridQuadDataType) * 4);
     for (int i = 0; i < 4; i++) {

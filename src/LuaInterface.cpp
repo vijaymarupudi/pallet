@@ -226,6 +226,13 @@ LuaInterface::~LuaInterface() {
     return 0;
   }
 
+static int luaGridAll(lua_State* L) {
+    auto grid = reinterpret_cast<MonomeGrid*>(lua_touserdata(L, 1));
+    int z = luaL_checkinteger(L, 2);
+    grid->all(z);
+    return 0;
+}
+
   static int luaGridClear(lua_State* L) {
     auto grid = reinterpret_cast<MonomeGrid*>(lua_touserdata(L, 1));
     grid->clear();
@@ -280,6 +287,7 @@ static void bindGrid(lua_State* L) {
   luaRawSetTable(L, gridTableIndex, "connect", luaGridConnect);
   luaRawSetTable(L, gridTableIndex, "led", luaGridLed);
   luaRawSetTable(L, gridTableIndex, "clear", luaGridClear);
+  luaRawSetTable(L, gridTableIndex, "all", luaGridAll);
   luaRawSetTable(L, gridTableIndex, "render", luaGridRender);
   luaRawSetTable(L, gridTableIndex, "setOnKey", luaGridSetOnKey);
   getPalletCTable(L);
