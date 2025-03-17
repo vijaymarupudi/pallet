@@ -6,84 +6,37 @@
 #include <stdlib.h>
 #include <vector>
 #include <string>
-#include "RtMidi.h"
 #include "lua.hpp"
+#include "Platform.hpp"
 #include "Clock.hpp"
-#include "BeatClock.hpp"
-#include "MonomeGridInterface.hpp"
-#include "LuaInterface.hpp"
-#include "MidiInterface.hpp"
-#include "AudioInterface.hpp"
-#include "MidiParser.hpp"
+#include "GraphicsInterface.hpp"
 #include <cmath>
 #include <array>
 #include <tuple>
 
-int scale(int note) {
-  const int s[] = {0, 2, 3, 5, 7, 8, 10};
-  return note / 7 * 12 + s[note % 7];
-}
-
-void handleInput(char* buf, ssize_t len, pallet::LinuxAudioInterface* iface) {
-  int processed = 0;
-  for (int i = 0; i < 8192; i++) {
-      if (buf[i] == '\n') {
-        buf[i] = 0;
-        if (strcmp(buf, "r") == 0) {
-          iface->toggleRecord();
-        } else {
-          amy_play_message(buf);
-        }
-
-        processed = i + 1;
-        break;
-      }
-  }
-
-  if (processed != len) {
-    return handleInput(buf + processed, len - processed, iface);
-  }
-
-}
-
-int voiceNumber = 0;
-int nVoices = 8;
-
 int main() {
   pallet::LinuxPlatform platform;
   pallet::Clock clock(platform);
-  pallet::LinuxMonomeGridInterface gridInterface(platform);
-  pallet::LuaInterface luaInterface;
-  luaInterface.setClock(clock);
-  luaInterface.setMonomeGridInterface(gridInterface);
+
+  pallet::SDLThreadedInterface sdlInterface(platform);
+
+  struct S {
+    int count = 0;
+    pallet::SDLThreadedInterface* sdlInterface;
+  };
   
-  int d = luaInterface.dostring(R"(
-local clock = require("pallet").clock
-local grid = require("pallet").grid
-grid.connect(1, function(g)
-  g:setOnKey(function(x, y, z)
-  print(x, y, z)
-  g:clear()
-  g:led(x, y, z * 15)
-  g:render()    
-  end)
-  local state = 0
-  clock.setInterval(50000000, function()
-    g:clear()
-    if state == 0 then state = 1 else state = 0 end
-    g:led(1, 1, state * 15)
-    g:render()
-  end)
-end)
+  S state { 0, &sdlInterface };  
 
-
-
-)");
-
-  if (d) {
-    printf("msg: %s\n", lua_tostring(luaInterface.L, -1));
-  }
-
+  clock.setInterval(pallet::timeInS(1), [](pallet::ClockEventInfo* cei, void* ud) {
+    auto state = (S*)ud;
+    state->count += 1;
+    (void)ud;
+    (void)cei;
+    // state->sdlInterface->text(0, 0, "text!", 5);
+    state->sdlInterface->rect(0, 0, 10, 10, 15);
+    state->sdlInterface->render();
+  }, &state);
+  
   while (1) {
     platform.loopIter();
   }

@@ -268,6 +268,7 @@ static void bindGrid(lua_State* L) {
   luaRawSetTable(L, gridTableIndex, "clear", luaGridClear);
   luaRawSetTable(L, gridTableIndex, "all", luaGridAll);
   luaRawSetTable(L, gridTableIndex, "render", luaGridRender);
+  luaRawSetTable(L, gridTableIndex, "refresh", luaGridRender);
   luaRawSetTable(L, gridTableIndex, "setOnKey", luaGridSetOnKey);
   getPalletCTable(L);
   int palletCTableIndex = lua_gettop(L);
