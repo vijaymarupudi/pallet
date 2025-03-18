@@ -24,19 +24,24 @@ int main() {
     int count = 0;
     pallet::SDLThreadedInterface* sdlInterface;
   };
-  
-  S state { 0, &sdlInterface };  
 
-  clock.setInterval(pallet::timeInS(1), [](pallet::ClockEventInfo* cei, void* ud) {
+  S state { 0, &sdlInterface };
+
+  clock.setInterval(pallet::timeInMs(1000 / 20), [](pallet::ClockEventInfo* cei, void* ud) {
     auto state = (S*)ud;
     state->count += 1;
     (void)ud;
     (void)cei;
-    // state->sdlInterface->text(0, 0, "text!", 5);
-    state->sdlInterface->rect(0, 0, 10, 10, 15);
+
+    state->sdlInterface->clear();
+    // state->sdlInterface->text(10, 10, "text!", 5);
+    char buf[1000];
+    auto len = snprintf(buf, 1000, "%d", state->count);
+    state->sdlInterface->text(8, 8, buf, len);
+    // state->sdlInterface->rect(0, 0, 10, 10, (state->count % 2) * 15);
     state->sdlInterface->render();
   }, &state);
-  
+
   while (1) {
     platform.loopIter();
   }

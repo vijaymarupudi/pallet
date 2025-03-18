@@ -4,6 +4,9 @@
 #include <inttypes.h>
 #include "CGPixel.h"
 #include <thread>
+#include <atomic>
+#include "containers/ThreadSafeStack.hpp"
+#include <memory>
 
 namespace pallet {
 
@@ -27,7 +30,7 @@ struct OperationText {
   int x;
   int y;
   char* text;
-  size_t textLen;  
+  size_t textLen;
 };
 
 enum class OperationType : uint8_t {
@@ -89,30 +92,8 @@ public:
         } else if (bc != -1) {
           this->point(xloc, yloc, bc);
         }
-      } 
-    }
-  }
-
-  void renderOperations(std::vector<Operation>& operations) {
-    for (auto& op : operations) {
-      switch (op.type) {
-      case OperationType::Rect:
-        this->rect(op.rect.x, op.rect.y, op.rect.w, op.rect.h, op.rect.c);
-        break;
-      case OperationType::Point:
-        this->point(op.point.x, op.point.y, op.point.c);
-        break;
-      case OperationType::Text:
-        this->text(op.text.x, op.text.y, op.text.text, op.text.textLen);
-        free(op.text.text);
-        break;
-      case OperationType::Clear:
-        this->clear();
-        break;
       }
     }
-
-    this->render();
   }
 
   void text(int x, int y, const char* str, size_t strLen, const GFXfont* font = &CG_pixel_3x52) {
@@ -142,14 +123,17 @@ class SDLInterface : public GraphicsInterface {
   SDL_Renderer* renderer;
   int scaleFactor = 9;
 
+
 public:
+  void(*onUserEvent)(SDL_Event* event, void* ud) = nullptr;
+  void* onUserEventUserData = nullptr;
 
   unsigned int userEventType;
 
   void config(int scaleFactor = 9) {
     this->scaleFactor = scaleFactor;
   }
-  
+
   void init() override {
     SDL_Init(SDL_INIT_VIDEO);
     this->window = SDL_CreateWindow("Testing", SDL_WINDOWPOS_UNDEFINED,
@@ -166,8 +150,7 @@ public:
   }
 
   void render() override {
-    // SDL_RenderPresent(renderer);
-    // SDL_UpdateWindowSurface(window);
+    SDL_UpdateWindowSurface(window);
   }
 
   void rect(int x, int y, int w, int h, int c) override {
@@ -177,39 +160,34 @@ public:
                    h * scaleFactor};
 
     int v = ((c + 1) << 4) - 1;
-    printf("c: %d\n", v);
     SDL_SetRenderDrawColor(renderer, v, v, v, 255);
-    SDL_RenderFillRect(renderer, &rect);
+    int ret = SDL_RenderFillRect(renderer, &rect);
+    if (ret) {
+      printf("%s\n", SDL_GetError());
+    }
   }
 
   void point(int x, int y, int c) override {
-    int v = ((c + 1) << 4) - 1;
-    SDL_SetRenderDrawColor(renderer, v, v, v, 255);
     this->rect(x, y, 1, 1, c);
   }
 
   void loop() {
 
-    this->clear();
-    this->rect(0, 0, 100, 100, 15);
-    this->render();
-
-    
     SDL_Event event;
     while (SDL_WaitEvent(&event)) {
-      printf("Got event: %u\n", event.type);
       if (event.type == SDL_QUIT) {
         this->close();
       }
       if (event.type == this->userEventType) {
-        auto operations = reinterpret_cast<std::vector<Operation>*>(event.user.data1);
-        this->renderOperations(*operations);
-        delete operations;
+        if (this->onUserEvent) {
+          this->onUserEvent(&event, this->onUserEventUserData);
+        }
       }
     }
   }
 
   void close() {
+    SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
   }
@@ -218,33 +196,91 @@ public:
 class SDLThreadedInterface {
 
   LinuxPlatform& platform;
-  std::vector<Operation>* operationsBuffer = nullptr;
+  std::unique_ptr<std::vector<Operation>> operationsBuffer = nullptr;
   SDLInterface sdlInterface;
+  std::atomic<bool> sdlInterfaceInited = false;
   std::thread thrd;
+  containers::ThreadSafeStack<std::unique_ptr<std::vector<Operation>>>
+  operationVectorStack;
 
 public:
 
   SDLThreadedInterface(LinuxPlatform& platform) : platform(platform),
                                                   operationsBuffer(new std::vector<Operation>) {
-    this->sdlInterface.init();
-    thrd = std::thread([this](){
+
+    this->sdlInterface.onUserEventUserData = this;
+    this->sdlInterface.onUserEvent = [](SDL_Event* e, void* u) {
+      reinterpret_cast<SDLThreadedInterface*>(u)->uponUserEvent(e);
+    };
+
+    this->thrd = std::thread([this](){
+      this->sdlInterface.init();
+      this->sdlInterfaceInited = true;
+      this->sdlInterfaceInited.notify_one();
       this->sdlInterface.loop();
     });
+
+    bool old = this->sdlInterfaceInited;
+    if (!old) {
+      this->sdlInterfaceInited.wait(old);
+    }
   }
 
   void render() {
-    auto old = this->operationsBuffer;
-    this->operationsBuffer = new std::vector<Operation>;
+    auto old = std::move(this->operationsBuffer);
+    auto previous_vector = this->operationVectorStack.pop();
+    if (previous_vector) {
+      this->operationsBuffer = std::move(*previous_vector);
+    } else {
+      this->operationsBuffer.reset(new std::vector<Operation>);
+    }
+
+    // Works
+
+    // auto old = std::move(this->operationsBuffer);
+    // this->operationsBuffer.reset(new std::vector<Operation>);
+
+
     SDL_Event event;
     SDL_zero(event);
     event.type = sdlInterface.userEventType;
     event.user.code = 1;
-    event.user.data1 = old;
+    event.user.data1 = old.release();
     event.user.timestamp = SDL_GetTicks();
-    int ret = SDL_PushEvent((SDL_Event*)&event);
+    int ret = SDL_PushEvent(&event);
     if (ret < 0) {
       printf("%s\n", SDL_GetError());
     }
+  }
+
+  void renderOperations(std::vector<Operation>& operations) {
+    // This is called in the SDL thread
+    for (auto& op : operations) {
+      switch (op.type) {
+      case OperationType::Rect:
+        this->sdlInterface.rect(op.rect.x, op.rect.y, op.rect.w, op.rect.h, op.rect.c);
+        break;
+      case OperationType::Point:
+        this->sdlInterface.point(op.point.x, op.point.y, op.point.c);
+        break;
+      case OperationType::Text:
+        this->sdlInterface.text(op.text.x, op.text.y, op.text.text, op.text.textLen);
+        free(op.text.text);
+        break;
+      case OperationType::Clear:
+        this->sdlInterface.clear();
+        break;
+      }
+    }
+    operations.clear();
+    this->sdlInterface.render();
+  }
+
+  void uponUserEvent(SDL_Event* event) {
+    auto data1 = reinterpret_cast<std::vector<Operation>*>(event->user.data1);
+    std::unique_ptr<std::vector<Operation>> operations (data1);
+    this->renderOperations(*operations);
+    this->operationVectorStack.push(std::move(operations));
   }
 
   void addOperation(auto&& op) {
