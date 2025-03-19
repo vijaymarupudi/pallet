@@ -18,14 +18,14 @@ int main() {
   pallet::LinuxPlatform platform;
   pallet::Clock clock(platform);
 
-  pallet::SDLThreadedInterface sdlInterface(platform);
+  pallet::LinuxGraphicsInterface graphicsInterface(platform);
 
   struct S {
     int count = 0;
-    pallet::SDLThreadedInterface* sdlInterface;
+    pallet::LinuxGraphicsInterface* graphicsInterface;
   };
 
-  S state { 0, &sdlInterface };
+  S state { 0, &graphicsInterface };
 
   clock.setInterval(pallet::timeInMs(1000 / 20), [](pallet::ClockEventInfo* cei, void* ud) {
     auto state = (S*)ud;
@@ -33,13 +33,13 @@ int main() {
     (void)ud;
     (void)cei;
 
-    state->sdlInterface->clear();
-    // state->sdlInterface->text(10, 10, "text!", 5);
+    state->graphicsInterface->clear();
+    // state->graphicsInterface->text(10, 10, "text!", 5);
     char buf[1000];
     auto len = snprintf(buf, 1000, "%d", state->count);
-    state->sdlInterface->text(8, 8, buf, len);
-    // state->sdlInterface->rect(0, 0, 10, 10, (state->count % 2) * 15);
-    state->sdlInterface->render();
+    state->graphicsInterface->text(8, 8, buf, len);
+    // state->graphicsInterface->rect(0, 0, 10, 10, (state->count % 2) * 15);
+    state->graphicsInterface->render();
   }, &state);
 
   while (1) {

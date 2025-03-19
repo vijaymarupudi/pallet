@@ -7,6 +7,7 @@
 #include <atomic>
 #include "containers/ThreadSafeStack.hpp"
 #include <memory>
+#include <variant>
 
 namespace pallet {
 
@@ -29,49 +30,18 @@ struct OperationPoint {
 struct OperationText {
   int x;
   int y;
-  char* text;
-  size_t textLen;
+  std::string text;
 };
 
-enum class OperationType : uint8_t {
-  Rect,
-  Point,
-  Text,
-  Clear
-};
+struct OperationClear {};
 
-struct Operation {
-  OperationType type;
-  union {
-    OperationPoint point;
-    OperationRect rect;
-    OperationText text;
-  };
+using Operation = std::variant<OperationRect, OperationPoint, OperationText, OperationClear>;
 
-  Operation(OperationPoint point) {
-    this->type = OperationType::Point;
-    this->point = point;
-  }
-
-  Operation(OperationRect rect) {
-    this->type = OperationType::Rect;
-    this->rect = rect;
-  }
-
-  Operation(OperationText text) {
-    this->type = OperationType::Text;
-    this->text = text;
-  }
-
-  Operation(OperationType type) {
-    this->type = type;
-  }
-};
 }
 
 using namespace detail;
 
-class GraphicsInterface {
+class GraphicsHardwareInterface {
 public:
   virtual void init() = 0;
   virtual void clear() = 0;
@@ -117,7 +87,7 @@ public:
   }
 };
 
-class SDLInterface : public GraphicsInterface {
+class SDLHardwareInterface : public GraphicsHardwareInterface {
   SDL_Window* window;
   SDL_Surface* surface;
   SDL_Renderer* renderer;
@@ -125,8 +95,8 @@ class SDLInterface : public GraphicsInterface {
 
 
 public:
-  void(*onUserEvent)(SDL_Event* event, void* ud) = nullptr;
-  void* onUserEventUserData = nullptr;
+  void(*onEvent)(SDL_Event* event, void* ud) = nullptr;
+  void* onEventUserData = nullptr;
 
   unsigned int userEventType;
 
@@ -178,10 +148,8 @@ public:
       if (event.type == SDL_QUIT) {
         this->close();
       }
-      if (event.type == this->userEventType) {
-        if (this->onUserEvent) {
-          this->onUserEvent(&event, this->onUserEventUserData);
-        }
+      if (this->onEvent) {
+          this->onEvent(&event, this->onEventUserData);
       }
     }
   }
@@ -193,11 +161,11 @@ public:
   }
 };
 
-class SDLThreadedInterface {
+class LinuxGraphicsInterface {
 
   LinuxPlatform& platform;
   std::unique_ptr<std::vector<Operation>> operationsBuffer = nullptr;
-  SDLInterface sdlInterface;
+  SDLHardwareInterface sdlHardwareInterface;
   std::atomic<bool> sdlInterfaceInited = false;
   std::thread thrd;
   containers::ThreadSafeStack<std::unique_ptr<std::vector<Operation>>>
@@ -205,19 +173,19 @@ class SDLThreadedInterface {
 
 public:
 
-  SDLThreadedInterface(LinuxPlatform& platform) : platform(platform),
-                                                  operationsBuffer(new std::vector<Operation>) {
+  LinuxGraphicsInterface(LinuxPlatform& platform) :
+    platform(platform), operationsBuffer(new std::vector<Operation>) {
 
-    this->sdlInterface.onUserEventUserData = this;
-    this->sdlInterface.onUserEvent = [](SDL_Event* e, void* u) {
-      reinterpret_cast<SDLThreadedInterface*>(u)->uponUserEvent(e);
+    this->sdlHardwareInterface.onEventUserData = this;
+    this->sdlHardwareInterface.onEvent = [](SDL_Event* e, void* u) {
+      reinterpret_cast<LinuxGraphicsInterface*>(u)->uponEvent(e);
     };
 
     this->thrd = std::thread([this](){
-      this->sdlInterface.init();
+      this->sdlHardwareInterface.init();
       this->sdlInterfaceInited = true;
       this->sdlInterfaceInited.notify_one();
-      this->sdlInterface.loop();
+      this->sdlHardwareInterface.loop();
     });
 
     bool old = this->sdlInterfaceInited;
@@ -235,15 +203,9 @@ public:
       this->operationsBuffer.reset(new std::vector<Operation>);
     }
 
-    // Works
-
-    // auto old = std::move(this->operationsBuffer);
-    // this->operationsBuffer.reset(new std::vector<Operation>);
-
-
     SDL_Event event;
     SDL_zero(event);
-    event.type = sdlInterface.userEventType;
+    event.type = sdlHardwareInterface.userEventType;
     event.user.code = 1;
     event.user.data1 = old.release();
     event.user.timestamp = SDL_GetTicks();
@@ -255,31 +217,49 @@ public:
 
   void renderOperations(std::vector<Operation>& operations) {
     // This is called in the SDL thread
-    for (auto& op : operations) {
-      switch (op.type) {
-      case OperationType::Rect:
-        this->sdlInterface.rect(op.rect.x, op.rect.y, op.rect.w, op.rect.h, op.rect.c);
-        break;
-      case OperationType::Point:
-        this->sdlInterface.point(op.point.x, op.point.y, op.point.c);
-        break;
-      case OperationType::Text:
-        this->sdlInterface.text(op.text.x, op.text.y, op.text.text, op.text.textLen);
-        free(op.text.text);
-        break;
-      case OperationType::Clear:
-        this->sdlInterface.clear();
-        break;
+
+    struct OperationActions {
+      SDLHardwareInterface& sdlHardwareInterface;
+      void operator()(OperationRect& op) {
+        this->sdlHardwareInterface.rect(op.x, op.y, op.w, op.h, op.c);
       }
+
+      void operator()(OperationPoint& op) {
+        this->sdlHardwareInterface.point(op.x, op.y, op.c);
+      }
+
+      void operator()(OperationText& op) {
+        this->sdlHardwareInterface.text(op.x, op.y, op.text.c_str(), op.text.size());
+      }
+
+      void operator()(OperationClear& clear) {
+        (void)clear;
+        this->sdlHardwareInterface.clear();
+      }
+    };
+
+    auto actions = OperationActions{this->sdlHardwareInterface};
+
+     
+    for (auto& op : operations) {
+      
+      std::visit(actions, op);
     }
-    operations.clear();
-    this->sdlInterface.render();
+    
+    this->sdlHardwareInterface.render();
+  }
+
+  void uponEvent(SDL_Event* event) {
+    if (event->type == this->sdlHardwareInterface.userEventType) {
+      this->uponUserEvent(event);
+    }
   }
 
   void uponUserEvent(SDL_Event* event) {
     auto data1 = reinterpret_cast<std::vector<Operation>*>(event->user.data1);
     std::unique_ptr<std::vector<Operation>> operations (data1);
     this->renderOperations(*operations);
+    operations->clear();
     this->operationVectorStack.push(std::move(operations));
   }
 
@@ -292,7 +272,7 @@ public:
   }
 
   void clear() {
-    this->addOperation(Operation(OperationType::Clear));
+    this->addOperation(OperationClear{});
   }
 
   void point(int x, int y, int c) {
@@ -300,9 +280,7 @@ public:
   }
 
   void text(int x, int y, const char* str, size_t strLen) {
-    auto allocStr = (char*)malloc(strLen);
-    memcpy(allocStr, str, strLen);
-    this->addOperation(OperationText {x, y, allocStr, strLen});
+    this->addOperation(OperationText {x, y, std::string(str, strLen)});
   }
 };
 }
