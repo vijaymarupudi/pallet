@@ -37,7 +37,7 @@ int main() {
     // state->graphicsInterface->text(10, 10, "text!", 5);
     char buf[1000];
     auto len = snprintf(buf, 1000, "%d", state->count);
-    state->graphicsInterface->text(8, 8, buf, len);
+    state->graphicsInterface->text(8, 8, std::string_view(buf, len));
     // state->graphicsInterface->rect(0, 0, 10, 10, (state->count % 2) * 15);
     state->graphicsInterface->render();
   }, &state);

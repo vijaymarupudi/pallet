@@ -5,9 +5,12 @@
 #include "CGPixel.h"
 #include <thread>
 #include <atomic>
-#include "containers/ThreadSafeStack.hpp"
 #include <memory>
 #include <variant>
+#include <string_view>
+
+#include "constants.hpp"
+#include "containers/ThreadSafeStack.hpp"
 
 namespace pallet {
 
@@ -31,11 +34,16 @@ struct OperationText {
   int x;
   int y;
   std::string text;
+  int fc;
+  int bc;
 };
 
 struct OperationClear {};
 
-using Operation = std::variant<OperationRect, OperationPoint, OperationText, OperationClear>;
+using Operation = std::variant<OperationRect,
+                               OperationPoint,
+                               OperationText,
+                               OperationClear>;
 
 }
 
@@ -66,7 +74,9 @@ public:
     }
   }
 
-  void text(int x, int y, const char* str, size_t strLen, const GFXfont* font = &CG_pixel_3x52) {
+  // fc = foreground color
+  // bc = background color
+  void text(int x, int y, const char* str, size_t strLen, int fc, int bc, const GFXfont* font = &CG_pixel_3x52) {
     int xpos = x;
     int ypos = y;
     for (size_t i = 0; i < strLen; i++) {
@@ -81,11 +91,13 @@ public:
       int xrenderpos = xpos + glyph->xOffset;
       int yrenderpos = ypos + glyph->yOffset;
       this->renderCompressedBitmap(xrenderpos, yrenderpos, glyph->width,
-                                   glyph->height, data, 15);
+                                   glyph->height, data, fc, bc);
       xpos += glyph->xAdvance;
     }
   }
 };
+
+#if PALLET_CONSTANTS_PLATFORM == PALLET_CONSTANTS_PLATFORM_LINUX
 
 class SDLHardwareInterface : public GraphicsHardwareInterface {
   SDL_Window* window;
@@ -229,7 +241,12 @@ public:
       }
 
       void operator()(OperationText& op) {
-        this->sdlHardwareInterface.text(op.x, op.y, op.text.c_str(), op.text.size());
+        this->sdlHardwareInterface.text(op.x, op.y,
+                                        op.text.c_str(),
+                                        op.text.size(),
+                                        op.fc,
+                                        op.bc
+                                        );
       }
 
       void operator()(OperationClear& clear) {
@@ -242,7 +259,6 @@ public:
 
      
     for (auto& op : operations) {
-      
       std::visit(actions, op);
     }
     
@@ -279,8 +295,11 @@ public:
     this->addOperation(OperationPoint {x, y, c});
   }
 
-  void text(int x, int y, const char* str, size_t strLen) {
-    this->addOperation(OperationText {x, y, std::string(str, strLen)});
+  void text(int x, int y, std::string_view str, int fc = 15, int bc = 0) {
+    this->addOperation(OperationText {x, y, std::string(str.data(),
+                                                        str.size()),
+                                      fc, bc});
   }
 };
 }
+#endif
