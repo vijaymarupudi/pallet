@@ -19,35 +19,52 @@ int main() {
   pallet::Clock clock(platform);
   pallet::LinuxGraphicsInterface graphicsInterface(platform);
 
-  graphicsInterface.setOnEvent([](pallet::GraphicsEvent event, void* u) {
-    (void)u;
-
-    std::visit([](auto& event) {
-      if constexpr (std::is_same_v<decltype(event), pallet::GraphicsEventMouseButton&>) {
-        printf("%d, %d, %d, %d\n", event.x, event.y, event.button, event.state);
-      }
-    }, event);
-  }, nullptr);
-
-  struct S {
+  struct State {
+    bool flag = false;
     int count = 0;
     pallet::LinuxGraphicsInterface* graphicsInterface;
   };
 
-  S state { 0, &graphicsInterface };
+  State state { false, 0, &graphicsInterface };
 
+  graphicsInterface.setOnEvent([](pallet::GraphicsEvent ievent, void* u) {
+    auto& flag = reinterpret_cast<State*>(u)->flag;
+    std::visit([&](auto& event) {
+      if constexpr (std::is_same_v<decltype(event), pallet::GraphicsEventMouseButton&>) {
+        if (event.state) {
+          flag = !flag;
+        }
+        printf("%d, %d, %d, %d\n", event.x, event.y, event.button, event.state);
+      } else if constexpr (std::is_same_v<decltype(event), pallet::GraphicsEventKey&>) {
+        if (event.state && event.keycode == ' ') {
+          flag = !flag;
+        }
+        printf("Key event! %c %d %d\n", event.keycode, event.state, event.repeat);
+      }
+    }, ievent);
+  }, &state);
+
+  
   clock.setInterval(pallet::timeInMs(1000 / 20), [](pallet::ClockEventInfo* cei, void* ud) {
-    auto state = (S*)ud;
-    state->count += 1;
     (void)ud;
     (void)cei;
 
+    auto state = (State*)ud;
+    state->count += 1;
+
     state->graphicsInterface->clear();
-    // state->graphicsInterface->text(10, 10, "text!", 5);
-    char buf[1000];
-    auto len = snprintf(buf, 1000, "%d", state->count);
-    state->graphicsInterface->text(8, 8, std::string_view(buf, len));
-    // state->graphicsInterface->rect(0, 0, 10, 10, (state->count % 2) * 15);
+
+    
+    // char buf[1000];
+    // auto len = snprintf(buf, 1000, "%d", state->count);
+    // state->graphicsInterface->text(8, 8, std::string_view(buf, len));
+
+    if (state->flag) {
+      state->graphicsInterface->rect(0, 0, 30, 30, 15);
+    } else {
+      state->graphicsInterface->rect(0, 0, 30, 30, 0);
+    }
+    
     state->graphicsInterface->render();
   }, &state);
 

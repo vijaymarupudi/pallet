@@ -268,14 +268,13 @@ public:
     for (size_t i = 0; i < len; i += sizeof(SDL_Event)) {
       std::optional<GraphicsEvent> event;
       SDL_Event sdlEvent;
-      memcpy(&sdlEvent, data, sizeof(SDL_Event));
+      memcpy(&sdlEvent, data + i, sizeof(SDL_Event));
       if (sdlEvent.type == SDL_MOUSEMOTION) {
         event = GraphicsEventMouseMove {
           sdlEvent.motion.x / scaleFactor,
           sdlEvent.motion.y / scaleFactor
         };
       }
-
       else if (sdlEvent.type == SDL_KEYDOWN || sdlEvent.type == SDL_KEYUP) {
         bool state = sdlEvent.type == SDL_KEYDOWN ? true : false;
         event = GraphicsEventKey {
