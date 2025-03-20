@@ -17,7 +17,6 @@
 int main() {
   pallet::LinuxPlatform platform;
   pallet::Clock clock(platform);
-
   pallet::LinuxGraphicsInterface graphicsInterface(platform);
 
   graphicsInterface.setOnEvent([](pallet::GraphicsEvent event, void* u) {

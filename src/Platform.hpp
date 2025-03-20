@@ -45,14 +45,13 @@ class LinuxPlatform : public Platform {
   };
 
   FdPollState& findOrCreateFdPollState(int fd);
-
   
 public:
   static constexpr int Read  = POLLIN;
   static constexpr int Write = POLLOUT;
   int cpu_dma_latency_fd;
   int timerfd;
-  struct pollfd pollFds[16];
+  struct pollfd pollFds[32];
   std::map<int, FdPollState> fdCallbacks;
   void uponTimer();
 
