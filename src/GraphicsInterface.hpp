@@ -4,13 +4,16 @@
 #include <inttypes.h>
 #include "CGPixel.h"
 #include <thread>
-#include <atomic>
 #include <memory>
+#include <atomic>
 #include <variant>
 #include <string_view>
+#include <optional>
+#include <unistd.h>
 
 #include "constants.hpp"
 #include "containers/ThreadSafeStack.hpp"
+#include "Platform.hpp"
 
 namespace pallet {
 
@@ -46,6 +49,30 @@ using Operation = std::variant<OperationRect,
                                OperationClear>;
 
 }
+
+struct GraphicsEventMouseButton {
+  int x;
+  int y;
+  bool state;
+  int button;
+};
+
+struct GraphicsEventMouseMove {
+  int x;
+  int y;
+};
+
+struct GraphicsEventKey {
+  bool state;
+  bool repeat;
+  uint32_t keycode;
+  uint32_t scancode;
+  uint32_t mod;
+};
+
+using GraphicsEvent = std::variant<GraphicsEventMouseButton,
+                                   GraphicsEventMouseMove,
+                                   GraphicsEventKey>;
 
 using namespace detail;
 
@@ -99,16 +126,20 @@ public:
 
 #if PALLET_CONSTANTS_PLATFORM == PALLET_CONSTANTS_PLATFORM_LINUX
 
+
+
+const size_t MAX_BATCH_LEN = 30;
+
 class SDLHardwareInterface : public GraphicsHardwareInterface {
   SDL_Window* window;
   SDL_Surface* surface;
   SDL_Renderer* renderer;
-  int scaleFactor = 9;
-
-
 public:
-  void(*onEvent)(SDL_Event* event, void* ud) = nullptr;
-  void* onEventUserData = nullptr;
+  
+  int scaleFactor = 9;
+  
+  void(*onEventsCallback)(SDL_Event* events, size_t len, void* ud) = nullptr;
+  void* onEventsUserData = nullptr;
 
   unsigned int userEventType;
 
@@ -154,14 +185,17 @@ public:
   }
 
   void loop() {
-
-    SDL_Event event;
-    while (SDL_WaitEvent(&event)) {
-      if (event.type == SDL_QUIT) {
-        this->close();
+    SDL_Event events[MAX_BATCH_LEN];
+    while (SDL_WaitEvent(events)) {
+      size_t len = 1;
+      for (; len < MAX_BATCH_LEN; len++) {
+        if (!SDL_PollEvent(&events[len])) {
+          break;
+        }
       }
-      if (this->onEvent) {
-          this->onEvent(&event, this->onEventUserData);
+      
+      if (this->onEventsCallback) {
+        this->onEventsCallback(events, len, this->onEventsUserData);
       }
     }
   }
@@ -176,21 +210,43 @@ public:
 class LinuxGraphicsInterface {
 
   LinuxPlatform& platform;
+  FdManager pipeFdManager;
   std::unique_ptr<std::vector<Operation>> operationsBuffer = nullptr;
+  
   SDLHardwareInterface sdlHardwareInterface;
+  
   std::atomic<bool> sdlInterfaceInited = false;
   std::thread thrd;
   containers::ThreadSafeStack<std::unique_ptr<std::vector<Operation>>>
   operationVectorStack;
+  
+  int pipes[2];
+  void(*onEventCallback) (GraphicsEvent event, void* ud);
+  void* onEventCallbackUserData = nullptr;
 
 public:
 
-  LinuxGraphicsInterface(LinuxPlatform& platform) :
-    platform(platform), operationsBuffer(new std::vector<Operation>) {
+  void setOnEvent(void(*onEventCallback) (GraphicsEvent event, void* ud), void* ud = nullptr) {
+    this->onEventCallback = onEventCallback;
+    this->onEventCallbackUserData = ud;
+  }
 
-    this->sdlHardwareInterface.onEventUserData = this;
-    this->sdlHardwareInterface.onEvent = [](SDL_Event* e, void* u) {
-      reinterpret_cast<LinuxGraphicsInterface*>(u)->uponEvent(e);
+  LinuxGraphicsInterface(LinuxPlatform& platform) :
+    platform(platform), pipeFdManager(platform), operationsBuffer(new std::vector<Operation>) {
+    
+    pipe(this->pipes);
+
+    pipeFdManager.setFd(pipes[0]);
+
+    pipeFdManager.startReading([](int fd, void* data, size_t len, void* ud) {
+      (void)fd;
+      reinterpret_cast<LinuxGraphicsInterface*>(ud)->uponPipeIn(data, len);
+    }, this);
+
+    this->sdlHardwareInterface.onEventsUserData = this;
+    this->sdlHardwareInterface.onEventsCallback = [](SDL_Event* e, size_t len,
+                                             void* u) {
+      reinterpret_cast<LinuxGraphicsInterface*>(u)->uponEvents(e, len);
     };
 
     this->thrd = std::thread([this](){
@@ -203,6 +259,48 @@ public:
     bool old = this->sdlInterfaceInited;
     if (!old) {
       this->sdlInterfaceInited.wait(old);
+    }
+  }
+
+  void uponPipeIn(void* datain, size_t len) {
+    unsigned char* data = reinterpret_cast<unsigned char*>(datain);
+    auto scaleFactor = this->sdlHardwareInterface.scaleFactor;
+    for (size_t i = 0; i < len; i += sizeof(SDL_Event)) {
+      std::optional<GraphicsEvent> event;
+      SDL_Event sdlEvent;
+      memcpy(&sdlEvent, data, sizeof(SDL_Event));
+      if (sdlEvent.type == SDL_MOUSEMOTION) {
+        event = GraphicsEventMouseMove {
+          sdlEvent.motion.x / scaleFactor,
+          sdlEvent.motion.y / scaleFactor
+        };
+      }
+
+      else if (sdlEvent.type == SDL_KEYDOWN || sdlEvent.type == SDL_KEYUP) {
+        bool state = sdlEvent.type == SDL_KEYDOWN ? true : false;
+        event = GraphicsEventKey {
+          state,
+          sdlEvent.key.repeat != 0,
+          static_cast<uint32_t>(sdlEvent.key.keysym.sym),
+          sdlEvent.key.keysym.scancode,
+          sdlEvent.key.keysym.mod
+        };
+      } else if (sdlEvent.type == SDL_MOUSEBUTTONDOWN || sdlEvent.type == SDL_MOUSEBUTTONUP) {
+        bool state = sdlEvent.type == SDL_MOUSEBUTTONDOWN ? true : false;
+        int button = sdlEvent.button.button;
+        event = GraphicsEventMouseButton {
+          sdlEvent.button.x / scaleFactor,
+          sdlEvent.button.y / scaleFactor,
+          state,
+          button
+        };
+      }
+      
+      if (event) {
+        if (this->onEventCallback) {
+          this->onEventCallback(std::move(*event), this->onEventCallbackUserData);
+        }
+      }
     }
   }
 
@@ -245,8 +343,7 @@ public:
                                         op.text.c_str(),
                                         op.text.size(),
                                         op.fc,
-                                        op.bc
-                                        );
+                                        op.bc);
       }
 
       void operator()(OperationClear& clear) {
@@ -257,18 +354,28 @@ public:
 
     auto actions = OperationActions{this->sdlHardwareInterface};
 
-     
     for (auto& op : operations) {
       std::visit(actions, op);
     }
-    
+
     this->sdlHardwareInterface.render();
   }
 
-  void uponEvent(SDL_Event* event) {
-    if (event->type == this->sdlHardwareInterface.userEventType) {
-      this->uponUserEvent(event);
+  void uponEvents(SDL_Event* events, size_t len) {
+    SDL_Event eventsToSend[MAX_BATCH_LEN];
+    size_t nEvents = 0;
+    for (size_t i = 0; i < len; i++) {
+      SDL_Event *event = &events[i];
+      if (event->type == SDL_QUIT) {
+        this->sdlHardwareInterface.close();
+      } else if (event->type == this->sdlHardwareInterface.userEventType) {
+        this->uponUserEvent(event);
+      } else {
+        eventsToSend[nEvents] = *event;
+        nEvents++;
+      }
     }
+    write(this->pipes[1], eventsToSend, sizeof(SDL_Event) * nEvents);
   }
 
   void uponUserEvent(SDL_Event* event) {
@@ -299,6 +406,11 @@ public:
     this->addOperation(OperationText {x, y, std::string(str.data(),
                                                         str.size()),
                                       fc, bc});
+  }
+
+  ~LinuxGraphicsInterface() {
+    close(pipes[0]);
+    close(pipes[1]);
   }
 };
 }

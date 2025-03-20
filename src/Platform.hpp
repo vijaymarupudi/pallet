@@ -73,7 +73,6 @@ public:
   virtual void timer(uint64_t time, bool off = false) override;
 };
 
-
 static void fdManagerPlatformCallback(int fd, int revents, void* ud);
 
 class FdManager {
@@ -130,7 +129,9 @@ class FdManager {
 
 public:
 
-  FdManager(LinuxPlatform& platform, int fd) : platform(platform), fd(fd) {}
+  FdManager(LinuxPlatform& platform, int fd = -1) : platform(platform), fd(fd) {}
+
+  void setFd(int fd) { this->fd = fd; }
   
   void write(void* data, size_t len, WriteCallback cb, void* ud) {
     writeState = {data, len, 0, cb, ud};
@@ -147,9 +148,10 @@ public:
   }
 
   ~FdManager() {
-    this->platform.unwatchFdEvents(this->fd, LinuxPlatform::Read | LinuxPlatform::Write);
+    if (fd >= 0) {
+      this->platform.unwatchFdEvents(this->fd, LinuxPlatform::Read | LinuxPlatform::Write);
+    }
   }
-
 };
 
 static void fdManagerPlatformCallback(int fd, int revents, void* ud) {

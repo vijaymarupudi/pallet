@@ -20,6 +20,16 @@ int main() {
 
   pallet::LinuxGraphicsInterface graphicsInterface(platform);
 
+  graphicsInterface.setOnEvent([](pallet::GraphicsEvent event, void* u) {
+    (void)u;
+
+    std::visit([](auto& event) {
+      if constexpr (std::is_same_v<decltype(event), pallet::GraphicsEventMouseButton&>) {
+        printf("%d, %d, %d, %d\n", event.x, event.y, event.button, event.state);
+      }
+    }, event);
+  }, nullptr);
+
   struct S {
     int count = 0;
     pallet::LinuxGraphicsInterface* graphicsInterface;
