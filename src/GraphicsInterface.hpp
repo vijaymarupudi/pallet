@@ -17,6 +17,12 @@
 
 namespace pallet {
 
+enum class GraphicsPosition {
+  Default,
+  Center,
+  Bottom
+};
+
 namespace detail {
 
 struct OperationRect {
@@ -39,6 +45,8 @@ struct OperationText {
   std::string text;
   int fc;
   int bc;
+  GraphicsPosition align;
+  GraphicsPosition baseline;
 };
 
 struct OperationClear {};
@@ -70,9 +78,16 @@ struct GraphicsEventKey {
   uint32_t mod;
 };
 
+
 using GraphicsEvent = std::variant<GraphicsEventMouseButton,
                                    GraphicsEventMouseMove,
                                    GraphicsEventKey>;
+
+struct GraphicsTextMeasurement {
+  int width;
+  int ymin;
+  int ymax;
+};
 
 using namespace detail;
 
@@ -122,6 +137,46 @@ public:
       xpos += glyph->xAdvance;
     }
   }
+
+  GraphicsTextMeasurement measureText(const char* str, size_t strLen, const GFXfont* font = &CG_pixel_3x52) {
+
+    auto min = [](auto x, auto y) {
+      if (x < y) { return x;}
+      return y;
+    };
+
+    auto max = [](auto x, auto y) {
+      if (x > y) { return x;}
+      return y;
+    };
+
+    int ymax = 0;
+    int ymin = 0;
+    int xpos = 0;
+    int ypos = 0;
+
+    for (size_t i = 0; i < strLen; i++) {
+      char c = str[i];
+      if (c == '\n') {
+        ypos += font->yAdvance;
+        xpos = 0;
+        continue;
+      }
+      auto glyph = &font->glyph[c - font->first];
+      int xrenderpos = xpos + glyph->xOffset;
+      (void)xrenderpos;
+      int yrenderpos = ypos + glyph->yOffset;
+      ymin = min(ymin, yrenderpos);
+      ymax = max(ymax, yrenderpos + glyph->height);
+      xpos += glyph->xAdvance;
+    }
+
+    auto lastGlyph = &font->glyph[str[strLen - 1] - font->first];
+    xpos -= lastGlyph->xAdvance;
+    xpos += lastGlyph->xOffset + lastGlyph->width;
+
+    return GraphicsTextMeasurement {xpos, ymin, ymax};
+  }
 };
 
 #if PALLET_CONSTANTS_PLATFORM == PALLET_CONSTANTS_PLATFORM_LINUX
@@ -135,9 +190,9 @@ class SDLHardwareInterface : public GraphicsHardwareInterface {
   SDL_Surface* surface;
   SDL_Renderer* renderer;
 public:
-  
+
   int scaleFactor = 9;
-  
+
   void(*onEventsCallback)(SDL_Event* events, size_t len, void* ud) = nullptr;
   void* onEventsUserData = nullptr;
 
@@ -151,7 +206,7 @@ public:
     SDL_Init(SDL_INIT_VIDEO);
     this->window = SDL_CreateWindow("Testing", SDL_WINDOWPOS_UNDEFINED,
                                   SDL_WINDOWPOS_UNDEFINED,
-                                  1024, 600, SDL_WINDOW_SHOWN);
+                                    128 * this->scaleFactor, 64 * this->scaleFactor, SDL_WINDOW_SHOWN);
     this->surface = SDL_GetWindowSurface(window);
     this->renderer = SDL_CreateSoftwareRenderer(surface);
     this->userEventType = SDL_RegisterEvents(1);
@@ -193,7 +248,7 @@ public:
           break;
         }
       }
-      
+
       if (this->onEventsCallback) {
         this->onEventsCallback(events, len, this->onEventsUserData);
       }
@@ -212,14 +267,14 @@ class LinuxGraphicsInterface {
   LinuxPlatform& platform;
   FdManager pipeFdManager;
   std::unique_ptr<std::vector<Operation>> operationsBuffer = nullptr;
-  
+
   SDLHardwareInterface sdlHardwareInterface;
-  
+
   std::atomic<bool> sdlInterfaceInited = false;
   std::thread thrd;
   containers::ThreadSafeStack<std::unique_ptr<std::vector<Operation>>>
   operationVectorStack;
-  
+
   int pipes[2];
   void(*onEventCallback) (GraphicsEvent event, void* ud);
   void* onEventCallbackUserData = nullptr;
@@ -233,7 +288,7 @@ public:
 
   LinuxGraphicsInterface(LinuxPlatform& platform) :
     platform(platform), pipeFdManager(platform), operationsBuffer(new std::vector<Operation>) {
-    
+
     pipe(this->pipes);
 
     pipeFdManager.setFd(pipes[0]);
@@ -294,7 +349,7 @@ public:
           button
         };
       }
-      
+
       if (event) {
         if (this->onEventCallback) {
           this->onEventCallback(std::move(*event), this->onEventCallbackUserData);
@@ -338,9 +393,39 @@ public:
       }
 
       void operator()(OperationText& op) {
-        this->sdlHardwareInterface.text(op.x, op.y,
-                                        op.text.c_str(),
-                                        op.text.size(),
+
+        int opx = op.x;
+        int opy = op.y;
+        auto text = op.text;
+        auto align = op.align;
+        auto baseline = op.baseline;
+
+        if (align != GraphicsPosition::Default || baseline != GraphicsPosition::Default) {
+          auto measurement = this->sdlHardwareInterface.measureText(text.data(), text.size());
+          switch (align) {
+          case GraphicsPosition::Center:
+            opx -= measurement.width / 2;
+            break;
+          case GraphicsPosition::Default:
+            break;
+          default:
+            break;
+          }
+
+          switch (baseline) {
+          case GraphicsPosition::Center:
+            opy = opy - measurement.ymin - (measurement.ymax - measurement.ymin) / 2;
+            break;
+          case GraphicsPosition::Bottom:
+            opy = opy - measurement.ymax;
+          case GraphicsPosition::Default:
+            break;
+          }
+        }
+
+        this->sdlHardwareInterface.text(opx, opy,
+                                        text.data(),
+                                        text.size(),
                                         op.fc,
                                         op.bc);
       }
@@ -393,6 +478,13 @@ public:
     this->addOperation(OperationRect {x, y, w, h, c});
   }
 
+  void strokeRect(int x, int y, int w, int h, int c) {
+    this->addOperation(OperationRect {x, y, 1, h, c});
+    this->addOperation(OperationRect {x, y, w, 1, c});
+    this->addOperation(OperationRect {x + w - 1, y, 1, h, c});
+    this->addOperation(OperationRect {x, y + h - 1, w, 1, c});
+  }
+
   void clear() {
     this->addOperation(OperationClear{});
   }
@@ -401,10 +493,18 @@ public:
     this->addOperation(OperationPoint {x, y, c});
   }
 
-  void text(int x, int y, std::string_view str, int fc = 15, int bc = 0) {
-    this->addOperation(OperationText {x, y, std::string(str.data(),
-                                                        str.size()),
-                                      fc, bc});
+  void text(int x, int y, std::string_view str, int fc = 15, int bc = 0,
+            GraphicsPosition align = GraphicsPosition::Default, GraphicsPosition baseline = GraphicsPosition::Default) {
+    this->addOperation(OperationText {
+        x, y, std::string(str.data(),
+                          str.size()),
+        fc, bc,
+        align, baseline
+      });
+  }
+
+  GraphicsTextMeasurement measureText(std::string_view str) {
+    return this->sdlHardwareInterface.measureText(str.data(), str.size());
   }
 
   ~LinuxGraphicsInterface() {

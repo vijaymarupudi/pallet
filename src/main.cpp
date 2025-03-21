@@ -28,7 +28,8 @@ int main() {
   State state { false, 0, &graphicsInterface };
 
   graphicsInterface.setOnEvent([](pallet::GraphicsEvent ievent, void* u) {
-    auto& flag = reinterpret_cast<State*>(u)->flag;
+    auto& state = *static_cast<State*>(u);
+    auto& flag = state.flag;
     std::visit([&](auto& event) {
       if constexpr (std::is_same_v<decltype(event), pallet::GraphicsEventMouseButton&>) {
         if (event.state) {
@@ -36,8 +37,12 @@ int main() {
         }
         printf("%d, %d, %d, %d\n", event.x, event.y, event.button, event.state);
       } else if constexpr (std::is_same_v<decltype(event), pallet::GraphicsEventKey&>) {
-        if (event.state && event.keycode == ' ') {
-          flag = !flag;
+        if (event.keycode == ' ') {
+          flag = event.state;
+        }
+
+        if (event.repeat) {
+          state.count++;
         }
         printf("Key event! %c %d %d\n", event.keycode, event.state, event.repeat);
       }
@@ -50,17 +55,19 @@ int main() {
     (void)cei;
 
     auto state = (State*)ud;
-    state->count += 1;
 
     state->graphicsInterface->clear();
 
     
-    // char buf[1000];
-    // auto len = snprintf(buf, 1000, "%d", state->count);
+    char buf[1000];
+    auto len = snprintf(buf, 1000, "%d", state->count);
     // state->graphicsInterface->text(8, 8, std::string_view(buf, len));
 
     if (state->flag) {
-      state->graphicsInterface->rect(0, 0, 30, 30, 15);
+      auto renderText = std::string_view(buf, len);
+      state->graphicsInterface->text(15, 15, renderText, 15, 0, pallet::GraphicsPosition::Center, pallet::GraphicsPosition::Bottom);
+      state->graphicsInterface->rect(0, 17, 30, 1, 15);
+      
     } else {
       state->graphicsInterface->rect(0, 0, 30, 30, 0);
     }
