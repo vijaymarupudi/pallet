@@ -32,7 +32,14 @@ add_compile_options(-Wall -Wextra -pedantic -Werror)
 # add_compile_options(-fsanitize=address)
 # add_link_options(-fsanitize=address)
 
-set(CXX_FILES src/LuaInterface.cpp src/Platform.cpp src/Clock.cpp src/MidiInterface.cpp src/BeatClockScheduler.cpp)
+set(CXX_FILES
+  src/LuaInterface.cpp
+  src/Platform.cpp
+  src/Clock.cpp
+  src/MidiInterface.cpp
+  src/BeatClockScheduler.cpp
+  src/GraphicsInterface.cpp
+  )
 
 add_library(pallet STATIC ${CXX_FILES})
 set_property(TARGET pallet PROPERTY CXX_STANDARD 23)

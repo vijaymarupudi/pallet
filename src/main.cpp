@@ -1,79 +1,78 @@
 #include <stdio.h>
-#include <sys/timerfd.h>
-#include <inttypes.h>
-#include <unistd.h>
-#include <sched.h>
-#include <stdlib.h>
-#include <vector>
-#include <string>
-#include "lua.hpp"
 #include "Platform.hpp"
 #include "Clock.hpp"
 #include "GraphicsInterface.hpp"
-#include <cmath>
-#include <array>
-#include <tuple>
+
+template <class... Args>
+auto make_c_callback(auto& lambda) {
+  auto c_callback = [](Args... args, void* ud) {
+    return static_cast<std::remove_reference_t<decltype(lambda)>*>(ud)->operator()(args...);
+  };
+  return +c_callback;
+}
+
 
 int main() {
   pallet::LinuxPlatform platform;
   pallet::Clock clock(platform);
   pallet::LinuxGraphicsInterface graphicsInterface(platform);
 
-  struct State {
-    bool flag = false;
-    int count = 0;
-    pallet::LinuxGraphicsInterface* graphicsInterface;
-  };
 
-  State state { false, 0, &graphicsInterface };
+  bool flag = false;
+  int count = 0;
 
-  graphicsInterface.setOnEvent([](pallet::GraphicsEvent ievent, void* u) {
-    auto& state = *static_cast<State*>(u);
-    auto& flag = state.flag;
+  std::optional<pallet::ClockIdT> interval;
+
+  // auto activate = [&]() {
+  //   interval = clock.setInterval([](pallet::ClockEventInfo* cei, void* ud) {
+  //   });
+  // };
+
+
+  auto eventCallback = [&](pallet::GraphicsEvent ievent) {
     std::visit([&](auto& event) {
-      if constexpr (std::is_same_v<decltype(event), pallet::GraphicsEventMouseButton&>) {
-        if (event.state) {
-          flag = !flag;
-        }
-        printf("%d, %d, %d, %d\n", event.x, event.y, event.button, event.state);
-      } else if constexpr (std::is_same_v<decltype(event), pallet::GraphicsEventKey&>) {
-        if (event.keycode == ' ') {
+      if constexpr (std::is_same_v<decltype(event),
+                           pallet::GraphicsEventKey&>) {
+        if (event.keycode == ' ' && !event.repeat) {
           flag = event.state;
+          
         }
-
-        if (event.repeat) {
-          state.count++;
-        }
-        printf("Key event! %c %d %d\n", event.keycode, event.state, event.repeat);
       }
     }, ievent);
-  }, &state);
+  };
+
+    // graphicsInterface.setOnEvent([](pallet::GraphicsEvent e, void* u) {
+    //   static_cast<decltype(eventCallback)*>(u)->operator()(std::move(e));
+    // }, &eventCallback);
+
+  graphicsInterface.setOnEvent(make_c_callback<pallet::GraphicsEvent>(eventCallback), &eventCallback);
+
+  
+  auto renderingCallback = [&]() {
+    graphicsInterface.clear();
+    
+    char buf[1000];
+    auto len = snprintf(buf, 1000, "%d", count);
+    // graphicsInterface.text(8, 8, std::string_view(buf, len));
+
+    if (flag) {
+      auto renderText = std::string_view(buf, len);
+      graphicsInterface.text(15, 15, renderText, 15, 0, pallet::GraphicsPosition::Center, pallet::GraphicsPosition::Bottom);
+      graphicsInterface.rect(0, 17, 30, 1, 15);
+      
+    } else {
+      graphicsInterface.rect(0, 0, 30, 30, 0);
+    }
+    
+    graphicsInterface.render();
+  };
 
   
   clock.setInterval(pallet::timeInMs(1000 / 20), [](pallet::ClockEventInfo* cei, void* ud) {
-    (void)ud;
     (void)cei;
-
-    auto state = (State*)ud;
-
-    state->graphicsInterface->clear();
-
-    
-    char buf[1000];
-    auto len = snprintf(buf, 1000, "%d", state->count);
-    // state->graphicsInterface->text(8, 8, std::string_view(buf, len));
-
-    if (state->flag) {
-      auto renderText = std::string_view(buf, len);
-      state->graphicsInterface->text(15, 15, renderText, 15, 0, pallet::GraphicsPosition::Center, pallet::GraphicsPosition::Bottom);
-      state->graphicsInterface->rect(0, 17, 30, 1, 15);
-      
-    } else {
-      state->graphicsInterface->rect(0, 0, 30, 30, 0);
-    }
-    
-    state->graphicsInterface->render();
-  }, &state);
+    static_cast<decltype(renderingCallback)*>(ud)->operator()();
+  },
+    &renderingCallback);
 
   while (1) {
     platform.loopIter();
