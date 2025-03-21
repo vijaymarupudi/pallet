@@ -179,8 +179,6 @@ public:
 
 #if PALLET_CONSTANTS_PLATFORM == PALLET_CONSTANTS_PLATFORM_LINUX
 
-
-
 const size_t MAX_BATCH_LEN = 32;
 
 class SDLHardwareInterface : public GraphicsHardwareInterface {

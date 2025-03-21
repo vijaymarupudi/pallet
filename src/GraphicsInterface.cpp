@@ -4,6 +4,7 @@
 
 namespace pallet {
 
+#if PALLET_CONSTANTS_PLATFORM == PALLET_CONSTANTS_PLATFORM_LINUX
 
 LinuxGraphicsInterface::LinuxGraphicsInterface(LinuxPlatform& platform) :
   platform(platform), pipeFdManager(platform), operationsBuffer(new std::vector<Operation>) {
@@ -223,5 +224,7 @@ LinuxGraphicsInterface::~LinuxGraphicsInterface() {
   close(pipes[0]);
   close(pipes[1]);
 }
+
+#endif
 
 }
