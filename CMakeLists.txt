@@ -27,6 +27,7 @@ file(GLOB FILESYSTEM_FILES filesystem/**/*)
 add_custom_command(OUTPUT filesystem.h
                    COMMAND ${BYTECODE_COMPILER_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/filesystem ${CMAKE_CURRENT_BINARY_DIR}/filesystem.h
                    DEPENDS bytecode-compiler ${FILESYSTEM_FILES})
+add_custom_target (PalletLuaFilesystem DEPENDS filesystem.h)
 
 add_compile_options(-Wall -Wextra -pedantic -Werror)
 # add_compile_options(-fsanitize=address)
@@ -45,6 +46,7 @@ add_library(pallet STATIC ${CXX_FILES})
 set_property(TARGET pallet PROPERTY CXX_STANDARD 23)
 target_link_libraries(pallet PUBLIC RT::RtMidi Miniaudio::Miniaudio Lua::Lua Amy::Amy PkgConfig::SDL2 PkgConfig::LO)
 target_include_directories(pallet PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+add_dependencies(pallet PalletLuaFilesystem)
 
 add_executable(main src/main.cpp)
 set_property(TARGET main PROPERTY CXX_STANDARD 23)

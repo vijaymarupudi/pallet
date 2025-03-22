@@ -3,6 +3,7 @@
 #include <utility>
 
 namespace pallet {
+
 template <class ...FunctionArgs>
 struct CStyleCallback {
   using FunctionType = void(*)(FunctionArgs..., void*);

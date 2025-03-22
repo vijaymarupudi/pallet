@@ -9,6 +9,7 @@
 #include "Clock.hpp"
 #include "MonomeGridInterface.hpp"
 #include "BeatClock.hpp"
+#include "GraphicsInterface.hpp"
 
 namespace pallet {
 
@@ -19,13 +20,22 @@ const int __palletCTableRegistryIndex = 0;
 class LuaInterface {
 public:
 
+  using id_type = uint32_t;
+
+  // I need pointer stability, cannot use std::vector
+  template <class T>
+  using IdTableContainer = std::conditional_t<pallet::constants::isEmbeddedDevice,
+                                              containers::StaticVector<T, 256>,
+                                              std::deque<T>>;
+
   lua_State* L;
+
 
   /*
    * Clock binding state
    */
 
-  using id_type = uint32_t;
+  
   struct ClockCallbackStateEntry {
     LuaInterface& luaInterface;
     id_type id;
@@ -33,15 +43,29 @@ public:
     int luaFunctionRef = 0;
   };
 
-  // I need pointer stability, cannot use std::vector
-  template <class T>
-  using IdTableContainer = std::conditional_t<pallet::constants::isEmbeddedDevice,
-                                              containers::StaticVector<T, 256>,
-                                              std::deque<T>>;
   Clock* clock = nullptr;
   containers::IdTable<ClockCallbackStateEntry,
                       IdTableContainer,
                       id_type> clockCallbackState;
+
+  /*
+   * BeatClock binding state
+   */
+
+  struct BeatClockCallbackStateEntry {
+    LuaInterface& luaInterface;
+    id_type id;
+    BeatClock::id_type beatClockId;
+    int luaFunctionRef = 0;
+  };
+
+
+
+
+  BeatClock* beatClock = nullptr;
+  containers::IdTable<BeatClockCallbackStateEntry,
+                      IdTableContainer,
+                      id_type> beatClockCallbackState;
 
   /*
    * Grid binding state
@@ -51,11 +75,6 @@ public:
   int gridOnConnectFunction = 0;
   int gridKeyFunction = 0;
 
-  /*
-   * BeatClock binding state
-   */
-
-  BeatClock* beatClock;
 
 private:
   void setupRequire();

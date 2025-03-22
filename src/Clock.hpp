@@ -3,6 +3,7 @@
 #include <type_traits>
 #include <vector>
 #include "Platform.hpp"
+
 #include "containers/KeyedPriorityQueue.hpp"
 #include "containers/StaticVector.hpp"
 #include "containers/IdTable.hpp"

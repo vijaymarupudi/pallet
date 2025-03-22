@@ -329,7 +329,16 @@ public:
   BeatClockMidiImplementation midiImplementation;
   BeatClockMidiSchedulerInformationInterface midiScheduleInfo;
 
-  void init(Clock* clock, MidiInterface* midiInterface) {
+
+  BeatClock(Clock& clock) {
+    this->_init(&clock, nullptr);
+  }
+
+  BeatClock(Clock& clock, MidiInterface& midiInterface) {
+    this->_init(&clock, &midiInterface);
+  }
+
+  void _init(Clock* clock, MidiInterface* midiInterface) {
     this->clock = clock;
     this->midiInterface = midiInterface;
     this->implementation = nullptr;

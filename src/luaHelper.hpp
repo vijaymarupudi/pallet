@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string_view>
+#include <tuple>
 
 #include "lua.hpp"
 
@@ -74,6 +75,23 @@ T luaCheckedPull(lua_State* L, int index) {
     luaL_argerror(L, index, "wrong argument");
     return T{};
   }
+}
+
+
+namespace detail {
+template <class... Types, int... indexes>
+inline std::tuple<Types...> _luaCheckedPullMultiple(lua_State* L,
+                                                    int baseIndex,
+                                                    std::integer_sequence<int, indexes...>) {
+  return std::make_tuple(luaCheckedPull<Types>(L, baseIndex + indexes)...);
+}
+}
+
+
+template <class... Types>
+std::tuple<Types...>
+luaCheckedPullMultiple(lua_State* L, int baseIndex = 1) {
+  return _luaCheckedPullMultiple<Types...>(L, baseIndex, std::make_integer_sequence<int, sizeof...(Types)>{});
 }
 
 

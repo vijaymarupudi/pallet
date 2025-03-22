@@ -2,6 +2,8 @@
 #include "Platform.hpp"
 #include "Clock.hpp"
 #include "GraphicsInterface.hpp"
+#include "LuaInterface.hpp"
+#include "BeatClock.hpp"
 
 template <class... Args>
 auto make_c_callback(auto& lambda) {
@@ -15,64 +17,76 @@ auto make_c_callback(auto& lambda) {
 int main() {
   pallet::LinuxPlatform platform;
   pallet::Clock clock(platform);
-  pallet::LinuxGraphicsInterface graphicsInterface(platform);
+  // pallet::LinuxGraphicsInterface graphicsInterface(platform);
+  pallet::LuaInterface luaInterface;
+  luaInterface.setClock(clock);
+  pallet::BeatClock beatClock (clock);
+  luaInterface.setBeatClock(beatClock);
+
+  luaInterface.dostring(R"(
+local beatClock = require('pallet').beatClock
+print(beatClock)
+beatClock.setBeatSyncTimeout(1/2, 0, function()
+  print("HERE!")
+end)
+)");
 
 
-  bool flag = false;
-  int count = 0;
+  // bool flag = false;
+  // int count = 0;
 
-  std::optional<pallet::ClockIdT> interval;
+  // std::optional<pallet::ClockIdT> interval;
 
-  // auto activate = [&]() {
-  //   interval = clock.setInterval([](pallet::ClockEventInfo* cei, void* ud) {
-  //   });
+  // // auto activate = [&]() {
+  // //   interval = clock.setInterval([](pallet::ClockEventInfo* cei, void* ud) {
+  // //   });
+  // // };
+
+
+  // auto eventCallback = [&](pallet::GraphicsEvent ievent) {
+  //   std::visit([&](auto& event) {
+  //     if constexpr (std::is_same_v<decltype(event),
+  //                          pallet::GraphicsEventKey&>) {
+  //       if (event.keycode == ' ' && !event.repeat) {
+  //         flag = event.state;
+          
+  //       }
+  //     }
+  //   }, ievent);
   // };
 
+  //   // graphicsInterface.setOnEvent([](pallet::GraphicsEvent e, void* u) {
+  //   //   static_cast<decltype(eventCallback)*>(u)->operator()(std::move(e));
+  //   // }, &eventCallback);
 
-  auto eventCallback = [&](pallet::GraphicsEvent ievent) {
-    std::visit([&](auto& event) {
-      if constexpr (std::is_same_v<decltype(event),
-                           pallet::GraphicsEventKey&>) {
-        if (event.keycode == ' ' && !event.repeat) {
-          flag = event.state;
-          
-        }
-      }
-    }, ievent);
-  };
-
-    // graphicsInterface.setOnEvent([](pallet::GraphicsEvent e, void* u) {
-    //   static_cast<decltype(eventCallback)*>(u)->operator()(std::move(e));
-    // }, &eventCallback);
-
-  graphicsInterface.setOnEvent(make_c_callback<pallet::GraphicsEvent>(eventCallback), &eventCallback);
+  // graphicsInterface.setOnEvent(make_c_callback<pallet::GraphicsEvent>(eventCallback), &eventCallback);
 
   
-  auto renderingCallback = [&]() {
-    graphicsInterface.clear();
+  // auto renderingCallback = [&]() {
+  //   graphicsInterface.clear();
     
-    char buf[1000];
-    auto len = snprintf(buf, 1000, "%d", count);
-    // graphicsInterface.text(8, 8, std::string_view(buf, len));
+  //   char buf[1000];
+  //   auto len = snprintf(buf, 1000, "%d", count);
+  //   // graphicsInterface.text(8, 8, std::string_view(buf, len));
 
-    if (flag) {
-      auto renderText = std::string_view(buf, len);
-      graphicsInterface.text(15, 15, renderText, 15, 0, pallet::GraphicsPosition::Center, pallet::GraphicsPosition::Bottom);
-      graphicsInterface.rect(0, 17, 30, 1, 15);
+  //   if (flag) {
+  //     auto renderText = std::string_view(buf, len);
+  //     graphicsInterface.text(15, 15, renderText, 15, 0, pallet::GraphicsPosition::Center, pallet::GraphicsPosition::Bottom);
+  //     graphicsInterface.rect(0, 17, 30, 1, 15);
       
-    } else {
-      graphicsInterface.rect(0, 0, 30, 30, 0);
-    }
+  //   } else {
+  //     graphicsInterface.rect(0, 0, 30, 30, 0);
+  //   }
     
-    graphicsInterface.render();
-  };
+  //   graphicsInterface.render();
+  // };
 
   
-  clock.setInterval(pallet::timeInMs(1000 / 20), [](pallet::ClockEventInfo* cei, void* ud) {
-    (void)cei;
-    static_cast<decltype(renderingCallback)*>(ud)->operator()();
-  },
-    &renderingCallback);
+  // clock.setInterval(pallet::timeInMs(1000 / 20), [](pallet::ClockEventInfo* cei, void* ud) {
+  //   (void)cei;
+  //   static_cast<decltype(renderingCallback)*>(ud)->operator()();
+  // },
+  //   &renderingCallback);
 
   while (1) {
     platform.loopIter();
