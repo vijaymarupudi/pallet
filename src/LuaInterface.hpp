@@ -40,6 +40,7 @@ public:
     LuaInterface& luaInterface;
     id_type id;
     Clock::id_type clockId;
+    bool interval;
     int luaFunctionRef = 0;
   };
 
@@ -56,11 +57,9 @@ public:
     LuaInterface& luaInterface;
     id_type id;
     BeatClock::id_type beatClockId;
+    bool interval;
     int luaFunctionRef = 0;
   };
-
-
-
 
   BeatClock* beatClock = nullptr;
   containers::IdTable<BeatClockCallbackStateEntry,
@@ -75,6 +74,11 @@ public:
   int gridOnConnectFunction = 0;
   int gridKeyFunction = 0;
 
+  /*
+   * Screen binding state
+   */
+
+  GraphicsInterface* graphicsInterface = nullptr;
 
 private:
   void setupRequire();
@@ -85,6 +89,7 @@ public:
   void setClock(Clock& clock);
   void setMonomeGridInterface(MonomeGridInterface& gridInterface);
   void setBeatClock(BeatClock& beatClock);
+  void setGraphicsInterface(GraphicsInterface& graphicsInterface);
 };
 
 }

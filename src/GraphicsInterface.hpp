@@ -314,9 +314,9 @@ public:
   void uponUserEvent(SDL_Event* event);
   void addOperation(auto&& op);
 
-  virtual void render();
-  virtual void rect(int x, int y, int w, int h, int c) override;
+  virtual void render() override;
   virtual void clear() override;
+  virtual void rect(int x, int y, int w, int h, int c) override;
   virtual void point(int x, int y, int c) override;
   virtual void text(int x, int y, std::string_view str,
                     int fc = 15, int bc = 0,

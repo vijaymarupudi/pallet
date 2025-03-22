@@ -14,6 +14,9 @@ concept Boolean = std::is_same_v<T, bool>;
 
 template <class T>
 concept Integer = std::is_integral_v<T>;
+
+template <class T>
+concept FloatingPoint = std::is_floating_point_v<T>;
 }
 
 using namespace detail;
@@ -34,16 +37,24 @@ void luaPush(lua_State* L, const Integer auto integer) {
   lua_pushinteger(L, static_cast<lua_Integer>(integer));
 }
 
+void luaPush(lua_State* L, const FloatingPoint auto number) {
+  lua_pushnumber(L, static_cast<lua_Number>(number));
+}
+
+
 
 template <class T>
 bool luaIsType(lua_State* L, int index) {
-  if constexpr (std::is_integral_v<T>) {
+  if constexpr (std::is_integral_v<T> || std::is_enum_v<T>) {
     return lua_isinteger(L, index);
   } else if constexpr (std::is_floating_point_v<T>) {
     return lua_isnumber(L, index);
   } else if constexpr (std::is_pointer_v<T>) {
     return lua_islightuserdata(L, index);
-  } else {
+  } else if constexpr (std::is_same_v<T, std::string_view>) {
+    return lua_isstring(L, index);
+  }
+  else {
     static_assert(false);
   }
 }
@@ -52,7 +63,7 @@ bool luaIsType(lua_State* L, int index) {
 
 template <class T>
 T luaPull(lua_State* L, int index) {
-  if constexpr (std::is_integral_v<T>) {
+  if constexpr (std::is_integral_v<T> || std::is_enum_v<T>) {
     auto ret = lua_tointeger(L, index);
     return static_cast<T>(ret);
   } else if constexpr (std::is_floating_point_v<T>) {
@@ -61,6 +72,10 @@ T luaPull(lua_State* L, int index) {
   } else if constexpr (std::is_pointer_v<T>) {
     auto ret = lua_touserdata(L, index);
     return static_cast<T>(ret);
+  } else if constexpr (std::is_same_v<T, std::string_view>) {
+    size_t len;
+    auto str = lua_tolstring(L, index, &len);
+    return std::string_view(str, len);
   } else {
     static_assert(false);
   }

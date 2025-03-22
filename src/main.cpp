@@ -17,18 +17,28 @@ auto make_c_callback(auto& lambda) {
 int main() {
   pallet::LinuxPlatform platform;
   pallet::Clock clock(platform);
-  // pallet::LinuxGraphicsInterface graphicsInterface(platform);
   pallet::LuaInterface luaInterface;
   luaInterface.setClock(clock);
   pallet::BeatClock beatClock (clock);
   luaInterface.setBeatClock(beatClock);
+  pallet::LinuxGraphicsInterface graphicsInterface(platform);
+  luaInterface.setGraphicsInterface(graphicsInterface);
 
   luaInterface.dostring(R"(
 local beatClock = require('pallet').beatClock
-print(beatClock)
-beatClock.setBeatSyncTimeout(1/2, 0, function()
-  print("HERE!")
+local screen = require('pallet').screen
+
+local state = false
+
+beatClock.setBeatSyncInterval(1/2, 0, 1/8, function()
+  print(beatClock.getCurrentBeat())
+  state = not state
+  local num = 0
+  if state then num = 1 end
+  screen.rect(0, 0, 30, 30, 15 * num)
+  screen.render()
 end)
+
 )");
 
 

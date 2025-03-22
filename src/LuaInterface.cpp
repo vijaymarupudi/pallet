@@ -290,12 +290,12 @@ static void bindGrid(lua_State* L) {
    *
    */
 
-static void luaClockSetTimeoutCb(ClockEventInfo* info, void* data);
-static void luaClockSetIntervalCb(ClockEventInfo* info, void* data);
+static void luaClockSetTimeoutIntervalCb(ClockEventInfo* info, void* data);
 static int luaClockSetTimeout(lua_State* L);
 static int luaClockSetInterval(lua_State* L);
 static int luaClockCurrentTime(lua_State* L);
 static int luaClockClearTimeout(lua_State* L);
+static int luaClockTimeInMs(lua_State* L);
 
 static void bindClock(lua_State* L) {
   auto start = lua_gettop(L);
@@ -306,6 +306,8 @@ static void bindClock(lua_State* L) {
   luaRawSetTable(L, clockTableIndex, "currentTime", luaClockCurrentTime);
   luaRawSetTable(L, clockTableIndex, "clearTimeout", luaClockClearTimeout);
   luaRawSetTable(L, clockTableIndex, "clearInterval", luaClockClearTimeout);
+  luaRawSetTable(L, clockTableIndex, "timeInMs", luaClockTimeInMs);
+  
   getPalletCTable(L);
   auto palletCTableIndex = lua_gettop(L);
   lua_pushliteral(L, "clock");
@@ -327,16 +329,29 @@ static uint64_t luaClockGetTimeArgument(lua_State* L, int index) {
   }
 }
 
-static int luaClockSetTimeout(lua_State* L) {
+static int luaClockTimeInMs(lua_State* L) {
+  auto time = luaClockGetTimeArgument(L, 1);
+  luaPush(L, pallet::timeInMs(time));
+  return 1;
+}
+
+static int _luaClockSetTimeout(lua_State* L, bool interval) {
   uint64_t time = luaClockGetTimeArgument(L, 1);
   // the user's function is at the top of the stack, so store it at the index
   int functionRef = luaL_ref(L, LUA_REGISTRYINDEX);
   auto& luaInterface = getLuaInterfaceObject(L);
   auto id = luaInterface.clockCallbackState.push(LuaInterface::ClockCallbackStateEntry {
-      luaInterface, 0, 0, functionRef
+      luaInterface, 0, 0, false, functionRef
     });
   auto& state = luaInterface.clockCallbackState[id];
-  auto cid = luaInterface.clock->setTimeout(time, luaClockSetTimeoutCb, &state);
+  Clock::id_type cid;
+
+  if (interval) {
+    cid = luaInterface.clock->setInterval(time, luaClockSetTimeoutIntervalCb, &state);
+  } else {
+    cid = luaInterface.clock->setTimeout(time, luaClockSetTimeoutIntervalCb, &state);
+  }
+  state.interval = interval;
   state.id = id;
   state.clockId = cid;
   state.luaFunctionRef = functionRef;
@@ -344,19 +359,12 @@ static int luaClockSetTimeout(lua_State* L) {
   return 1;
 }
 
+static int luaClockSetTimeout(lua_State* L) {
+  return _luaClockSetTimeout(L, false);
+}
+
 static int luaClockSetInterval(lua_State* L) {
-  uint64_t time = luaClockGetTimeArgument(L, 1);
-  // the user's function is at the top of the stack
-  int functionRef = luaL_ref(L, LUA_REGISTRYINDEX);
-  auto& luaInterface = getLuaInterfaceObject(L);
-  auto id = luaInterface.clockCallbackState.push(LuaInterface::ClockCallbackStateEntry {luaInterface, 0, 0, functionRef});
-  auto& state = luaInterface.clockCallbackState[id];
-  auto cid = luaInterface.clock->setInterval(time, luaClockSetIntervalCb, &state);
-  state.id = id;
-  state.clockId = cid;
-  state.luaFunctionRef = functionRef;
-  luaPush(L, id);
-  return 1;
+  return _luaClockSetTimeout(L, true);
 }
 
 static void luaClockStateCleanup(LuaInterface::ClockCallbackStateEntry& entry, bool cancel = false) {
@@ -374,24 +382,18 @@ static void luaClockStateCleanup(LuaInterface::ClockCallbackStateEntry& entry, b
   luaInterface.clockCallbackState.free(id);
 }
 
-static void luaClockSetTimeoutCb(ClockEventInfo* info, void* data) {
+static void luaClockSetTimeoutIntervalCb(ClockEventInfo* info, void* data) {
   (void)info;
   auto& state = *static_cast<LuaInterface::ClockCallbackStateEntry*>(data);
   auto& luaInterface = state.luaInterface;
   auto ref = state.luaFunctionRef;
   lua_rawgeti(luaInterface.L, LUA_REGISTRYINDEX, ref);
   lua_call(luaInterface.L, 0, 0);
-  luaClockStateCleanup(state);
+  if (!state.interval) {
+    luaClockStateCleanup(state);
+  }
 }
 
-static void luaClockSetIntervalCb(ClockEventInfo* info, void* data) {
-  (void)info;
-  auto& state = *static_cast<LuaInterface::ClockCallbackStateEntry*>(data);
-  auto& luaInterface = state.luaInterface;
-  auto ref = state.luaFunctionRef;
-  lua_rawgeti(luaInterface.L, LUA_REGISTRYINDEX, ref);
-  lua_call(luaInterface.L, 0, 0);
-}
 
 static int luaClockClearTimeout(lua_State* L) {
   int id = luaCheckedPull<int>(L, 1);
@@ -422,31 +424,62 @@ static void luaBeatClockStateCleanup(LuaInterface::BeatClockCallbackStateEntry& 
   luaInterface.beatClockCallbackState.free(id);
 }
 
-static void luaBeatClockSetTimeoutCb(BeatClockEventInfo* info, void* data) {
+static void luaBeatClockSetTimeoutIntervalCb(BeatClockEventInfo* info,
+                                             void* data) {
   (void)info;
   auto& state = *static_cast<LuaInterface::BeatClockCallbackStateEntry*>(data);
   auto& luaInterface = state.luaInterface;
   auto ref = state.luaFunctionRef;
   lua_rawgeti(luaInterface.L, LUA_REGISTRYINDEX, ref);
   lua_call(luaInterface.L, 0, 0);
-  luaBeatClockStateCleanup(state);
+  if (!state.interval) {
+    luaBeatClockStateCleanup(state);  
+  }
 }
 
-static int luaBeatClockSyncTimeout(lua_State* L) {
-  auto [sync, offset] = luaCheckedPullMultiple<double, double>(L, 1);
+static int _luaBeatClockSyncTimeout(lua_State* L, bool interval) {
+  double sync, offset, period;
+  if (interval) {
+    auto [_sync, _offset, _period] = luaCheckedPullMultiple<double, double, double>(L, 1);
+    sync = _sync;
+    offset = _offset;
+    period = _period;
+  } else {
+    auto [_sync, _offset] = luaCheckedPullMultiple<double, double>(L, 1);
+    sync = _sync;
+    offset = _offset;
+  }
+  
   int functionRef = luaL_ref(L, LUA_REGISTRYINDEX);
   auto& luaInterface = getLuaInterfaceObject(L);
   auto& beatClock = *luaInterface.beatClock;
   auto id = luaInterface.beatClockCallbackState.push(LuaInterface::BeatClockCallbackStateEntry {
-      luaInterface, 0, 0, functionRef
+      luaInterface, 0, 0, false, functionRef
     });
   auto& state = luaInterface.beatClockCallbackState[id];
-  auto cid = beatClock.setBeatSyncTimeout(sync, offset, luaBeatClockSetTimeoutCb, &state);
+  BeatClock::id_type cid;
+  if (interval) {
+    cid = beatClock.setBeatSyncInterval(sync, offset, period,
+                                        luaBeatClockSetTimeoutIntervalCb,
+                                        &state);
+  }
+  else {
+    cid = beatClock.setBeatSyncTimeout(sync, offset, luaBeatClockSetTimeoutIntervalCb, &state);
+  }
+  state.interval = interval;
   state.id = id;
   state.beatClockId = cid;
   state.luaFunctionRef = functionRef;
   luaPush(L, id);
   return 1;
+}
+
+static int luaBeatClockSyncTimeout(lua_State* L) {
+  return _luaBeatClockSyncTimeout(L, false);
+}
+
+static int luaBeatClockSyncInterval(lua_State* L) {
+  return _luaBeatClockSyncTimeout(L, true);
 }
 
 static int luaBeatClockClearBeatSyncTimeout(lua_State* L) {
@@ -464,13 +497,23 @@ static int luaBeatClockSetBPM(lua_State* L) {
   return 0;
 }
 
+static int luaBeatClockGetCurrentBeat(lua_State* L) {
+  auto& luaInterface = getLuaInterfaceObject(L);
+  auto b = luaInterface.beatClock->getCurrentBeat();
+  luaPush(L, b);
+  return 1;
+}
+
 static void bindBeatClock(lua_State* L) {
   auto start = lua_gettop(L);
   lua_newtable(L); // BeatClock
   int beatClockTableIndex = lua_gettop(L);
   luaRawSetTable(L, beatClockTableIndex, "setBeatSyncTimeout", luaBeatClockSyncTimeout);
+  luaRawSetTable(L, beatClockTableIndex, "setBeatSyncInterval", luaBeatClockSyncInterval);
   luaRawSetTable(L, beatClockTableIndex, "clearBeatSyncTimeout", luaBeatClockClearBeatSyncTimeout);
+  luaRawSetTable(L, beatClockTableIndex, "clearBeatSyncInterval", luaBeatClockClearBeatSyncTimeout);
   luaRawSetTable(L, beatClockTableIndex, "setBPM", luaBeatClockSetBPM);
+  luaRawSetTable(L, beatClockTableIndex, "getCurrentBeat", luaBeatClockGetCurrentBeat);
   
   getPalletCTable(L);
   auto palletCTableIndex = lua_gettop(L);
@@ -484,4 +527,85 @@ void LuaInterface::setBeatClock(BeatClock& beatClock) {
   this->beatClock = &beatClock;
   bindBeatClock(this->L);
 }
+
+static int luaScreenRender(lua_State* L) {
+  auto& luaInterface = getLuaInterfaceObject(L);
+  luaInterface.graphicsInterface->render();
+  return 0;
+}
+
+static int luaScreenClear(lua_State* L) {
+  auto& luaInterface = getLuaInterfaceObject(L);
+  luaInterface.graphicsInterface->clear();
+  return 0;
+}
+
+static int luaScreenRect(lua_State* L) {
+  auto& luaInterface = getLuaInterfaceObject(L);
+  auto [x, y, w, h, c] =
+    luaCheckedPullMultiple<int, int, int, int, int>(L, 1);
+  
+  luaInterface.graphicsInterface->rect(x, y, w, h, c);
+  return 0;
+}
+
+static int luaScreenStrokeRect(lua_State* L) {
+  auto& luaInterface = getLuaInterfaceObject(L);
+  auto [x, y, w, h, c] =
+    luaCheckedPullMultiple<int, int, int, int, int>(L, 1);
+  
+  luaInterface.graphicsInterface->strokeRect(x, y, w, h, c);
+  return 0;
+}
+
+static int luaScreenPoint(lua_State* L) {
+  auto& luaInterface = getLuaInterfaceObject(L);
+  auto [x, y, c] =
+    luaCheckedPullMultiple<int, int, int>(L, 1);
+  luaInterface.graphicsInterface->point(x, y, c);
+  return 0;
+}
+
+static int luaScreenText(lua_State* L) {
+  auto& luaInterface = getLuaInterfaceObject(L);
+  auto [x, y, str, fc, bc, align, baseline] =
+    luaCheckedPullMultiple<int, int, std::string_view,
+                           int, int, pallet::GraphicsPosition,
+                           pallet::GraphicsPosition>(L, 1);
+  luaInterface.graphicsInterface->text(x, y, str, fc, bc, align, baseline);
+  return 0;
+}
+
+static void bindGraphicsInterface(lua_State* L) {
+  auto start = lua_gettop(L);
+  lua_newtable(L); // screen
+  int screenTableIndex = lua_gettop(L);
+  luaRawSetTable(L, screenTableIndex, "render", luaScreenRender);
+  luaRawSetTable(L, screenTableIndex, "clear", luaScreenClear);
+  luaRawSetTable(L, screenTableIndex, "rect", luaScreenRect);
+  luaRawSetTable(L, screenTableIndex, "strokeRect", luaScreenStrokeRect);
+  luaRawSetTable(L, screenTableIndex, "point", luaScreenPoint);
+  luaRawSetTable(L, screenTableIndex, "text", luaScreenText);
+
+  // enums
+  luaRawSetTable(L, screenTableIndex, "Default",
+                 static_cast<int>(pallet::GraphicsPosition::Default));
+  luaRawSetTable(L, screenTableIndex, "Center",
+                 static_cast<int>(pallet::GraphicsPosition::Center));
+  luaRawSetTable(L, screenTableIndex, "Bottom",
+                 static_cast<int>(pallet::GraphicsPosition::Bottom));
+  
+  getPalletCTable(L);
+  auto palletCTableIndex = lua_gettop(L);
+  lua_pushliteral(L, "screen");
+  lua_pushvalue(L, screenTableIndex);
+  lua_rawset(L, palletCTableIndex);
+  lua_settop(L, start);
+}
+
+void LuaInterface::setGraphicsInterface(GraphicsInterface& graphicsInterface) {
+  this->graphicsInterface = &graphicsInterface;
+  bindGraphicsInterface(this->L);
+}
+
 }

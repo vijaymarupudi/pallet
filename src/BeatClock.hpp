@@ -443,6 +443,11 @@ public:
     internalImplementation.cleanup();
     midiImplementation.cleanup();
   }
+
+  double getCurrentBeat() {
+    return scheduler.getCurrentBeat();
+  }
+  
 };
 
 }

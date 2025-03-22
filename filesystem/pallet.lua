@@ -3,5 +3,6 @@ local __pallet = require('__pallet')
 return {
    clock = __pallet.clock,
    grid = require("pallet.grid"),
-   beatClock = __pallet.beatClock
+   beatClock = __pallet.beatClock,
+   screen = __pallet.screen
 }

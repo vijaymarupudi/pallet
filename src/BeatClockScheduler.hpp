@@ -84,6 +84,9 @@ public:
   void* getBeatTimeoutUserData(id_type id);
   void clearBeatSyncTimeout(id_type id);
   void clearBeatInterval(id_type id);
+  double getCurrentBeat() {
+    return beatInfo->getCurrentBeat();
+  }
 
   // private
   void processEvent(BeatClockScheduler::id_type id, double now, double goal);
