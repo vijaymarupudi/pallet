@@ -10,6 +10,7 @@
 #include "MonomeGridInterface.hpp"
 #include "BeatClock.hpp"
 #include "GraphicsInterface.hpp"
+#include "MidiInterface.hpp"
 
 namespace pallet {
 
@@ -79,12 +80,18 @@ public:
    */
 
   GraphicsInterface* graphicsInterface = nullptr;
+  int screenTableRef = 0;
+
+  /*
+   * Midi binding state
+   */
+  MidiInterface* midiInterface = nullptr;
 
 private:
   void setupRequire();
 public:
 
-  int screenTableRef = 0;
+
 
 
   LuaInterface();
@@ -94,6 +101,7 @@ public:
   void setMonomeGridInterface(MonomeGridInterface& gridInterface);
   void setBeatClock(BeatClock& beatClock);
   void setGraphicsInterface(GraphicsInterface& graphicsInterface);
+  void setMidiInterface(MidiInterface& midiInterface);
 };
 
 }

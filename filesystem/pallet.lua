@@ -4,5 +4,6 @@ return {
    clock = __pallet.clock,
    grid = require("pallet.grid"),
    beatClock = __pallet.beatClock,
-   screen = __pallet.screen
+   screen = __pallet.screen,
+   midi = __pallet.midi
 }

@@ -26,8 +26,7 @@ public:
     this->monitoring = state;
   }
 
-  void internalOnMidi(uint64_t time, const unsigned char* buf, size_t len);
-  
+  void internalOnMidi(uint64_t time, const unsigned char* buf, size_t len);  
   virtual void sendMidi(const unsigned char* buf, size_t len) = 0;
   
   
@@ -41,7 +40,6 @@ public:
   RtMidiIn midiIn;
   RtMidiOut midiOut;
   LinuxPlatform& platform;
-
   LinuxMidiInterface(LinuxPlatform& platform);
   virtual void sendMidi(const unsigned char* buf,
                         size_t len) override;

@@ -18,14 +18,18 @@ int main() {
   pallet::LinuxPlatform platform;
   pallet::Clock clock(platform);
   pallet::LuaInterface luaInterface;
+  pallet::LinuxMidiInterface midiInterface (platform);
   luaInterface.setClock(clock);
   pallet::BeatClock beatClock (clock);
   luaInterface.setBeatClock(beatClock);
   pallet::LinuxGraphicsInterface graphicsInterface(platform);
   luaInterface.setGraphicsInterface(graphicsInterface);
+  luaInterface.setMidiInterface(midiInterface);
+  
   luaInterface.dostring(R"(
 local beatClock = require('pallet').beatClock
 local screen = require('pallet').screen
+local midi = require('pallet').midi
 
 local state = false
 
@@ -41,6 +45,7 @@ beatClock.setBeatSyncInterval(1/2, 0, 1/8, function()
   state = not state
   local num = 0
   if state then num = 1 end
+  midi.sendMidi({144, 60, 127 * num})
   screen.rect(0, 0, 30, 30, 15 * num)
   screen.render()
 end)
