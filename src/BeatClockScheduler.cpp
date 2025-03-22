@@ -129,23 +129,23 @@ void BeatClockScheduler::clearBeatSyncTimeout(BeatClockScheduler::id_type id) {
 void BeatClockScheduler::processEvent(BeatClockScheduler::id_type id, double now, double goal) {
   // at this point, the event is out of the queue, but still in the
   // id table
-  BeatClockEvent& event = idTable[id];
+  BeatClockEvent* event = &idTable[id];
   // callback and reschedule if needed
 
-  if (!event.deleted) {
-    BeatClockEventInfo info {id, now, goal, event.period};
-    event.callback(&info, event.callbackUserData);
+  if (!event->deleted) {
+    BeatClockEventInfo info {id, now, goal, event->period};
+    event->callback(&info, event->callbackUserData);
   }
 
   // This is necessary, as idTable might have reallocated in the
   // callback, and therefore the reference might be invalid
-  event = idTable[id];
+  event = &idTable[id];
 
-  if (!event.deleted && event.period != 0) {
+  if (!event->deleted && event->period != 0) {
     // if interval, add it back to the queue
-    auto now = event.prev + event.period;
-    event.prev = now;
-    queue.push(now + event.period, id);
+    auto now = event->prev + event->period;
+    event->prev = now;
+    queue.push(now + event->period, id);
   } else {
     // we will never need this event again
     idTable.free(id);
