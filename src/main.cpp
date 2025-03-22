@@ -23,12 +23,18 @@ int main() {
   luaInterface.setBeatClock(beatClock);
   pallet::LinuxGraphicsInterface graphicsInterface(platform);
   luaInterface.setGraphicsInterface(graphicsInterface);
-
   luaInterface.dostring(R"(
 local beatClock = require('pallet').beatClock
 local screen = require('pallet').screen
 
 local state = false
+
+screen.onEvent = function(event)
+  print("Screen:", event.type)
+  if (event.type == "MouseMove") then
+    print(event.x, ", ", event.y)
+  end
+end
 
 beatClock.setBeatSyncInterval(1/2, 0, 1/8, function()
   print(beatClock.getCurrentBeat())
@@ -40,6 +46,9 @@ beatClock.setBeatSyncInterval(1/2, 0, 1/8, function()
 end)
 
 )");
+
+
+
 
 
   // bool flag = false;

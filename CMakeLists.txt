@@ -29,9 +29,11 @@ add_custom_command(OUTPUT filesystem.h
                    DEPENDS bytecode-compiler ${FILESYSTEM_FILES})
 add_custom_target (PalletLuaFilesystem DEPENDS filesystem.h)
 
-add_compile_options(-Wall -Wextra -pedantic -Werror)
-# add_compile_options(-fsanitize=address)
-# add_link_options(-fsanitize=address)
+add_compile_options(-Wall -Wextra -pedantic -fsanitize=address)
+add_link_options(-fsanitize=address)
+
+# add_compile_options(-Wall -Wextra -pedantic -Werror)
+
 
 set(CXX_FILES
   src/LuaInterface.cpp

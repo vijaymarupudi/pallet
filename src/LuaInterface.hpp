@@ -35,7 +35,7 @@ public:
    * Clock binding state
    */
 
-  
+
   struct ClockCallbackStateEntry {
     LuaInterface& luaInterface;
     id_type id;
@@ -83,6 +83,10 @@ public:
 private:
   void setupRequire();
 public:
+
+  int screenTableRef = 0;
+
+
   LuaInterface();
   ~LuaInterface();
   int dostring(const char* str);
@@ -93,4 +97,3 @@ public:
 };
 
 }
-
