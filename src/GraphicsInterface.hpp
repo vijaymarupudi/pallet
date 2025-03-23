@@ -83,6 +83,20 @@ using GraphicsEvent = std::variant<GraphicsEventMouseButton,
                                    GraphicsEventMouseMove,
                                    GraphicsEventKey>;
 
+
+template <class T>
+consteval const char* getGraphicsEventName() {
+  if constexpr (std::is_same_v<T, GraphicsEventMouseButton>) {
+    return "MouseButton";
+  } else if constexpr (std::is_same_v<T, GraphicsEventMouseMove>) {
+    return "MouseMove";
+  } else if constexpr (std::is_same_v<T, GraphicsEventKey>) {
+    return "Key";
+  } else {
+    static_assert(false, "Cannot find a string name for GraphicsEvent");
+  }
+}
+
 struct GraphicsTextMeasurement {
   int width;
   int ymin;

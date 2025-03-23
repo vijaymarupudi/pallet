@@ -4,6 +4,7 @@
 #include <string.h>
 #include <type_traits>
 
+#include "variantUtils.hpp"
 #include "utils.hpp"
 #include "LuaInterface.hpp"
 #include "filesystem.h"
@@ -585,25 +586,27 @@ static int luaScreenText(lua_State* L) {
 
 static int luaGraphicsEventToTable(lua_State* L,
                                    const pallet::GraphicsEvent& event) {
-
-  lua_newtable(L);
+  auto& luaInterface = getLuaInterfaceObject(L);
+ lua_newtable(L);
   auto tableIndex = lua_gettop(L);
+  lua_pushliteral(L, "type");
+  int ref = luaInterface.graphicsEventStringsRef[event.index()];
+  lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
+  lua_rawset(L, tableIndex);
+
   auto visitor = overloads
     {
       [&](const pallet::GraphicsEventMouseButton& e) {
-        luaRawSetTable(L, tableIndex, "type", "MouseButton");
         luaRawSetTable(L, tableIndex, "x", e.x);
         luaRawSetTable(L, tableIndex, "y", e.y);
         luaRawSetTable(L, tableIndex, "state", e.state);
         luaRawSetTable(L, tableIndex, "button", e.button);
       },
       [&](const pallet::GraphicsEventMouseMove& e) {
-        luaRawSetTable(L, tableIndex, "type", "MouseMove");
         luaRawSetTable(L, tableIndex, "x", e.x);
         luaRawSetTable(L, tableIndex, "y", e.y);
       },
       [&](const pallet::GraphicsEventKey& e) {
-        luaRawSetTable(L, tableIndex, "type", "Key");
         luaRawSetTable(L, tableIndex, "repeat", e.repeat);
         luaRawSetTable(L, tableIndex, "state", e.state);
         luaRawSetTable(L, tableIndex, "keycode", e.keycode);
@@ -614,6 +617,7 @@ static int luaGraphicsEventToTable(lua_State* L,
   std::visit(visitor, event);
   return 1;
 }
+
 
 static void bindGraphicsInterface(lua_State* L) {
   auto start = lua_gettop(L);
@@ -639,6 +643,17 @@ static void bindGraphicsInterface(lua_State* L) {
                  static_cast<int>(pallet::GraphicsPosition::Center));
   luaRawSetTable(L, screenTableIndex, "Bottom",
                  static_cast<int>(pallet::GraphicsPosition::Bottom));
+
+  // intern and store graphics event strings
+  
+  variantForEach<pallet::GraphicsEvent>([&]<class EventType>(size_t i) {
+      auto str = getGraphicsEventName<EventType>();
+      lua_pushstring(L, str);
+      int ref = luaL_ref(L, LUA_REGISTRYINDEX);
+      luaInterface.graphicsEventStringsRef[i] = ref;
+      // luaRawSetTable(L, screenTableIndex, pallet::getGraphicsEventName<EventType>(), i);
+    });
+  
 
   getPalletCTable(L);
   auto palletCTableIndex = lua_gettop(L);

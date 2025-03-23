@@ -1,6 +1,7 @@
 #pragma once
 #include <type_traits>
 #include <deque>
+#include <array>
 
 #include "lua.hpp"
 
@@ -31,11 +32,9 @@ public:
 
   lua_State* L;
 
-
   /*
    * Clock binding state
    */
-
 
   struct ClockCallbackStateEntry {
     LuaInterface& luaInterface;
@@ -81,6 +80,7 @@ public:
 
   GraphicsInterface* graphicsInterface = nullptr;
   int screenTableRef = 0;
+  std::array<int, std::variant_size_v<pallet::GraphicsEvent>> graphicsEventStringsRef;
 
   /*
    * Midi binding state
@@ -90,10 +90,6 @@ public:
 private:
   void setupRequire();
 public:
-
-
-
-
   LuaInterface();
   ~LuaInterface();
   int dostring(const char* str);
