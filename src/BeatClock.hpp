@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <inttypes.h>
+#include <print>
 #include "Clock.hpp"
 #include "utils.hpp"
 #include "BeatClockScheduler.hpp"
@@ -99,7 +100,7 @@ public:
   pallet::Time lastTickTime = 0;
   pallet::Time lastTickTimeIntended = 0;
 
-  void init(Clock* clock, MidiInterface* midiInterface) {
+  virtual void init(Clock* clock, MidiInterface* midiInterface) {
     this->clock = clock;
     this->midiInterface = midiInterface;
   }
@@ -136,6 +137,7 @@ public:
       time,
       intended
     };
+
     onTickCallback.call(&info);
     tickCount += 1;
     beatPhase += 1;
@@ -176,13 +178,22 @@ class BeatClockInternalImplementation : public BeatClockImplementationInterface 
 public:
   Clock::id_type interval;
 
+  // virtual void init(Clock* clock, MidiInterface* midi) override {
+  //   BeatClockImplementationInterface::init(clock, midi);
+  // }
+
   virtual void run(bool state) override {
     bool oldState = running;
     BeatClockImplementationInterface::run(state);
     if (oldState == state) { return; }
     if (state) {
       // running, start tick
+
       auto now = clock->currentTime();
+
+      // this is used to calculate the current beat
+      this->lastTickTimeIntended = now;
+
       this->startTickInterval(now);
     } else {
       // not running
@@ -196,7 +207,6 @@ private:
       auto bc = ((BeatClockInternalImplementation*)ud);
       bc->uponTick(info->now, info->intended);
     };
-    this->lastTickTimeIntended = startTime;
     this->interval = clock->setIntervalAbsolute(startTime,
                                                 this->ppqnPeriod,
                                                 cb,
@@ -224,6 +234,7 @@ public:
         } else {
           startTime = now;
         }
+
         this->startTickInterval(startTime);
       }
 
@@ -242,9 +253,13 @@ public:
     auto beatPeriod = bc->beatPeriod;
     auto now = bc->clock->currentTime();
     auto timeSinceLastTickIntended = now - bc->lastTickTimeIntended;
+    // std::println("currentBeat|now: {}, intended: {}, diff: {}",
+    //              now, bc->lastTickTimeIntended,
+    //              timeSinceLastTickIntended);
+
     double b = bc->beat + (double)timeSinceLastTickIntended / (double)beatPeriod;
-    // printf("timeSinceLastTickIntended: %lu, beat: %f, current beat: %f %f\n", timeSinceLastTickIntended,
-    //        bc->beat, b, (double)timeSinceLastTickIntended / (double)beatPeriod);
+     // printf("timeSinceLastTickIntended: %lu, beat: %f, current beat: %f %f\n", timeSinceLastTickIntended,
+     //       bc->beat, b, (double)timeSinceLastTickIntended / (double)beatPeriod);
     return b;
   };
   virtual double getCurrentBeatPeriod() {
@@ -276,7 +291,6 @@ public:
     this->ppqnPeriod =  meanMeasurer.mean(1.0 / 120 / 24);//default period
     this->beatPeriod = ppqnPeriod * 24;
     this->bpm = 1.0 / pallet::timeToS(this->beatPeriod) * 60;
-    printf("bpm %f\n", bpm);
     this->uponTick(time, time);
   }
 
@@ -444,10 +458,10 @@ public:
     midiImplementation.cleanup();
   }
 
-  double getCurrentBeat() {
+  double currentBeat() {
     return scheduler.getCurrentBeat();
   }
-  
+
 };
 
 }

@@ -28,6 +28,7 @@ int main() {
   
   luaInterface.dostring(R"(
 local beatClock = require('pallet').beatClock
+local clock = require('pallet').clock
 local screen = require('pallet').screen
 local midi = require('pallet').midi
 
@@ -36,19 +37,28 @@ local state = false
 screen.onEvent = function(event)
   print("Screen:", event.type)
   if (event.type == "MouseMove") then
+    if (event.x ~= 0) then
+      beatClock.setBPM(event.x)
+    end
     print(event.x, ", ", event.y)
   end
 end
 
-beatClock.setBeatSyncInterval(1/2, 0, 1/8, function()
-  print(beatClock.getCurrentBeat())
+local actionFunction = function()
+  print("beat cb", beatClock.currentBeat())
   state = not state
   local num = 0
   if state then num = 1 end
   midi.sendMidi({144, 60, 127 * num})
-  screen.rect(0, 0, 30, 30, 15 * num)
-  screen.render()
-end)
+  -- screen.rect(0, 0, 30, 30, 15 * num)
+  -- screen.render()
+end
+
+beatClock.setBeatSyncInterval(1/16, 0, 1/16, actionFunction)
+beatClock.setBPM(166)
+
+-- clock.setInterval(clock.timeInMs(25), actionFunction)
+
 
 )");
 
