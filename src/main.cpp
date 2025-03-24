@@ -13,7 +13,6 @@ auto make_c_callback(auto& lambda) {
   return +c_callback;
 }
 
-
 int main() {
   pallet::LinuxPlatform platform;
   pallet::Clock clock(platform);

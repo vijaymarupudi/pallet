@@ -43,6 +43,7 @@ set(CXX_FILES
   src/BeatClockScheduler.cpp
   src/GraphicsInterface.cpp
   src/BeatClock.cpp
+  src/MonomeGridInterface.cpp
   )
 
 add_library(pallet STATIC ${CXX_FILES})
