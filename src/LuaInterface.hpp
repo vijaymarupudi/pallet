@@ -12,6 +12,7 @@
 #include "BeatClock.hpp"
 #include "GraphicsInterface.hpp"
 #include "MidiInterface.hpp"
+#include "error.hpp"
 
 namespace pallet {
 
@@ -90,6 +91,7 @@ public:
 private:
   void setupRequire();
 public:
+  static Result<LuaInterface> create();
   LuaInterface();
   ~LuaInterface();
   int dostring(const char* str);

@@ -1,5 +1,8 @@
 #pragma once
+
 #include "RtMidi.h"
+
+#include "error.hpp"
 #include "Platform.hpp"
 
 namespace pallet {
@@ -43,6 +46,7 @@ public:
   LinuxMidiInterface(LinuxPlatform& platform);
   virtual void sendMidi(const unsigned char* buf,
                         size_t len) override;
+  static Result<LinuxMidiInterface> create(LinuxPlatform& platform);
 };
 
 }

@@ -12,6 +12,7 @@
 #include "constants.hpp"
 #include "containers/ThreadSafeStack.hpp"
 #include "Platform.hpp"
+#include "error.hpp"
 
 #include "SDL2/SDL.h"
 
@@ -308,18 +309,17 @@ class LinuxGraphicsInterface : public GraphicsInterface {
   LinuxPlatform& platform;
   FdManager pipeFdManager;
   std::unique_ptr<std::vector<Operation>> operationsBuffer = nullptr;
-
   SDLHardwareInterface sdlHardwareInterface;
 
   std::atomic<bool> sdlInterfaceInited = false;
   std::thread thrd;
   containers::ThreadSafeStack<std::unique_ptr<std::vector<Operation>>>
   operationVectorStack;
-
   int pipes[2];
 
 public:
 
+  static Result<LinuxGraphicsInterface> create(LinuxPlatform& platform);
   LinuxGraphicsInterface(LinuxPlatform& platform);
   
   void uponPipeIn(void* datain, size_t len);
@@ -337,7 +337,6 @@ public:
                     GraphicsPosition align = GraphicsPosition::Default,
                     GraphicsPosition baseline = GraphicsPosition::Default) override;
   virtual GraphicsTextMeasurement measureText(std::string_view str) override;
-
   ~LinuxGraphicsInterface();
 };
 #endif

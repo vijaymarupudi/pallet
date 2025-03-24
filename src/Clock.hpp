@@ -9,6 +9,7 @@
 #include "containers/IdTable.hpp"
 #include "constants.hpp"
 #include "time.hpp"
+#include "error.hpp"
 
 namespace pallet {
 
@@ -48,6 +49,7 @@ private:
   bool platformTimerStatus = false;
   uint64_t waitingTime = 0;
 public:
+  static Result<Clock> create(Platform& platform);
   Clock(Platform& platform);
   uint64_t currentTime();
   id_type setTimeout(uint64_t duration,
@@ -69,6 +71,7 @@ public:
   void processEvent(Clock::id_type id, uint64_t now, uint64_t goal);
   void updateWaitingTime();
   void process();
+  
 };
 
 }

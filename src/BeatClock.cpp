@@ -2,15 +2,15 @@
 
 namespace pallet {
 
-BeatClock::BeatClock(Clock& clock) {
-  this->_init(&clock, nullptr);
+Result<BeatClock> BeatClock::create(Clock& clock) {
+  return Result<BeatClock>(std::in_place_t{}, &clock, nullptr);
 }
 
-BeatClock::BeatClock(Clock& clock, MidiInterface& midiInterface) {
-  this->_init(&clock, &midiInterface);
+Result<BeatClock> BeatClock::create(Clock& clock, MidiInterface& midiInterface) {
+  return Result<BeatClock>(std::in_place_t{}, &clock, &midiInterface);
 }
 
-void BeatClock::_init(Clock* clock, MidiInterface* midiInterface) {
+BeatClock::BeatClock(Clock* clock, MidiInterface* midiInterface) {
   this->clock = clock;
   this->midiInterface = midiInterface;
   this->implementation = nullptr;

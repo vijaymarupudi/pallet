@@ -14,16 +14,53 @@ auto make_c_callback(auto& lambda) {
 }
 
 int main() {
-  pallet::LinuxPlatform platform;
-  pallet::Clock clock(platform);
-  pallet::LuaInterface luaInterface;
-  pallet::LinuxMidiInterface midiInterface (platform);
+  auto platformResult = pallet::LinuxPlatform::create();
+  if (!platformResult) {
+    return 1;
+  }
+  
+  auto& platform = *platformResult;
+  
+  auto clockResult = pallet::Clock::create(platform);
+  if (!clockResult) {
+    return 1;
+  }
+  auto& clock = *clockResult;
+
+  auto midiInterfaceResult = pallet::LinuxMidiInterface::create(platform);
+
+  if (!midiInterfaceResult) {
+    return 1;
+  }
+
+  auto& midiInterface = *midiInterfaceResult;
+  
+  auto luaInterfaceResult = pallet::LuaInterface::create();
+  
+  if (!luaInterfaceResult) {
+    return 1;
+  }
+
+  auto& luaInterface = *luaInterfaceResult;
+  
   luaInterface.setClock(clock);
-  pallet::BeatClock beatClock (clock);
+  auto beatClockResult = pallet::BeatClock::create(clock);
+  if (!beatClockResult) {
+    return 1;
+  }
+
+  auto& beatClock = *beatClockResult;
   luaInterface.setBeatClock(beatClock);
-  pallet::LinuxGraphicsInterface graphicsInterface(platform);
+  
+  auto graphicsInterfaceResult = pallet::LinuxGraphicsInterface::create(platform);
+  if (!graphicsInterfaceResult) {
+    return 1;
+  }
+
+  auto& graphicsInterface = *graphicsInterfaceResult;
   luaInterface.setGraphicsInterface(graphicsInterface);
   luaInterface.setMidiInterface(midiInterface);
+  
   
   luaInterface.dostring(R"(
 local beatClock = require('pallet').beatClock

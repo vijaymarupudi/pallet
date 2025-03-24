@@ -124,4 +124,9 @@ static void clock_timer_callback(void* data) {
   ((Clock*)data)->process();
 }
 
+
+Result<Clock> Clock::create(Platform& platform) {
+  return Result<Clock>(std::in_place_t{}, platform);
+}
+
 }

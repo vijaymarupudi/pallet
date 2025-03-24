@@ -344,10 +344,10 @@ public:
   BeatClockMidiSchedulerInformationInterface midiScheduleInfo;
 
 
-  BeatClock(Clock& clock);
-  BeatClock(Clock& clock, MidiInterface& midiInterface);
-
-  void _init(Clock* clock, MidiInterface* midiInterface);
+  static Result<BeatClock> create(Clock& clock);
+  static Result<BeatClock> create(Clock& clock, MidiInterface& midiInterface);
+  
+  BeatClock(Clock* clock, MidiInterface* midiInterface);
   void setClockSource(BeatClockType mode);
   void uponTick();
   void sendMidiClock(bool state);

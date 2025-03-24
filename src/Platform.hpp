@@ -1,6 +1,8 @@
 #pragma once
 #include <inttypes.h>
 
+#include "error.hpp"
+
 namespace pallet {
 
 class Platform {
@@ -52,6 +54,7 @@ public:
   std::map<int, FdPollState> fdCallbacks;
   void uponTimer();
 
+  static Result<LinuxPlatform> create();
   LinuxPlatform();
   ~LinuxPlatform();
   void watchFdIn(int fd, FdCallback callback, void* userData);

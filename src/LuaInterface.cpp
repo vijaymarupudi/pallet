@@ -168,6 +168,10 @@ void LuaInterface::setupRequire() {
   lua_setglobal(L, "require");
 }
 
+Result<LuaInterface> LuaInterface::create() {
+  return Result<LuaInterface>(std::in_place_t{});
+}
+
 LuaInterface::LuaInterface() {
   this->L = luaL_newstate();
   l_open_libs(this->L);

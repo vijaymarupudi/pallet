@@ -6,6 +6,10 @@ namespace pallet {
 
 #if PALLET_CONSTANTS_PLATFORM == PALLET_CONSTANTS_PLATFORM_LINUX
 
+Result<LinuxGraphicsInterface> LinuxGraphicsInterface::create(LinuxPlatform& platform) {
+  return Result<LinuxGraphicsInterface>(std::in_place_t{}, platform);
+}
+
 LinuxGraphicsInterface::LinuxGraphicsInterface(LinuxPlatform& platform) :
   platform(platform), pipeFdManager(platform), operationsBuffer(new std::vector<Operation>) {
 

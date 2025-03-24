@@ -75,4 +75,8 @@ void MidiInterface::internalOnMidi(uint64_t time, const unsigned char* buf, size
   }
 }
 
+Result<LinuxMidiInterface> LinuxMidiInterface::create(LinuxPlatform& platform) {
+  return Result<LinuxMidiInterface>(std::in_place_t{}, platform);
+}
+
 }

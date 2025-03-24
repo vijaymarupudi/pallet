@@ -17,6 +17,14 @@ namespace pallet::containers {
     std::atomic<node_type*> head = nullptr;
     std::atomic<node_type*> freeNodes = nullptr;
 
+    ThreadSafeStack() {};
+    ThreadSafeStack(ThreadSafeStack&& other) {
+      this->head = other.head;
+      this->freeNodes = other.freeNodes;
+      other.head = nullptr;
+      other.freeNodes = nullptr;
+    }
+
   private:
 
     void pushNodeOnList(std::atomic<node_type*>& list, node_type* node) {

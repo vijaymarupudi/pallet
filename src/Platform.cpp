@@ -107,6 +107,10 @@ static void linuxSetThreadToHighPriority() {
   }
 }
 
+Result<LinuxPlatform> LinuxPlatform::create() {
+  return Result<LinuxPlatform>(std::in_place_t{});
+}
+
 LinuxPlatform::LinuxPlatform() {
   // get reference time
   clock_gettime(CLOCK_MONOTONIC, &referenceTime);
