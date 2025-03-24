@@ -42,6 +42,7 @@ set(CXX_FILES
   src/MidiInterface.cpp
   src/BeatClockScheduler.cpp
   src/GraphicsInterface.cpp
+  src/BeatClock.cpp
   )
 
 add_library(pallet STATIC ${CXX_FILES})
