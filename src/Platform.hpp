@@ -23,12 +23,9 @@ protected:
 #if PALLET_CONSTANTS_PLATFORM == PALLET_CONSTANTS_PLATFORM_LINUX
 
 #include <map>
-#include <utility>
+
 #include <poll.h>
 #include <time.h>
-#include <fcntl.h>
-#include <sys/resource.h>
-#include <unistd.h>
 
 namespace pallet {
 
@@ -72,11 +69,8 @@ public:
   virtual void timer(uint64_t time, bool off = false) override;
 };
 
-static void fdManagerPlatformCallback(int fd, int revents, void* ud);
-
 class FdManager {
 
-  friend void fdManagerPlatformCallback(int fd, int revents, void* ud);
   using WriteCallback = void (*)(int fd, void* ud);
   using ReadCallback = void (*)(int fd, void* data, size_t len, void* ud);
   
@@ -98,66 +92,23 @@ class FdManager {
   ReadState readState;
   int fd;
 
-
-  void uponWriteReady() {
-    unsigned char* data = reinterpret_cast<unsigned char*>(writeState.data);
-    ssize_t writtenCount = ::write(this->fd, data + writeState.writtenLen,
-                                   writeState.len - writeState.writtenLen);
-    writeState.writtenLen += writtenCount;
-    if (writeState.writtenLen == writeState.len) {
-      this->platform.unwatchFdOut(fd);
-      writeState.cb(this->fd, writeState.ud);
-    }
-  }
-
-  void uponReadReady() {
-    unsigned char buf[8192];
-    ssize_t count = read(this->fd, buf, 8192);
-    readState.cb(this->fd, buf, (size_t)count, readState.ud);
-  }
-
-  void uponReady(int revents) {
-    if (revents & LinuxPlatform::Read) {
-      this->uponReadReady();
-    }
-
-    if (revents & LinuxPlatform::Write) {
-      this->uponWriteReady();
-    }
-  }
+  void uponWriteReady();
+  void uponReadReady();
+  void uponReady(int revents);
 
 public:
 
-  FdManager(LinuxPlatform& platform, int fd = -1) : platform(platform), fd(fd) {}
+  FdManager(LinuxPlatform& platform, int fd = -1);
+  void setFd(int fd);
+  void write(void* data, size_t len, WriteCallback cb, void* ud);
+  void startReading(ReadCallback cb, void* ud);
+  void stopReading();
+  ~FdManager();
 
-  void setFd(int fd) { this->fd = fd; }
-  
-  void write(void* data, size_t len, WriteCallback cb, void* ud) {
-    writeState = {data, len, 0, cb, ud};
-    this->platform.watchFdOut(this->fd, fdManagerPlatformCallback, this);
-  }
-
-  void startReading(ReadCallback cb, void* ud) {
-    readState = {cb, ud};
-    this->platform.watchFdIn(fd, fdManagerPlatformCallback, this);
-  }
-
-  void stopReading() {
-    this->platform.unwatchFdIn(this->fd);
-  }
-
-  ~FdManager() {
-    if (fd >= 0) {
-      this->platform.unwatchFdEvents(this->fd, LinuxPlatform::Read | LinuxPlatform::Write);
-    }
-  }
+  static void platformCallback(int fd, int revents, void* ud);
 };
 
-static void fdManagerPlatformCallback(int fd, int revents, void* ud) {
-  (void)fd;
-  auto thi = (FdManager*)ud;
-  thi->uponReady(revents);
-}
+
 
 #endif
 

@@ -4,13 +4,17 @@
 
 #include <map>
 #include <utility>
+#include <cstdio>
+#include <cstring>
+
 #include <poll.h>
 #include <unistd.h>
-#include <cstdio>
 #include <sys/timerfd.h>
 #include <time.h>
 #include <sched.h>
-#include <cstring>
+#include <fcntl.h>
+#include <sys/resource.h>
+
 #include "macros.hpp"
 
 
@@ -228,6 +232,67 @@ static void timerCallback(int fd, int revents, void* data) {
   (void)revents;
   auto platform = ((LinuxPlatform*) data);
   platform->uponTimer();
+}
+
+/*
+ * FdManager
+ */
+
+void FdManager::uponWriteReady() {
+  unsigned char* data = static_cast<unsigned char*>(writeState.data);
+  ssize_t writtenCount = ::write(this->fd, data + writeState.writtenLen,
+                                 writeState.len - writeState.writtenLen);
+  writeState.writtenLen += writtenCount;
+  if (writeState.writtenLen == writeState.len) {
+    this->platform.unwatchFdOut(fd);
+    writeState.cb(this->fd, writeState.ud);
+  }
+}
+
+void FdManager::uponReadReady() {
+  unsigned char buf[8192];
+  ssize_t count = read(this->fd, buf, 8192);
+  readState.cb(this->fd, buf, (size_t)count, readState.ud);
+}
+
+void FdManager::uponReady(int revents) {
+  if (revents & LinuxPlatform::Read) {
+    this->uponReadReady();
+  }
+
+  if (revents & LinuxPlatform::Write) {
+    this->uponWriteReady();
+  }
+}
+
+FdManager::FdManager(LinuxPlatform& platform, int fd) : platform(platform), fd(fd) {}
+
+void FdManager::setFd(int fd) { this->fd = fd; }
+  
+void FdManager::write(void* data, size_t len, WriteCallback cb, void* ud) {
+  writeState = {data, len, 0, cb, ud};
+  this->platform.watchFdOut(this->fd, FdManager::platformCallback, this);
+}
+
+void FdManager::startReading(ReadCallback cb, void* ud) {
+  readState = {cb, ud};
+  this->platform.watchFdIn(fd, FdManager::platformCallback, this);
+}
+
+void FdManager::stopReading() {
+  this->platform.unwatchFdIn(this->fd);
+}
+
+FdManager::~FdManager() {
+  if (fd >= 0) {
+    this->platform.unwatchFdEvents(this->fd, LinuxPlatform::Read | LinuxPlatform::Write);
+  }
+}
+
+void FdManager::platformCallback(int fd, int revents, void* ud) {
+  (void)fd;
+  auto thi = (FdManager*)ud;
+  thi->uponReady(revents);
 }
 
 }
