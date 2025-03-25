@@ -10,12 +10,16 @@ static inline std::pair<int, int> calcQuadIndexAndPointIndex(int x, int y) {
   return std::pair(calcQuadIndex(x, y), (x % 8) + 8 * (y % 8));
 }
 
-MonomeGrid::MonomeGrid(std::string id, int rows, int cols, MonomeGridQuadRenderFunc quadRenderFunc,
+static Result<LinuxMonomeGridInterface> create(LinuxPlatform& platform) {
+  return Result<LinuxMonomeGridInterface>(std::in_place_t{}, platform);
+}
+
+MonomeGrid::MonomeGrid(std::string id, int rows, int cols, MonomeGrid::QuadRenderFunc quadRenderFunc,
            void* quadRenderFuncUd0, void* quadRenderFuncUd1) :
   id(std::move(id)), rows(rows), cols(cols), nQuads((rows / 8) * (cols / 8)), quadRenderFunc(quadRenderFunc),
   quadRenderFuncUd0(quadRenderFuncUd0), quadRenderFuncUd1(quadRenderFuncUd1)
 {
-  memset(&this->quadData[0][0], 0, sizeof(MonomeGridQuadDataType) * 4);
+  memset(&this->quadData[0][0], 0, sizeof(MonomeGrid::QuadType) * 4);
 }
 
 void MonomeGrid::setQuadDirty(int quadIndex) {
@@ -52,14 +56,14 @@ void MonomeGrid::led(int x, int y, int c) {
 }
 
 void MonomeGrid::all(int z) {
-  memset(&quadData, z, sizeof(MonomeGridQuadDataType) * 4);
+  memset(&quadData, z, sizeof(MonomeGrid::QuadType) * 4);
   for (int i = 0; i < 4; i++) {
     this->setQuadDirty(i);
   }
 }
 
 void MonomeGrid::clear() {
-  memset(&quadData, 0, sizeof(MonomeGridQuadDataType) * 4);
+  memset(&quadData, 0, sizeof(MonomeGrid::QuadType) * 4);
   for (int i = 0; i < 4; i++) {
     this->setQuadDirty(i);
   }
@@ -104,7 +108,7 @@ LinuxMonomeGridInterface::LinuxMonomeGridInterface(LinuxPlatform& platform) : os
   requestDeviceNotifications();
 }
 
-void LinuxMonomeGridInterface::sendRawQuadMap(int offX, int offY, MonomeGridQuadDataType data) {
+void LinuxMonomeGridInterface::sendRawQuadMap(int offX, int offY, MonomeGrid::QuadType data) {
   if (!this->gridAddr) {return;}
   lo_message msg = lo_message_new();
   lo_message_add_int32(msg, offX);

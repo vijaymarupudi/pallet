@@ -7,14 +7,17 @@
 #include <cinttypes>
 #include <optional>
 #include "constants.hpp"
+#include "error.hpp"
 
 namespace pallet {
 
-using MonomeGridQuadRenderFunc = void(*)(int offX, int offY, uint8_t* data, void* ud0, void* ud1);
-using MonomeGridQuadDataType = uint8_t[64];
 
 class MonomeGrid {
 public:
+
+  using QuadRenderFunc = void(*)(int offX, int offY, uint8_t* data,
+                                 void* ud0, void* ud1);
+  using QuadType = uint8_t[64];
 
   std::string id;
   int rows;
@@ -23,18 +26,18 @@ public:
   
   bool connected = true;
 
-  MonomeGridQuadRenderFunc quadRenderFunc;
+  QuadRenderFunc quadRenderFunc;
   void* quadRenderFuncUd0;
   void* quadRenderFuncUd1;
 
   void (*onKeyCb)(int x, int y, int z, void*) = nullptr;
   void* onKeyData = nullptr;
 
-  MonomeGridQuadDataType quadData[4];
+  QuadType quadData[4];
   uint8_t quadDirtyFlags = 0xFF;
 
   MonomeGrid(std::string id, int rows, int cols,
-             MonomeGridQuadRenderFunc quadRenderFunc,
+             QuadRenderFunc quadRenderFunc,
              void* quadRenderFuncUd0, void* quadRenderFuncUd1);
 
   void setQuadDirty(int quadIndex);
@@ -68,7 +71,7 @@ public:
     this->onConnectData = data;
   }
 
-  virtual void sendRawQuadMap(int offX, int offY, MonomeGridQuadDataType data) = 0;
+  virtual void sendRawQuadMap(int offX, int offY, QuadType data) = 0;
   virtual void connect(int idx) = 0;
 };
 
@@ -90,8 +93,9 @@ public:
   std::optional<MonomeGrid> grid;
   bool autoReconnect = true;
 
+  static Result<LinuxMonomeGridInterface> create(LinuxPlatform& platform);
   LinuxMonomeGridInterface(LinuxPlatform& platform);
-  void sendRawQuadMap(int offX, int offY, MonomeGridQuadDataType data) override;
+  void sendRawQuadMap(int offX, int offY, QuadType data) override;
   void connect(int id) override;
   void uponOscMessage(const char *path, const char *types,
                       lo_arg ** argv,
