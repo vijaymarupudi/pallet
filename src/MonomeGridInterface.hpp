@@ -71,7 +71,7 @@ public:
     this->onConnectData = data;
   }
 
-  virtual void sendRawQuadMap(int offX, int offY, QuadType data) = 0;
+  virtual void sendRawQuadMap(int offX, int offY, MonomeGrid::QuadType data) = 0;
   virtual void connect(int idx) = 0;
 };
 
@@ -95,7 +95,7 @@ public:
 
   static Result<LinuxMonomeGridInterface> create(LinuxPlatform& platform);
   LinuxMonomeGridInterface(LinuxPlatform& platform);
-  void sendRawQuadMap(int offX, int offY, QuadType data) override;
+  void sendRawQuadMap(int offX, int offY, MonomeGrid::QuadType data) override;
   void connect(int id) override;
   void uponOscMessage(const char *path, const char *types,
                       lo_arg ** argv,
