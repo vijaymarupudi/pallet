@@ -23,7 +23,7 @@ static int oscInterfaceLoGenericOscCallback(const char *path, const char *types,
                                                  lo_arg ** argv,
                                                  int argc, lo_message data, void *user_data);
 
-static void oscInterfaceLoServerFdReadyCallback(int fd, int revents, void* userData);
+static void oscInterfaceLoServerFdReadyCallback(int fd, short revents, void* userData);
 
 
 class LinuxOscInterface {
@@ -107,7 +107,7 @@ static int oscInterfaceLoGenericOscCallback(const char *path, const char *types,
   return 0;
 }
 
-static void oscInterfaceLoServerFdReadyCallback(int fd, int revents, void* userData) {
+static void oscInterfaceLoServerFdReadyCallback(int fd, short revents, void* userData) {
   (void)fd;
   (void)revents;
   auto server = ((LinuxOscInterface*)userData)->server;

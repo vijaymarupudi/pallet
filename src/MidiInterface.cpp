@@ -39,7 +39,7 @@ LinuxMidiInterface::LinuxMidiInterface(LinuxPlatform& platform) : platform(platf
   threadReadFd = fds[0];
   threadWriteFd = fds[1];
   platform.setFdNonBlocking(threadReadFd);
-  platform.watchFdIn(threadReadFd, [](int fd, int revents, void* ud) {
+  platform.watchFdIn(threadReadFd, [](int fd, short revents, void* ud) {
     (void)revents;
     auto mface = (LinuxMidiInterface*)ud;
     LinuxMidiInterfaceMessage messages[16];

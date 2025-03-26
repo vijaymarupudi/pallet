@@ -33,21 +33,25 @@ namespace pallet {
 
 class LinuxPlatform : public Platform {
 
+private:
   struct timespec referenceTime;
 
-  using FdCallback = void(*)(int fd, int revents, void* ud);
+public:
+  using FdCallback = void(*)(int fd, short revents, void* ud);
 
+private:
   struct FdPollState {
-    int events;
+    short events;
     FdCallback callback;
     void* ud;
   };
 
   FdPollState& findOrCreateFdPollState(int fd);
+
   
 public:
-  static constexpr int Read  = POLLIN;
-  static constexpr int Write = POLLOUT;
+  static constexpr short Read  = POLLIN;
+  static constexpr short Write = POLLOUT;
   int cpu_dma_latency_fd;
   int timerfd;
   struct pollfd pollFds[32];
@@ -59,10 +63,10 @@ public:
   ~LinuxPlatform();
   void watchFdIn(int fd, FdCallback callback, void* userData);
   void watchFdOut(int fd, FdCallback callback, void* userData);
-  void watchFdEvents(int fd, int events, FdCallback callback, void* userData);
+  void watchFdEvents(int fd, short events, FdCallback callback, void* userData);
   void unwatchFdIn(int fd);
   void unwatchFdOut(int fd);
-  void unwatchFdEvents(int fd, int events);
+  void unwatchFdEvents(int fd, short events);
   void removeFd(int fd);
   void loopIter();
   void cleanup();
@@ -94,21 +98,53 @@ class FdManager {
   WriteState writeState;
   ReadState readState;
   int fd;
+  short revents = 0;
 
   void uponWriteReady();
   void uponReadReady();
-  void uponReady(int revents);
+  void uponReady(short revents);
+  void rewatch();
 
 public:
 
   FdManager(LinuxPlatform& platform, int fd = -1);
+  FdManager(FdManager&& other) : platform{other.platform},
+                                 writeState{other.writeState},
+                                 readState{other.readState},
+                                 fd{other.fd},
+                                 revents{other.revents}
+  {
+    // unwatch previous, because the this pointer would refer to dead memory
+    other.stopAll();
+    other.fd = -1;
+    // watch the current one
+    this->rewatch();
+  }
+
+  FdManager& operator=(FdManager&& other) {
+    this->stopAll();
+    other.stopAll();
+
+    std::swap(platform, other.platform);
+    std::swap(writeState, other.writeState);
+    std::swap(readState, other.readState);
+    std::swap(fd, other.fd);
+    std::swap(revents, other.revents);
+    
+    this->rewatch();
+    other.rewatch();
+    return *this;
+  }
+    
   void setFd(int fd);
   void write(void* data, size_t len, WriteCallback cb, void* ud);
   void startReading(ReadCallback cb, void* ud);
   void stopReading();
+  void stopWriting();
+  void stopAll();
   ~FdManager();
 
-  static void platformCallback(int fd, int revents, void* ud);
+  static void platformCallback(int fd, short revents, void* ud);
 };
 
 

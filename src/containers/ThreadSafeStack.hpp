@@ -18,11 +18,17 @@ namespace pallet::containers {
     std::atomic<node_type*> freeNodes = nullptr;
 
     ThreadSafeStack() {};
+    
     ThreadSafeStack(ThreadSafeStack&& other) {
       this->head = other.head;
       this->freeNodes = other.freeNodes;
       other.head = nullptr;
       other.freeNodes = nullptr;
+    }
+
+    ThreadSafeStack& operator=(ThreadSafeStack&& other) {
+      std::swap(head, other.head);
+      std::swap(freeNodes, other.freeNodes);
     }
 
   private:
@@ -89,6 +95,11 @@ namespace pallet::containers {
     }
   
   };
+
+// static_assert(std::is_move_constructible_v<ThreadSafeStack<bool>>
+//               &&
+//               std::is_move_assignable_v<ThreadSafeStack<bool>>
+//               );
 
 }
 

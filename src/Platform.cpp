@@ -89,7 +89,7 @@ static uint64_t timespecToTime(struct timespec* reference, struct timespec* spec
   return (s * 1000000000) + ns;
 }
 
-static void timerCallback(int fd, int revents, void* data);
+static void timerCallback(int fd, short revents, void* data);
 
 static void linuxSetThreadToHighPriority() {
   // increase the niceness of the process
@@ -166,7 +166,7 @@ LinuxPlatform::FdPollState& LinuxPlatform::findOrCreateFdPollState(int fd) {
   }
 }
 
-void LinuxPlatform::watchFdEvents(int fd, int events, FdCallback callback, void* userData) {
+void LinuxPlatform::watchFdEvents(int fd, short events, FdCallback callback, void* userData) {
   auto& state = this->findOrCreateFdPollState(fd);
   state.events |= events;
   state.callback = callback;
@@ -188,7 +188,7 @@ void LinuxPlatform::unwatchFdOut(int fd) {
   this->unwatchFdEvents(fd, POLLOUT);
 }
 
-void LinuxPlatform::unwatchFdEvents(int fd, int events) {
+void LinuxPlatform::unwatchFdEvents(int fd, short events) {
   auto it = this->fdCallbacks.find(fd);
   if (it != this->fdCallbacks.end()) {
     auto& [fd, state] = *it;
@@ -231,7 +231,7 @@ LinuxPlatform::~LinuxPlatform() {
   if (this->cpu_dma_latency_fd >= 0) { close(this->cpu_dma_latency_fd); }
 }
 
-static void timerCallback(int fd, int revents, void* data) {
+static void timerCallback(int fd, short revents, void* data) {
   (void)fd;
   (void)revents;
   auto platform = ((LinuxPlatform*) data);
@@ -259,7 +259,7 @@ void FdManager::uponReadReady() {
   readState.cb(this->fd, buf, (size_t)count, readState.ud);
 }
 
-void FdManager::uponReady(int revents) {
+void FdManager::uponReady(short revents) {
   if (revents & LinuxPlatform::Read) {
     this->uponReadReady();
   }
@@ -274,17 +274,26 @@ FdManager::FdManager(LinuxPlatform& platform, int fd) : platform(platform), fd(f
 void FdManager::setFd(int fd) { this->fd = fd; }
   
 void FdManager::write(void* data, size_t len, WriteCallback cb, void* ud) {
+  this->revents |= LinuxPlatform::Write;
   writeState = {data, len, 0, cb, ud};
-  this->platform.watchFdOut(this->fd, FdManager::platformCallback, this);
+  this->platform.watchFdEvents(this->fd, this->revents,
+                               FdManager::platformCallback, this);
 }
 
 void FdManager::startReading(ReadCallback cb, void* ud) {
+  this->revents |= LinuxPlatform::Read;
   readState = {cb, ud};
-  this->platform.watchFdIn(fd, FdManager::platformCallback, this);
+  this->platform.watchFdEvents(fd, this->revents, FdManager::platformCallback, this);
 }
 
 void FdManager::stopReading() {
-  this->platform.unwatchFdIn(this->fd);
+  this->revents &= ~LinuxPlatform::Read;
+  this->platform.unwatchFdEvents(this->fd, LinuxPlatform::Read);
+}
+
+void FdManager::stopWriting() {
+  this->revents &= ~LinuxPlatform::Write;
+  this->platform.unwatchFdEvents(this->fd, LinuxPlatform::Write);
 }
 
 FdManager::~FdManager() {
@@ -293,10 +302,22 @@ FdManager::~FdManager() {
   }
 }
 
-void FdManager::platformCallback(int fd, int revents, void* ud) {
+void FdManager::platformCallback(int fd, short revents, void* ud) {
   (void)fd;
   auto thi = (FdManager*)ud;
   thi->uponReady(revents);
+}
+
+void FdManager::stopAll() {
+  this->platform.unwatchFdEvents(this->fd, this->revents);
+  this->revents = 0;
+}
+
+void FdManager::rewatch() {
+  if (revents) {
+    this->platform.watchFdEvents(fd, revents,
+                                 FdManager::platformCallback, this);
+  }
 }
 
 }
