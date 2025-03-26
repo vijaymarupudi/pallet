@@ -8,84 +8,90 @@
 #include "time.hpp"
 #include "containers/containerUtils.hpp"
 
+namespace detail {
 template <class T>
-class UniqueResourceDefaultCleanup {
-  void operator()(const T& x) {}
+struct UniqueResourceDefaultCleanup {
+  void operator()(T& x) {(void)x;}
 };
+}
 
-// = UniqueResourceDefaultCleanup<T>
-template <class T, class D  = UniqueResourceDefaultCleanup<T>>
+template <class ObjectType,
+          class D = detail::UniqueResourceDefaultCleanup<ObjectType>>
 class UniqueResource : private D {
-  void _init_value(T* value) {
-    std::memcpy(memberSpace.ptr(), value, sizeof(T));
-  }
-  
+
+  static constexpr bool _nonthrowing_move = std::is_nothrow_move_constructible_v<D> &&
+    std::is_nothrow_move_assignable_v<D> &&
+    std::is_nothrow_move_constructible_v<ObjectType> &&
+    std::is_nothrow_move_assignable_v<ObjectType>;
+    
 public:
-  bool valid = false;
-  pallet::containers::Space<T> memberSpace;
-
-  // template <class Arg>
-  // UniqueResource(Arg&& value)
-  //   : D{}, valid{true} { _init_value(&value); }
-
-  UniqueResource(T value)
-    : D{}, valid{true} { _init_value(&value); }
-
-  UniqueResource(T& value)
-    : D{}, valid{true} { _init_value(&value); }
   
-  UniqueResource(T&& value)
-    : D{}, valid{true} { _init_value(&value); }
+  bool valid = false;
+  ObjectType object;
 
   UniqueResource(const UniqueResource& other) = delete;
-  
+  UniqueResource(UniqueResource& other) = delete;
   UniqueResource& operator=(const UniqueResource& other) = delete;
+  UniqueResource& operator=(UniqueResource& other) = delete;
 
-  // UniqueResource(T value)
-  //   : D{}, valid{true} { _init_value(&value); }
-
-
-  // template <class DArg>
-  // UniqueResource(T value, DArg&& destructor)
-  //   : D{std::forward<DArg>(destructor)}, valid{true} {
-  //   _init_value(&value);
-  // }
-
+  template <class Arg>
+  UniqueResource(Arg&& value)
+    : D{}, valid{true}, object{std::forward<Arg>(value)} {}  
+  
   template <class Arg, class DArg>
   UniqueResource(Arg&& value, DArg&& destructor)
-    : D{std::forward<DArg>(destructor)}, valid{true} {
-    _init_value(&value);
+    : D{std::forward<DArg>(destructor)}, valid{true}, object{std::forward<Arg>(value)} {
   }
 
-  UniqueResource(UniqueResource&& other) noexcept
-    : D{std::move(other)}, valid(other.valid)  {
+  UniqueResource(UniqueResource&& other) noexcept(_nonthrowing_move)
+    : D{std::move(other)},
+      valid(other.valid), object{std::move(other.object)}  {
     other.valid = false;
-    if (this->valid) {
-      std::memcpy(memberSpace.ptr(), other.memberSpace.ptr(),
-                  sizeof(T));
-    }
   }
 
-  UniqueResource& operator=(UniqueResource&& other) noexcept {
+  UniqueResource& operator=(UniqueResource&& other) noexcept(_nonthrowing_move) {
     D::operator=(other);
     std::swap(valid, other.valid);
-    std::swap(memberSpace, other.memberSpace);
+    std::swap(object, other.object);
+  }
+
+  ObjectType& operator*() noexcept {
+    return object;
+  }
+
+  const ObjectType& operator*() const noexcept {
+    return object;
+  }
+
+  ObjectType* operator->() noexcept {
+    return object;
+  }
+
+  const ObjectType* operator->() const noexcept  {
+    return object;
   }
 
   ~UniqueResource() {
     if (valid) {
-      this->operator()(*memberSpace.ptr());
-      memberSpace.destroy();
+      D::operator()(object);
     }
   }
 };
 
-template <class T, class DArg>
-UniqueResource(T value, DArg&& destructor) -> UniqueResource<T, std::remove_cvref_t<DArg>>;
+template <class Arg, class DArg>
+UniqueResource(Arg&& value, DArg&& destructor) -> UniqueResource<std::remove_cvref_t<Arg>, std::remove_cvref_t<DArg>>;
 
-// template <class T, class... Args>
+template <class Arg>
+UniqueResource(Arg&& value) -> UniqueResource<std::remove_cvref_t<Arg>>;
+
+static_assert(!std::is_copy_constructible_v<UniqueResource<int>> &&
+              !std::is_copy_assignable_v<UniqueResource<int>> &&
+              std::is_nothrow_move_constructible_v<UniqueResource<int>> &&
+              std::is_nothrow_move_assignable_v<UniqueResource<int>>);
+
+// template <class ObjectType, class... Args>
 // UniqueResource(auto&& cleanup, Args... args) ->
-//   UniqueResource<T, std::remove_cvref<decltype(cleanup)>>;
+//   UniqueResource<ObjectType, std::remove_cvref<decltype(cleanup)>>;
 
 // template <class... Args>
 // auto createUniqueResource(Args... args)
@@ -95,13 +101,22 @@ int main()
 
 {
 
+  auto v1 = UniqueResource(3, [](int& v){(void)v;
+      printf("Cleaning up!\n");});
+  auto v2 = std::move(v1);
+  auto v3 = std::move(v2);
+  printf("%d: value\n", *v3);
   // [](int v) {(void)v;}, 3
-  auto v1 = UniqueResource(3, [](int& v){(void)v;});
-  int n = 1;
-  auto v2 = UniqueResource(n, [](int& v){(void)v;});
+  // auto v1 = UniqueResource(3, [](int& v){(void)v;});
+  // (void)v1;
   // auto v2 = v1;
-  printf("%d\n", v1.valid);
-  (void)v2;
+  // (void)v2;
+  // int n = 1;
+  // auto v2 = UniqueResource(n, [](int& v){(void)v;});
+  // // auto v2 = v1;
+  // printf("%d\n", v1.valid);
+  // (void)v2;
+  // auto v3 = v2;
   
   // auto platform = pallet::LinuxPlatform();
   // auto clock = pallet::Clock(platform);
