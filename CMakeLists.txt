@@ -14,7 +14,7 @@ ExternalProject_Add(bytecode-compiler
                     INSTALL_COMMAND "")
 
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(SDL2 REQUIRED IMPORTED_TARGET sdl2)
+pkg_check_modules(SDL3 REQUIRED IMPORTED_TARGET sdl3)
 pkg_check_modules(LO REQUIRED IMPORTED_TARGET liblo)
 
 add_subdirectory(third-party/rt)
@@ -48,7 +48,7 @@ set(CXX_FILES
 
 add_library(pallet STATIC ${CXX_FILES})
 set_property(TARGET pallet PROPERTY CXX_STANDARD 23)
-target_link_libraries(pallet PUBLIC RT::RtMidi Miniaudio::Miniaudio Lua::Lua Amy::Amy PkgConfig::SDL2 PkgConfig::LO)
+target_link_libraries(pallet PUBLIC RT::RtMidi Miniaudio::Miniaudio Lua::Lua Amy::Amy PkgConfig::SDL3 PkgConfig::LO)
 target_include_directories(pallet PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 add_dependencies(pallet PalletLuaFilesystem)
 

@@ -94,7 +94,7 @@ class FdManager {
     void* ud;
   };
 
-  LinuxPlatform& platform;
+  LinuxPlatform* platform;
   WriteState writeState;
   ReadState readState;
   int fd;

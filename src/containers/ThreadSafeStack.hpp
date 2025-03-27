@@ -18,17 +18,28 @@ namespace pallet::containers {
     std::atomic<node_type*> freeNodes = nullptr;
 
     ThreadSafeStack() {};
-    
+
     ThreadSafeStack(ThreadSafeStack&& other) {
-      this->head = other.head;
-      this->freeNodes = other.freeNodes;
+      this->head = other.head.load();
+      this->freeNodes = other.freeNodes.load();
       other.head = nullptr;
       other.freeNodes = nullptr;
     }
 
     ThreadSafeStack& operator=(ThreadSafeStack&& other) {
-      std::swap(head, other.head);
-      std::swap(freeNodes, other.freeNodes);
+
+      // can't std::swap atomic
+
+      node_type* tmp;
+      tmp = other.head.load();
+      other.head = head.load();
+      head = tmp;
+
+      tmp = other.freeNodes.load();
+      other.freeNodes = head.load();
+      freeNodes = tmp;
+
+      return *this;
     }
 
   private:
@@ -50,7 +61,7 @@ namespace pallet::containers {
     }
 
     public:
-    
+
     template <class V>
     void push(V&& v) {
       auto node = popNodeFromList(this->freeNodes);
@@ -61,7 +72,7 @@ namespace pallet::containers {
       pushNodeOnList(head, node);
     }
 
-    
+
 
     std::optional<T> pop() {
       auto node = popNodeFromList(this->head);
@@ -93,7 +104,7 @@ namespace pallet::containers {
         node = next;
       }
     }
-  
+
   };
 
 // static_assert(std::is_move_constructible_v<ThreadSafeStack<bool>>
@@ -102,5 +113,3 @@ namespace pallet::containers {
 //               );
 
 }
-
-

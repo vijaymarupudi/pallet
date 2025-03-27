@@ -1,6 +1,9 @@
-#include "GraphicsInterface.hpp"
 #include <unistd.h>
 #include <optional>
+#include <atomic>
+
+
+#include "GraphicsInterface.hpp"
 
 namespace pallet {
 
@@ -11,11 +14,12 @@ Result<LinuxGraphicsInterface> LinuxGraphicsInterface::create(LinuxPlatform& pla
 }
 
 LinuxGraphicsInterface::LinuxGraphicsInterface(LinuxPlatform& platform) :
-  platform(platform), pipeFdManager(platform), operationsBuffer(new std::vector<Operation>) {
+  platform(&platform), pipeFdManager(platform),
+  operationsBuffer(new std::vector<Operation>)
 
-  pipe(this->pipes);
-
-  pipeFdManager.setFd(pipes[0]);
+{
+  pipe(&(*(this->pipes))[0]);
+  pipeFdManager.setFd((*(this->pipes))[0]);
 
   pipeFdManager.startReading([](int fd, void* data, size_t len, void* ud) {
     (void)fd;
@@ -28,16 +32,18 @@ LinuxGraphicsInterface::LinuxGraphicsInterface(LinuxPlatform& platform) :
     reinterpret_cast<LinuxGraphicsInterface*>(u)->uponEvents(e, len);
   };
 
-  this->thrd = std::thread([this](){
+  std::atomic<bool> sdlInterfaceInited = false;
+
+  this->thrd = std::thread([this, &sdlInterfaceInited](){
     this->sdlHardwareInterface.init();
-    this->sdlInterfaceInited = true;
-    this->sdlInterfaceInited.notify_one();
+    sdlInterfaceInited = true;
+    sdlInterfaceInited.notify_one();
     this->sdlHardwareInterface.loop();
   });
 
-  bool old = this->sdlInterfaceInited;
+  bool old = sdlInterfaceInited.load();
   if (!old) {
-    this->sdlInterfaceInited.wait(old);
+    sdlInterfaceInited.wait(old);
   }
 }
 
@@ -48,23 +54,23 @@ void LinuxGraphicsInterface::uponPipeIn(void* datain, size_t len) {
     std::optional<GraphicsEvent> event;
     SDL_Event sdlEvent;
     memcpy(&sdlEvent, data + i, sizeof(SDL_Event));
-    if (sdlEvent.type == SDL_MOUSEMOTION) {
+    if (sdlEvent.type == SDL_EVENT_MOUSE_MOTION) {
       event = GraphicsEventMouseMove {
         sdlEvent.motion.x / scaleFactor,
         sdlEvent.motion.y / scaleFactor
       };
     }
-    else if (sdlEvent.type == SDL_KEYDOWN || sdlEvent.type == SDL_KEYUP) {
-      bool state = sdlEvent.type == SDL_KEYDOWN ? true : false;
+    else if (sdlEvent.type == SDL_EVENT_KEY_DOWN || sdlEvent.type == SDL_EVENT_KEY_UP) {
+      bool state = sdlEvent.type == SDL_EVENT_KEY_DOWN ? true : false;
       event = GraphicsEventKey {
         state,
         sdlEvent.key.repeat != 0,
-        static_cast<uint32_t>(sdlEvent.key.keysym.sym),
-        sdlEvent.key.keysym.scancode,
-        sdlEvent.key.keysym.mod
+        static_cast<uint32_t>(sdlEvent.key.key),
+        sdlEvent.key.scancode,
+        sdlEvent.key.mod
       };
-    } else if (sdlEvent.type == SDL_MOUSEBUTTONDOWN || sdlEvent.type == SDL_MOUSEBUTTONUP) {
-      bool state = sdlEvent.type == SDL_MOUSEBUTTONDOWN ? true : false;
+    } else if (sdlEvent.type == SDL_EVENT_MOUSE_BUTTON_DOWN || sdlEvent.type == SDL_EVENT_MOUSE_BUTTON_UP) {
+      bool state = sdlEvent.type == SDL_EVENT_MOUSE_BUTTON_DOWN ? true : false;
       int button = sdlEvent.button.button;
       event = GraphicsEventMouseButton {
         sdlEvent.button.x / scaleFactor,
@@ -118,8 +124,8 @@ void LinuxGraphicsInterface::renderOperations(std::vector<Operation>& operations
 
     void operator()(OperationText& op) {
 
-      int opx = op.x;
-      int opy = op.y;
+      auto opx = op.x;
+      auto opy = op.y;
       auto text = op.text;
       auto align = op.align;
       auto baseline = op.baseline;
@@ -174,7 +180,7 @@ void LinuxGraphicsInterface::uponEvents(SDL_Event* events, size_t len) {
   size_t nEvents = 0;
   for (size_t i = 0; i < len; i++) {
     SDL_Event *event = &events[i];
-    if (event->type == SDL_QUIT) {
+    if (event->type == SDL_EVENT_QUIT) {
       this->sdlHardwareInterface.close();
     } else if (event->type == this->sdlHardwareInterface.userEventType) {
       this->uponUserEvent(event);
@@ -183,7 +189,7 @@ void LinuxGraphicsInterface::uponEvents(SDL_Event* events, size_t len) {
       nEvents++;
     }
   }
-  write(this->pipes[1], eventsToSend, sizeof(SDL_Event) * nEvents);
+  write((*this->pipes)[1], eventsToSend, sizeof(SDL_Event) * nEvents);
 }
 
 void LinuxGraphicsInterface::uponUserEvent(SDL_Event* event) {
@@ -198,7 +204,7 @@ void LinuxGraphicsInterface::addOperation(auto&& op) {
   this->operationsBuffer->push_back(std::forward<decltype(op)>(op));
 }
 
-void LinuxGraphicsInterface::rect(int x, int y, int w, int h, int c) {
+void LinuxGraphicsInterface::rect(float x, float y, float w, float h, int c) {
   this->addOperation(OperationRect {x, y, w, h, c});
 }
 
@@ -206,11 +212,11 @@ void LinuxGraphicsInterface::clear() {
   this->addOperation(OperationClear{});
 }
 
-void LinuxGraphicsInterface::point(int x, int y, int c) {
+void LinuxGraphicsInterface::point(float x, float y, int c) {
   this->addOperation(OperationPoint {x, y, c});
 }
 
-void LinuxGraphicsInterface::text(int x, int y, std::string_view str, int fc, int bc,
+void LinuxGraphicsInterface::text(float x, float y, std::string_view str, int fc, int bc,
                                   GraphicsPosition align, GraphicsPosition baseline) {
   this->addOperation(OperationText {
       x, y, std::string(str.data(),
@@ -222,11 +228,6 @@ void LinuxGraphicsInterface::text(int x, int y, std::string_view str, int fc, in
 
 GraphicsTextMeasurement LinuxGraphicsInterface::measureText(std::string_view str) {
   return this->sdlHardwareInterface.measureText(str.data(), str.size());
-}
-
-LinuxGraphicsInterface::~LinuxGraphicsInterface() {
-  close(pipes[0]);
-  close(pipes[1]);
 }
 
 #endif

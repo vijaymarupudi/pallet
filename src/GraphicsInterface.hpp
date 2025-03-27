@@ -3,18 +3,19 @@
 #include <inttypes.h>
 #include <thread>
 #include <memory>
-#include <atomic>
 #include <variant>
 #include <string_view>
 #include <vector>
+#include <array>
 
 #include "CGPixel.h"
 #include "constants.hpp"
 #include "containers/ThreadSafeStack.hpp"
 #include "Platform.hpp"
 #include "error.hpp"
+#include "memory.hpp"
 
-#include "SDL2/SDL.h"
+#include "SDL3/SDL.h"
 
 namespace pallet {
 
@@ -27,22 +28,22 @@ enum class GraphicsPosition {
 namespace detail {
 
 struct OperationRect {
-  int x;
-  int y;
-  int w;
-  int h;
+  float x;
+  float y;
+  float w;
+  float h;
   int c;
 };
 
 struct OperationPoint {
-  int x;
-  int y;
+  float x;
+  float y;
   int c;
 };
 
 struct OperationText {
-  int x;
-  int y;
+  float x;
+  float y;
   std::string text;
   int fc;
   int bc;
@@ -60,15 +61,15 @@ using Operation = std::variant<OperationRect,
 }
 
 struct GraphicsEventMouseButton {
-  int x;
-  int y;
+  float x;
+  float y;
   bool state;
   int button;
 };
 
 struct GraphicsEventMouseMove {
-  int x;
-  int y;
+  float x;
+  float y;
 };
 
 struct GraphicsEventKey {
@@ -109,9 +110,9 @@ public:
   virtual void init() = 0;
   virtual void clear() = 0;
   virtual void render() = 0;
-  virtual void rect(int, int, int, int, int) = 0;
-  virtual void point(int, int, int) = 0;
-  virtual void renderCompressedBitmap(int x, int y, int w, int h, uint8_t* data, int fc, int bc = 0) {
+  virtual void rect(float, float, float, float, int) = 0;
+  virtual void point(float, float, int) = 0;
+  virtual void renderCompressedBitmap(float x, float y, int w, int h, uint8_t* data, int fc, int bc = 0) {
     for (int ypos = 0; ypos < h; ypos++) {
       for (int xpos = 0; xpos < w; xpos++) {
         auto arrayIndex = ypos * w + xpos;
@@ -131,7 +132,7 @@ public:
 
   // fc = foreground color
   // bc = background color
-  void text(int x, int y, const char* str, size_t strLen, int fc, int bc, const GFXfont* font = &CG_pixel_3x52) {
+  void text(float x, float y, const char* str, size_t strLen, int fc, int bc, const GFXfont* font = &CG_pixel_3x52) {
     int xpos = x;
     int ypos = y;
     for (size_t i = 0; i < strLen; i++) {
@@ -197,9 +198,33 @@ public:
 const size_t MAX_BATCH_LEN = 32;
 
 class SDLHardwareInterface : public GraphicsHardwareInterface {
-  SDL_Window* window;
-  SDL_Surface* surface;
-  SDL_Renderer* renderer;
+
+  struct Data {
+    bool inited = false;
+    SDL_Window* window = nullptr;
+    SDL_Renderer* renderer = nullptr;
+  };
+
+  struct DataDestroyer {
+    void operator()(Data& data) {
+      if (data.renderer) {
+          SDL_DestroyRenderer(data.renderer);
+          data.renderer = nullptr;
+      }
+      if (data.window) {
+        SDL_DestroyWindow(data.window);
+        data.window = nullptr;
+      }
+
+      if (data.inited) {
+        data.inited = false;
+        SDL_Quit();
+      }
+    }
+  };
+
+  UniqueResource<Data, DataDestroyer> data;
+  
 public:
 
   int scaleFactor = 9;
@@ -215,38 +240,39 @@ public:
 
   void init() override {
     SDL_Init(SDL_INIT_VIDEO);
-    this->window = SDL_CreateWindow("Testing", SDL_WINDOWPOS_UNDEFINED,
-                                  SDL_WINDOWPOS_UNDEFINED,
-                                    128 * this->scaleFactor, 64 * this->scaleFactor, SDL_WINDOW_SHOWN);
-    this->surface = SDL_GetWindowSurface(window);
-    this->renderer = SDL_CreateSoftwareRenderer(surface);
+    data->inited = true;
+    data->window = SDL_CreateWindow("Testing", 128 * this->scaleFactor, 64 * this->scaleFactor, 0);
+    auto surface = SDL_GetWindowSurface(data->window);
+    data->renderer = SDL_CreateSoftwareRenderer(surface);
     this->userEventType = SDL_RegisterEvents(1);
   }
 
   void clear() override {
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-    SDL_RenderClear(renderer);
+    SDL_SetRenderDrawColor(data->renderer, 0, 0, 0, 255);
+    SDL_RenderClear(data->renderer);
   }
 
   void render() override {
-    SDL_UpdateWindowSurface(window);
+    SDL_RenderPresent(data->renderer);
+    SDL_UpdateWindowSurface(data->window);
   }
 
-  void rect(int x, int y, int w, int h, int c) override {
-    SDL_Rect rect {x * scaleFactor,
-                   y * scaleFactor,
-                   w * scaleFactor,
-                   h * scaleFactor};
+  void rect(float x, float y, float w, float h, int c) override {
+    SDL_FRect rect {(float)x * scaleFactor,
+      (float)y * scaleFactor,
+      (float)w * scaleFactor,
+      (float)h * scaleFactor};
 
-    int v = ((c + 1) << 4) - 1;
-    SDL_SetRenderDrawColor(renderer, v, v, v, 255);
-    int ret = SDL_RenderFillRect(renderer, &rect);
+    // c will be between 0-15
+    int v = (c << 4) | c;
+    SDL_SetRenderDrawColor(data->renderer, v, v, v, 255);
+    int ret = SDL_RenderFillRect(data->renderer, &rect);
     if (ret) {
       printf("%s\n", SDL_GetError());
     }
   }
 
-  void point(int x, int y, int c) override {
+  void point(float x, float y, int c) override {
     this->rect(x, y, 1, 1, c);
   }
 
@@ -267,9 +293,7 @@ public:
   }
 
   void close() {
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    SDL_Quit();
+    data.cleanup();
   }
 };
 
@@ -284,7 +308,7 @@ class GraphicsInterface {
     this->onEventCallbackUserData = ud;
   }
 
-  virtual void strokeRect(int x, int y, int w, int h, int c) {
+  virtual void strokeRect(float x, float y, float w, float h, int c) {
     this->rect(x, y, 1, h, c);
     this->rect(x, y, w, 1, c);
     this->rect(x + w - 1, y, 1, h, c);
@@ -292,10 +316,10 @@ class GraphicsInterface {
   };
 
   virtual void render() = 0;
-  virtual void rect(int x, int y, int w, int h, int c) = 0;
+  virtual void rect(float x, float y, float w, float h, int c) = 0;
   virtual void clear() = 0;
-  virtual void point(int x, int y, int c) = 0;
-  virtual void text(int x, int y, std::string_view str, int fc = 15,
+  virtual void point(float x, float y, int c) = 0;
+  virtual void text(float x, float y, std::string_view str, int fc = 15,
                     int bc = 0,
                     GraphicsPosition align = GraphicsPosition::Default,
                     GraphicsPosition baseline = GraphicsPosition::Default) = 0;
@@ -304,18 +328,29 @@ class GraphicsInterface {
 
 using namespace detail;
 
+namespace detail {
+  struct PipeDataDestroyer {
+    void operator()(std::array<int, 2>& pipes) {
+      if (!(pipes[0] < 0)) {
+        close(pipes[0]);
+      }
+
+      if (!(pipes[1] < 0)) {
+        close(pipes[1]);
+      }
+    }
+  };
+}
 
 class LinuxGraphicsInterface : public GraphicsInterface {
-  LinuxPlatform& platform;
+
+  LinuxPlatform* platform;
   FdManager pipeFdManager;
   std::unique_ptr<std::vector<Operation>> operationsBuffer = nullptr;
   SDLHardwareInterface sdlHardwareInterface;
-
-  std::atomic<bool> sdlInterfaceInited = false;
   std::thread thrd;
-  containers::ThreadSafeStack<std::unique_ptr<std::vector<Operation>>>
-  operationVectorStack;
-  int pipes[2];
+  containers::ThreadSafeStack<std::unique_ptr<std::vector<Operation>>> operationVectorStack;
+  UniqueResource<std::array<int, 2>, detail::PipeDataDestroyer> pipes;
 
 public:
 
@@ -330,15 +365,17 @@ public:
 
   virtual void render() override;
   virtual void clear() override;
-  virtual void rect(int x, int y, int w, int h, int c) override;
-  virtual void point(int x, int y, int c) override;
-  virtual void text(int x, int y, std::string_view str,
+  virtual void rect(float x, float y, float w, float h, int c) override;
+  virtual void point(float x, float y, int c) override;
+  virtual void text(float x, float y, std::string_view str,
                     int fc = 15, int bc = 0,
                     GraphicsPosition align = GraphicsPosition::Default,
                     GraphicsPosition baseline = GraphicsPosition::Default) override;
   virtual GraphicsTextMeasurement measureText(std::string_view str) override;
-  ~LinuxGraphicsInterface();
 };
+
+static_assert(pallet::isMovable<LinuxGraphicsInterface>);
+
 #endif
 }
 

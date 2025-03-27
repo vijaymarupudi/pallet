@@ -248,7 +248,7 @@ void FdManager::uponWriteReady() {
                                  writeState.len - writeState.writtenLen);
   writeState.writtenLen += writtenCount;
   if (writeState.writtenLen == writeState.len) {
-    this->platform.unwatchFdOut(fd);
+    this->platform->unwatchFdOut(fd);
     writeState.cb(this->fd, writeState.ud);
   }
 }
@@ -269,36 +269,36 @@ void FdManager::uponReady(short revents) {
   }
 }
 
-FdManager::FdManager(LinuxPlatform& platform, int fd) : platform(platform), fd(fd) {}
+FdManager::FdManager(LinuxPlatform& platform, int fd) : platform(&platform), fd(fd) {}
 
 void FdManager::setFd(int fd) { this->fd = fd; }
   
 void FdManager::write(void* data, size_t len, WriteCallback cb, void* ud) {
   this->revents |= LinuxPlatform::Write;
   writeState = {data, len, 0, cb, ud};
-  this->platform.watchFdEvents(this->fd, this->revents,
+  this->platform->watchFdEvents(this->fd, this->revents,
                                FdManager::platformCallback, this);
 }
 
 void FdManager::startReading(ReadCallback cb, void* ud) {
   this->revents |= LinuxPlatform::Read;
   readState = {cb, ud};
-  this->platform.watchFdEvents(fd, this->revents, FdManager::platformCallback, this);
+  this->platform->watchFdEvents(fd, this->revents, FdManager::platformCallback, this);
 }
 
 void FdManager::stopReading() {
   this->revents &= ~LinuxPlatform::Read;
-  this->platform.unwatchFdEvents(this->fd, LinuxPlatform::Read);
+  this->platform->unwatchFdEvents(this->fd, LinuxPlatform::Read);
 }
 
 void FdManager::stopWriting() {
   this->revents &= ~LinuxPlatform::Write;
-  this->platform.unwatchFdEvents(this->fd, LinuxPlatform::Write);
+  this->platform->unwatchFdEvents(this->fd, LinuxPlatform::Write);
 }
 
 FdManager::~FdManager() {
   if (fd >= 0) {
-    this->platform.unwatchFdEvents(this->fd, LinuxPlatform::Read | LinuxPlatform::Write);
+    this->platform->unwatchFdEvents(this->fd, LinuxPlatform::Read | LinuxPlatform::Write);
   }
 }
 
@@ -309,13 +309,13 @@ void FdManager::platformCallback(int fd, short revents, void* ud) {
 }
 
 void FdManager::stopAll() {
-  this->platform.unwatchFdEvents(this->fd, this->revents);
+  this->platform->unwatchFdEvents(this->fd, this->revents);
   this->revents = 0;
 }
 
 void FdManager::rewatch() {
   if (revents) {
-    this->platform.watchFdEvents(fd, revents,
+    this->platform->watchFdEvents(fd, revents,
                                  FdManager::platformCallback, this);
   }
 }

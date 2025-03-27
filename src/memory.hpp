@@ -4,7 +4,19 @@
 #include <memory>
 #include <type_traits>
 
+
+
 namespace pallet {
+
+template <class T>
+concept isMovable = std::is_move_constructible_v<T> &&
+  std::is_move_assignable_v<T>;
+
+
+template <class T>
+concept isNothrowMovable = std::is_nothrow_move_constructible_v<T> &&
+  std::is_nothrow_move_assignable_v<T>;
+
 namespace detail {
 template <class T>
 struct UniqueResourceDefaultCleanup {
@@ -33,6 +45,9 @@ class UniqueResource : private D {
   UniqueResource& operator=(const UniqueResource& other) = delete;
   UniqueResource& operator=(UniqueResource& other) = delete;
 
+  UniqueResource()
+    : D{}, object{}, valid{true} {}
+
   template <class Arg>
   UniqueResource(Arg&& value)
     : D{}, object{std::forward<Arg>(value)}, valid{true} {}  
@@ -49,9 +64,10 @@ class UniqueResource : private D {
   }
 
   UniqueResource& operator=(UniqueResource&& other) noexcept(_nonthrowing_move) {
-    D::operator=(other);
+    D::operator=(std::move(other));
     std::swap(valid, other.valid);
     std::swap(object, other.object);
+    return *this;
   }
 
   ObjectType& operator*() noexcept {
@@ -63,17 +79,22 @@ class UniqueResource : private D {
   }
 
   ObjectType* operator->() noexcept {
-    return object;
+    return &object;
   }
 
   const ObjectType* operator->() const noexcept  {
-    return object;
+    return &object;
+  }
+
+  void cleanup() {
+    if (valid) {
+      D::operator()(object);
+      valid = false;
+    }
   }
 
   ~UniqueResource() {
-    if (valid) {
-      D::operator()(object);
-    }
+    this->cleanup();
   }
 };
 
@@ -85,6 +106,5 @@ UniqueResource(Arg&& value) -> UniqueResource<std::remove_cvref_t<Arg>>;
 
 static_assert(!std::is_copy_constructible_v<UniqueResource<int>> &&
               !std::is_copy_assignable_v<UniqueResource<int>> &&
-              std::is_nothrow_move_constructible_v<UniqueResource<int>> &&
-              std::is_nothrow_move_assignable_v<UniqueResource<int>>);
+              isNothrowMovable<UniqueResource<int>>);
 }
