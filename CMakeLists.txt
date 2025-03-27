@@ -10,7 +10,7 @@ ExternalProject_Add(bytecode-compiler
                     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/build-tools
                     CONFIGURE_COMMAND ${CMAKE_COMMAND} -S ${CMAKE_CURRENT_SOURCE_DIR}/build-tools -DCMAKE_BUILD_TYPE=Release
                     BUILD_COMMAND make -j8
-                    BUILD_BYPRODUCTS bytecode-compiler
+                    BUILD_BYPRODUCTS ${BYTECODE_COMPILER_PATH} # ${CMAKE_CURRENT_BINARY_DIR}/bytecode-compiler
                     INSTALL_COMMAND "")
 
 find_package(PkgConfig REQUIRED)
@@ -27,6 +27,7 @@ file(GLOB FILESYSTEM_FILES filesystem/**/*)
 add_custom_command(OUTPUT filesystem.h
                    COMMAND ${BYTECODE_COMPILER_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/filesystem ${CMAKE_CURRENT_BINARY_DIR}/filesystem.h
                    DEPENDS bytecode-compiler ${FILESYSTEM_FILES})
+
 add_custom_target (PalletLuaFilesystem DEPENDS filesystem.h)
 
 add_compile_options(-Wall -Wextra -pedantic -fsanitize=address)
