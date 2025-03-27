@@ -206,7 +206,7 @@ class SDLHardwareInterface final : public GraphicsHardwareInterface {
   };
 
   struct DataDestroyer {
-    void operator()(Data& data) {
+    void operator() (Data& data) noexcept {
       if (data.renderer) {
           SDL_DestroyRenderer(data.renderer);
           data.renderer = nullptr;
@@ -330,7 +330,7 @@ using namespace detail;
 
 namespace detail {
   struct PipeDataDestroyer {
-    void operator()(std::array<int, 2>& pipes) {
+    void operator()(std::array<int, 2>& pipes) noexcept {
       if (!(pipes[0] < 0)) {
         close(pipes[0]);
       }

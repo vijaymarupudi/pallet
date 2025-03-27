@@ -90,7 +90,7 @@ screen.onEvent = function(event)
   print("Screen:", event.type)
   if (event.type == "MouseMove") then
     if (event.x ~= 0) then
-      beatClock.setBPM(event.x)
+      beatClock.setBPM(event.x * 2)
     end
     print(event.x, ", ", event.y)
   end
