@@ -20,7 +20,7 @@ concept isNothrowMovable = std::is_nothrow_move_constructible_v<T> &&
 namespace detail {
 template <class T>
 struct UniqueResourceDefaultCleanup {
-  void operator()(T& x) {(void)x;}
+  void operator()(T& x) noexcept {(void)x;}
 };
 }
 
@@ -59,7 +59,8 @@ class UniqueResource : private D {
 
   UniqueResource(UniqueResource&& other) noexcept(_nonthrowing_move)
     : D{std::move(other)},
-      object{std::move(other.object)}, valid(other.valid) {
+      object{std::move(other.object)},
+      valid(other.valid) {
     other.valid = false;
   }
 
@@ -86,14 +87,14 @@ class UniqueResource : private D {
     return &object;
   }
 
-  void cleanup() {
+  void cleanup() noexcept(noexcept(D::operator()(object))) {
     if (valid) {
       D::operator()(object);
       valid = false;
     }
   }
 
-  ~UniqueResource() {
+  ~UniqueResource() noexcept(noexcept(this->cleanup())) {
     this->cleanup();
   }
 };

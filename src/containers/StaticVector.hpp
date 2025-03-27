@@ -98,6 +98,7 @@ public:
   }
 
   void reserve(size_type in) {
+    (void)in;
     // do nothing
   }
 

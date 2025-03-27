@@ -47,6 +47,19 @@ LinuxGraphicsInterface::LinuxGraphicsInterface(LinuxPlatform& platform) :
   }
 }
 
+LinuxGraphicsInterface::LinuxGraphicsInterface(LinuxGraphicsInterface&& iface)
+  : platform{iface.platform},
+    pipeFdManager{std::move(iface.pipeFdManager)},
+    sdlHardwareInterface{std::move(iface.sdlHardwareInterface)},
+    thrd{std::move(iface.thrd)},
+    operationsBuffer{std::move(iface.operationsBuffer)},
+    operationVectorStack{std::move(iface.operationVectorStack)},
+    pipes{std::move(pipes)}
+{
+  pipeFdManager.setReadWriteUserData(this, nullptr);
+}
+
+
 void LinuxGraphicsInterface::uponPipeIn(void* datain, size_t len) {
   unsigned char* data = reinterpret_cast<unsigned char*>(datain);
   auto scaleFactor = this->sdlHardwareInterface.scaleFactor;

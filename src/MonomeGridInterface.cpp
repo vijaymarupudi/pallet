@@ -10,7 +10,7 @@ static inline std::pair<int, int> calcQuadIndexAndPointIndex(int x, int y) {
   return std::pair(calcQuadIndex(x, y), (x % 8) + 8 * (y % 8));
 }
 
-static Result<LinuxMonomeGridInterface> create(LinuxPlatform& platform) {
+Result<LinuxMonomeGridInterface> LinuxMonomeGridInterface::create(LinuxPlatform& platform) {
   return Result<LinuxMonomeGridInterface>(std::in_place_t{}, platform);
 }
 

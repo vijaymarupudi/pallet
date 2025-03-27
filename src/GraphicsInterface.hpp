@@ -200,9 +200,9 @@ const size_t MAX_BATCH_LEN = 32;
 class SDLHardwareInterface : public GraphicsHardwareInterface {
 
   struct Data {
-    bool inited = false;
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;
+    bool inited = false;
   };
 
   struct DataDestroyer {
@@ -224,14 +224,14 @@ class SDLHardwareInterface : public GraphicsHardwareInterface {
   };
 
   UniqueResource<Data, DataDestroyer> data;
-  
+
+
 public:
 
   int scaleFactor = 9;
 
   void(*onEventsCallback)(SDL_Event* events, size_t len, void* ud) = nullptr;
   void* onEventsUserData = nullptr;
-
   unsigned int userEventType;
 
   void config(int scaleFactor = 9) {
@@ -302,7 +302,7 @@ class GraphicsInterface {
 
   void(*onEventCallback) (GraphicsEvent event, void* ud);
   void* onEventCallbackUserData = nullptr;
-  
+
   void setOnEvent(void(*onEventCallback) (GraphicsEvent event, void* ud), void* ud = nullptr) {
     this->onEventCallback = onEventCallback;
     this->onEventCallbackUserData = ud;
@@ -346,17 +346,19 @@ class LinuxGraphicsInterface : public GraphicsInterface {
 
   LinuxPlatform* platform;
   FdManager pipeFdManager;
-  std::unique_ptr<std::vector<Operation>> operationsBuffer = nullptr;
   SDLHardwareInterface sdlHardwareInterface;
   std::thread thrd;
+  std::unique_ptr<std::vector<Operation>> operationsBuffer = nullptr;
   containers::ThreadSafeStack<std::unique_ptr<std::vector<Operation>>> operationVectorStack;
   UniqueResource<std::array<int, 2>, detail::PipeDataDestroyer> pipes;
 
 public:
 
   static Result<LinuxGraphicsInterface> create(LinuxPlatform& platform);
+
   LinuxGraphicsInterface(LinuxPlatform& platform);
-  
+  LinuxGraphicsInterface(LinuxGraphicsInterface&& iface);
+
   void uponPipeIn(void* datain, size_t len);
   void renderOperations(std::vector<Operation>& operations);
   void uponEvents(SDL_Event* events, size_t len);
@@ -374,8 +376,7 @@ public:
   virtual GraphicsTextMeasurement measureText(std::string_view str) override;
 };
 
-static_assert(pallet::isMovable<LinuxGraphicsInterface>);
+  static_assert(std::is_move_constructible_v<LinuxGraphicsInterface>);
 
 #endif
 }
-

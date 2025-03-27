@@ -271,6 +271,20 @@ void FdManager::uponReady(short revents) {
 
 FdManager::FdManager(LinuxPlatform& platform, int fd) : platform(&platform), fd(fd) {}
 
+FdManager::FdManager(FdManager&& other)
+  : platform{std::move(other.platform)},
+    writeState{std::move(other.writeState)},
+    readState{std::move(other.readState)},
+    fd{other.fd},
+    revents{other.revents}
+{
+  // unwatch previous, because the this pointer would refer to dead memory
+  other.stopAll();
+  other.fd = -1;
+  // watch the current one
+  this->rewatch();
+}
+
 void FdManager::setFd(int fd) { this->fd = fd; }
   
 void FdManager::write(void* data, size_t len, WriteCallback cb, void* ud) {
@@ -317,6 +331,16 @@ void FdManager::rewatch() {
   if (revents) {
     this->platform->watchFdEvents(fd, revents,
                                  FdManager::platformCallback, this);
+  }
+}
+
+void FdManager::setReadWriteUserData(void* readUd, void* writeUd) {
+  if (readUd) {
+    this->readState.ud = readUd;
+  }
+
+  if (writeUd) {
+    this->writeState.ud = writeUd;
   }
 }
 

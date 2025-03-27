@@ -108,18 +108,7 @@ class FdManager {
 public:
 
   FdManager(LinuxPlatform& platform, int fd = -1);
-  FdManager(FdManager&& other) : platform{other.platform},
-                                 writeState{other.writeState},
-                                 readState{other.readState},
-                                 fd{other.fd},
-                                 revents{other.revents}
-  {
-    // unwatch previous, because the this pointer would refer to dead memory
-    other.stopAll();
-    other.fd = -1;
-    // watch the current one
-    this->rewatch();
-  }
+  FdManager(FdManager&& other);
 
   FdManager& operator=(FdManager&& other) {
     this->stopAll();
@@ -138,6 +127,7 @@ public:
     
   void setFd(int fd);
   void write(void* data, size_t len, WriteCallback cb, void* ud);
+  void setReadWriteUserData(void* = nullptr, void* = nullptr);
   void startReading(ReadCallback cb, void* ud);
   void stopReading();
   void stopWriting();
