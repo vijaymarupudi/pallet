@@ -218,7 +218,7 @@ public:
     this->run(false);
   }
 
-  virtual void setBPM(double bpm) {
+  virtual void setBPM(double bpm) override {
     auto old = this->ppqnPeriod;
     BeatClockImplementationInterface::setBPM(bpm);
     if (old != this->ppqnPeriod) {

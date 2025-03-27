@@ -69,7 +69,7 @@ namespace pallet {
 static void linuxAudioInterfaceCallback(ma_device* dev, void* inOut, const void* inIn, ma_uint32 nFrames);
 
 
-class LinuxAudioInterface : public AudioInterface {
+class LinuxAudioInterface final : public AudioInterface {
 public:
   Clock* clock;
   ma_device device;

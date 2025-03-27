@@ -35,7 +35,7 @@ public:
   
 };
 
-class LinuxMidiInterface : public MidiInterface {
+class LinuxMidiInterface final : public MidiInterface {
 public:
   bool status = false;
   int threadReadFd;

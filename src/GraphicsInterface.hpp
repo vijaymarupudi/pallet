@@ -197,7 +197,7 @@ public:
 
 const size_t MAX_BATCH_LEN = 32;
 
-class SDLHardwareInterface : public GraphicsHardwareInterface {
+class SDLHardwareInterface final : public GraphicsHardwareInterface {
 
   struct Data {
     SDL_Window* window = nullptr;
@@ -342,7 +342,7 @@ namespace detail {
   };
 }
 
-class LinuxGraphicsInterface : public GraphicsInterface {
+class LinuxGraphicsInterface final : public GraphicsInterface {
 
   LinuxPlatform* platform;
   FdManager pipeFdManager;

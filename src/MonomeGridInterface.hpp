@@ -83,7 +83,7 @@ public:
 
 namespace pallet {
 
-class LinuxMonomeGridInterface : public MonomeGridInterface {
+class LinuxMonomeGridInterface final : public MonomeGridInterface {
 public:
   using address_type = LinuxOscInterface::address_type;
   address_type serialoscdAddr;

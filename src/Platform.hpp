@@ -31,7 +31,7 @@ protected:
 
 namespace pallet {
 
-class LinuxPlatform : public Platform {
+class LinuxPlatform final : public Platform {
 
 private:
   struct timespec referenceTime;
