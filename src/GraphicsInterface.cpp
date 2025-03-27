@@ -54,7 +54,7 @@ LinuxGraphicsInterface::LinuxGraphicsInterface(LinuxGraphicsInterface&& iface)
     thrd{std::move(iface.thrd)},
     operationsBuffer{std::move(iface.operationsBuffer)},
     operationVectorStack{std::move(iface.operationVectorStack)},
-    pipes{std::move(pipes)}
+    pipes{std::move(iface.pipes)}
 {
   pipeFdManager.setReadWriteUserData(this, nullptr);
 }
