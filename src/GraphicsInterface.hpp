@@ -258,10 +258,12 @@ public:
   }
 
   void rect(float x, float y, float w, float h, int c) override {
-    SDL_FRect rect {(float)x * scaleFactor,
-      (float)y * scaleFactor,
-      (float)w * scaleFactor,
-      (float)h * scaleFactor};
+    SDL_FRect rect {
+      x * scaleFactor,
+      y * scaleFactor,
+      w * scaleFactor,
+      h * scaleFactor
+    };
 
     // c will be between 0-15
     int v = (c << 4) | c;
