@@ -103,27 +103,13 @@ class FdManager {
   void uponWriteReady();
   void uponReadReady();
   void uponReady(short revents);
-  void rewatch();
+  void rewatch(short revents);
 
 public:
 
   FdManager(LinuxPlatform& platform, int fd = -1);
   FdManager(FdManager&& other);
-
-  FdManager& operator=(FdManager&& other) {
-    this->stopAll();
-    other.stopAll();
-
-    std::swap(platform, other.platform);
-    std::swap(writeState, other.writeState);
-    std::swap(readState, other.readState);
-    std::swap(fd, other.fd);
-    std::swap(revents, other.revents);
-    
-    this->rewatch();
-    other.rewatch();
-    return *this;
-  }
+  FdManager& operator=(FdManager&& other);
     
   void setFd(int fd);
   void write(void* data, size_t len, WriteCallback cb, void* ud);

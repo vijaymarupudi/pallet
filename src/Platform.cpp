@@ -279,14 +279,33 @@ FdManager::FdManager(FdManager&& other)
     revents{other.revents}
 {
   // unwatch previous, because the this pointer would refer to dead memory
+  auto events = other.revents;
   other.stopAll();
   other.fd = -1;
   // watch the current one
-  this->rewatch();
+  this->rewatch(events);
+}
+
+FdManager& FdManager::operator=(FdManager&& other) {
+  auto oevents = other.revents;
+  auto events = this->revents;
+
+  this->stopAll();
+  other.stopAll();
+
+  std::swap(platform, other.platform);
+  std::swap(writeState, other.writeState);
+  std::swap(readState, other.readState);
+  std::swap(fd, other.fd);
+  std::swap(revents, other.revents);
+
+  this->rewatch(oevents);
+  other.rewatch(events);
+  return *this;
 }
 
 void FdManager::setFd(int fd) { this->fd = fd; }
-  
+
 void FdManager::write(void* data, size_t len, WriteCallback cb, void* ud) {
   this->revents |= LinuxPlatform::Write;
   writeState = {data, len, 0, cb, ud};
@@ -327,8 +346,9 @@ void FdManager::stopAll() {
   this->revents = 0;
 }
 
-void FdManager::rewatch() {
+void FdManager::rewatch(short revents) {
   if (revents) {
+    this->revents = revents;
     this->platform->watchFdEvents(fd, revents,
                                  FdManager::platformCallback, this);
   }

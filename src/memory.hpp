@@ -4,8 +4,6 @@
 #include <memory>
 #include <type_traits>
 
-
-
 namespace pallet {
 
 template <class T>
