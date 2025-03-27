@@ -1,13 +1,159 @@
-#include <unistd.h>
-#include <optional>
-#include <atomic>
-
-
 #include "GraphicsInterface.hpp"
 
 namespace pallet {
 
+void GraphicsHardwareInterface::renderCompressedBitmap(float x, float y, int w, int h, uint8_t* data, int fc, int bc) {
+  for (int ypos = 0; ypos < h; ypos++) {
+    for (int xpos = 0; xpos < w; xpos++) {
+      auto arrayIndex = ypos * w + xpos;
+      auto byteIndex = arrayIndex / 8;
+      auto bitIndex = (arrayIndex % 8);
+      auto xloc = x + xpos;
+      auto yloc = y + ypos;
+      auto reading = (0x80 >> bitIndex) & data[byteIndex];
+      if (reading) {
+        this->point(xloc, yloc, fc);
+      } else if (bc != -1) {
+        this->point(xloc, yloc, bc);
+      }
+    }
+  }
+}
+
+// fc = foreground color
+// bc = background color
+void GraphicsHardwareInterface::text(float x, float y, const char* str, size_t strLen, int fc, int bc, const GFXfont* font) {
+  int xpos = x;
+  int ypos = y;
+  for (size_t i = 0; i < strLen; i++) {
+    char c = str[i];
+    if (c == '\n') {
+      ypos += font->yAdvance;
+      xpos = x;
+      continue;
+    }
+    auto glyph = &font->glyph[c - font->first];
+    uint8_t* data = &font->bitmap[glyph->bitmapOffset];
+    int xrenderpos = xpos + glyph->xOffset;
+    int yrenderpos = ypos + glyph->yOffset;
+    this->renderCompressedBitmap(xrenderpos, yrenderpos, glyph->width,
+                                 glyph->height, data, fc, bc);
+    xpos += glyph->xAdvance;
+  }
+}
+
+GraphicsTextMeasurement GraphicsHardwareInterface::measureText(const char* str, size_t strLen, const GFXfont* font) {
+
+  auto min = [](auto x, auto y) {
+    if (x < y) { return x;}
+    return y;
+  };
+
+  auto max = [](auto x, auto y) {
+    if (x > y) { return x;}
+    return y;
+  };
+
+  int ymax = 0;
+  int ymin = 0;
+  int xpos = 0;
+  int ypos = 0;
+
+  for (size_t i = 0; i < strLen; i++) {
+    char c = str[i];
+    if (c == '\n') {
+      ypos += font->yAdvance;
+      xpos = 0;
+      continue;
+    }
+    auto glyph = &font->glyph[c - font->first];
+    int xrenderpos = xpos + glyph->xOffset;
+    (void)xrenderpos;
+    int yrenderpos = ypos + glyph->yOffset;
+    ymin = min(ymin, yrenderpos);
+    ymax = max(ymax, yrenderpos + glyph->height);
+    xpos += glyph->xAdvance;
+  }
+
+  auto lastGlyph = &font->glyph[str[strLen - 1] - font->first];
+  xpos -= lastGlyph->xAdvance;
+  xpos += lastGlyph->xOffset + lastGlyph->width;
+
+  return GraphicsTextMeasurement {xpos, ymin, ymax};
+}
+}
+
 #if PALLET_CONSTANTS_PLATFORM == PALLET_CONSTANTS_PLATFORM_LINUX
+
+#include <unistd.h>
+#include <optional>
+#include <atomic>
+
+namespace pallet {
+
+
+
+static const size_t MAX_BATCH_LEN = 32;
+
+void SDLHardwareInterface::init()  {
+  SDL_Init(SDL_INIT_VIDEO);
+  data->inited = true;
+  data->window = SDL_CreateWindow("Testing", 128 * this->scaleFactor, 64 * this->scaleFactor, 0);
+  auto surface = SDL_GetWindowSurface(data->window);
+  data->renderer = SDL_CreateSoftwareRenderer(surface);
+  this->userEventType = SDL_RegisterEvents(1);
+}
+
+void SDLHardwareInterface::clear() {
+  SDL_SetRenderDrawColor(data->renderer, 0, 0, 0, 255);
+  SDL_RenderClear(data->renderer);
+}
+
+void SDLHardwareInterface::render() {
+  SDL_RenderPresent(data->renderer);
+  SDL_UpdateWindowSurface(data->window);
+}
+
+void SDLHardwareInterface::rect(float x, float y, float w, float h, int c) {
+  SDL_FRect rect {
+    x * scaleFactor,
+    y * scaleFactor,
+    w * scaleFactor,
+    h * scaleFactor
+  };
+
+  // c will be between 0-15
+  int v = (c << 4) | c;
+  SDL_SetRenderDrawColor(data->renderer, v, v, v, 255);
+  int ret = SDL_RenderFillRect(data->renderer, &rect);
+  if (ret) {
+    printf("%s\n", SDL_GetError());
+  }
+}
+
+void SDLHardwareInterface::point(float x, float y, int c) {
+  this->rect(x, y, 1, 1, c);
+}
+
+void SDLHardwareInterface::loop() {
+  SDL_Event events[MAX_BATCH_LEN];
+  while (SDL_WaitEvent(events)) {
+    size_t len = 1;
+    for (; len < MAX_BATCH_LEN; len++) {
+      if (!SDL_PollEvent(&events[len])) {
+        break;
+      }
+    }
+
+    if (this->onEventsCallback) {
+      this->onEventsCallback(events, len, this->onEventsUserData);
+    }
+  }
+}
+
+void SDLHardwareInterface::close() {
+  data.cleanup();
+}
 
 Result<LinuxGraphicsInterface> LinuxGraphicsInterface::create(LinuxPlatform& platform) {
   return Result<LinuxGraphicsInterface>(std::in_place_t{}, platform);
@@ -243,6 +389,7 @@ GraphicsTextMeasurement LinuxGraphicsInterface::measureText(std::string_view str
   return this->sdlHardwareInterface.measureText(str.data(), str.size());
 }
 
-#endif
 
 }
+
+#endif
