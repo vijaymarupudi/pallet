@@ -71,7 +71,7 @@ public:
    * Grid binding state
    */
 
-  MonomeGridInterface* gridInterface;
+  MonomeGridInterface* gridInterface = nullptr;
   int gridOnConnectFunction = 0;
   int gridKeyFunction = 0;
 

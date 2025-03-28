@@ -2,8 +2,11 @@
 
 #include <string_view>
 #include <tuple>
+#include <cstdlib>
+#include <utility>
 
 #include "lua.hpp"
+#include "variant.hpp"
 
 namespace pallet::luaHelper {
 
@@ -21,66 +24,153 @@ concept FloatingPoint = std::is_floating_point_v<T>;
 
 using namespace detail;
 
-void luaPush(lua_State* L, const std::string_view str) {
+inline void luaPush(lua_State* L, const std::string_view str) {
   lua_pushlstring(L, str.data(), str.size());
 }
 
-void luaPush(lua_State* L, void* ptr) {
+inline void luaPush(lua_State* L, void* ptr) {
   lua_pushlightuserdata(L, ptr);
 }
 
-void luaPush(lua_State* L, const lua_CFunction func) {
+inline void luaPush(lua_State* L, const lua_CFunction func) {
   lua_pushcfunction(L, func);
 }
 
-void luaPush(lua_State* L, const Integer auto integer) {
+inline void luaPush(lua_State* L, const Integer auto integer) {
   lua_pushinteger(L, static_cast<lua_Integer>(integer));
 }
 
-void luaPush(lua_State* L, const FloatingPoint auto number) {
+inline void luaPush(lua_State* L, const FloatingPoint auto number) {
   lua_pushnumber(L, static_cast<lua_Number>(number));
 }
 
+inline void luaPush(lua_State* L, const VariantConcept auto item) {
+  std::visit([&](auto&& x) {
+    luaPush(L, x);
+  }, item);
+}
 
+namespace detail {
+  template <class T>
+  concept enumeration = std::is_enum_v<T>;
+  template <class T>
+  concept pointer = std::is_pointer_v<T>;
+}
 
 template <class T>
 bool luaIsType(lua_State* L, int index) {
-  if constexpr (std::is_integral_v<T> || std::is_enum_v<T>) {
-    return lua_isinteger(L, index);
-  } else if constexpr (std::is_floating_point_v<T>) {
-    return lua_isnumber(L, index);
-  } else if constexpr (std::is_pointer_v<T>) {
-    return lua_islightuserdata(L, index);
-  } else if constexpr (std::is_same_v<T, std::string_view>) {
-    return lua_isstring(L, index);
-  }
-  else {
-    static_assert(false);
-  }
+  static_assert(false, "Don't know how to check this lua type");
+  return false;
+}
+
+template <>
+inline bool luaIsType<bool>(lua_State* L, int index) {
+  return lua_isboolean(L, index);
+}
+
+template <std::integral T>
+bool luaIsType(lua_State* L, int index) {
+  return lua_isinteger(L, index);
+}
+
+template <enumeration T>
+bool luaIsType(lua_State* L, int index) {
+  return lua_isinteger(L, index);
+}
+
+template <std::floating_point T>
+bool luaIsType(lua_State* L, int index) {
+  return lua_isnumber(L, index);
 }
 
 
+template <detail::pointer T>
+bool luaIsType(lua_State* L, int index) {
+  return lua_islightuserdata(L, index);
+}
+
+template <>
+inline bool luaIsType<std::string_view>(lua_State* L, int index) {
+  return lua_isstring(L, index);
+}
 
 template <class T>
-T luaPull(lua_State* L, int index) {
-  if constexpr (std::is_integral_v<T> || std::is_enum_v<T>) {
-    auto ret = lua_tointeger(L, index);
-    return static_cast<T>(ret);
-  } else if constexpr (std::is_floating_point_v<T>) {
-    auto ret = lua_tonumber(L, index);
-    return static_cast<T>(ret);
-  } else if constexpr (std::is_pointer_v<T>) {
-    auto ret = lua_touserdata(L, index);
-    return static_cast<T>(ret);
-  } else if constexpr (std::is_same_v<T, std::string_view>) {
-    size_t len;
-    auto str = lua_tolstring(L, index, &len);
-    return std::string_view(str, len);
-  } else {
-    static_assert(false);
+struct LuaIsTypeVariant;
+
+template <class... Types>
+struct LuaIsTypeVariant<Variant<Types...>> {
+  bool operator()(lua_State* L, int index) {
+    return (luaIsType<Types>(L, index) || ...);
   }
+};
+
+template <VariantConcept T>
+bool luaIsType(lua_State* L, int index) {
+  return LuaIsTypeVariant<T>{}(L, index);
 }
 
+template <class T>
+T luaPull(lua_State* L, int index);
+
+template <>
+inline bool luaPull<bool>(lua_State* L, int index) {
+  return lua_toboolean(L, index);
+}
+
+template <>
+inline std::string_view luaPull<std::string_view>(lua_State* L, int index) {
+  size_t len = 0;
+  auto str = lua_tolstring(L, index, &len);
+  return std::string_view(str, len);
+}
+
+template <class T>
+T luaPull(lua_State* L, int index) requires (std::integral<T> || detail::enumeration<T>) {
+  auto ret = lua_tointeger(L, index);
+  return static_cast<T>(ret);
+}
+
+template <std::floating_point T>
+T luaPull(lua_State* L, int index) {
+    auto ret = lua_tonumber(L, index);
+    return static_cast<T>(ret);
+}
+
+template <detail::pointer T>
+T luaPull(lua_State* L, int index) {
+  auto ret = lua_touserdata(L, index);
+  return static_cast<T>(ret);
+}
+
+  template <class T>
+  struct luaPullVariant;
+
+  template <class... Types>
+  struct luaPullVariant<Variant<Types...>> {
+    using variant_type = Variant<Types...>;
+
+    template <class First, class... ArgTypes>
+    variant_type recursive_apply_many(lua_State* L, int index) {
+      if (luaIsType<First>(L, index)) {
+          return luaPull<First>(L, index);
+      } else {
+        if constexpr (sizeof...(ArgTypes) == 0) {
+          std::unreachable();
+        } else {
+          return recursive_apply_many<ArgTypes...>(L, index);
+        }
+      }
+    }
+    
+    variant_type operator()(lua_State* L, int index) {
+      return recursive_apply_many<Types...>(L, index);
+    }
+  };
+
+template <VariantConcept T>
+T luaPull(lua_State* L, int index) {
+  return luaPullVariant<T>{}(L, index);
+}
 
 template <class T>
 T luaCheckedPull(lua_State* L, int index) {

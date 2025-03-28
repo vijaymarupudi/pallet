@@ -107,10 +107,7 @@ beatClock.setBPM(166)
 
 -- clock.setInterval(clock.timeInMs(25), actionFunction)
 
-
 )");
-
-
 
   while (1) {
     platform.loopIter();

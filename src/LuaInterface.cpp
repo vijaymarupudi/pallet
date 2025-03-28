@@ -4,7 +4,7 @@
 #include <string.h>
 #include <type_traits>
 
-#include "variantUtils.hpp"
+#include "variant.hpp"
 #include "utils.hpp"
 #include "LuaInterface.hpp"
 #include "filesystem.h"
@@ -680,7 +680,7 @@ static void bindGraphicsInterface(lua_State* L) {
 
   // intern and store graphics event strings
   
-  variantForEach<pallet::GraphicsEvent>([&]<class EventType>(size_t i) {
+  variantForEach<pallet::GraphicsEvent>([&]<class EventType, size_t i>() {
       auto str = getGraphicsEventName<EventType>();
       lua_pushstring(L, str);
       int ref = luaL_ref(L, LUA_REGISTRYINDEX);

@@ -3,7 +3,6 @@
 #include <inttypes.h>
 #include <thread>
 #include <memory>
-#include <variant>
 #include <string_view>
 #include <vector>
 #include <array>
@@ -14,6 +13,7 @@
 #include "Platform.hpp"
 #include "error.hpp"
 #include "memory.hpp"
+#include "variant.hpp"
 
 #include "SDL3/SDL.h"
 
@@ -53,7 +53,7 @@ struct OperationText {
 
 struct OperationClear {};
 
-using Operation = std::variant<OperationRect,
+using Operation = Variant<OperationRect,
                                OperationPoint,
                                OperationText,
                                OperationClear>;
@@ -83,10 +83,10 @@ struct GraphicsEventKey {
 struct GraphicsEventQuit {};
 
 
-using GraphicsEvent = std::variant<GraphicsEventMouseButton,
-                                   GraphicsEventMouseMove,
-                                   GraphicsEventKey,
-                                   GraphicsEventQuit>;
+using GraphicsEvent = Variant<GraphicsEventMouseButton,
+                              GraphicsEventMouseMove,
+                              GraphicsEventKey,
+                              GraphicsEventQuit>;
 
 
 template <class T>
