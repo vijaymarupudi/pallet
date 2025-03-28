@@ -60,21 +60,6 @@ int main() {
   auto& graphicsInterface = *graphicsInterfaceResult;
   // auto graphicsInterface = *std::move(graphicsInterfaceResult);
 
-  // auto another = pallet::LinuxGraphicsInterface::create(platform);
-  // graphicsInterface = *std::move(another);
-
-  // pallet::SDLHardwareInterface iface;
-  // iface.init();
-  // SDL_Delay(2000);
-
-  // SDL_Init(SDL_INIT_VIDEO);
-  // auto window = SDL_CreateWindow("Testing", 1080, 720, 0);
-  // auto screenSurface = SDL_GetWindowSurface(window);
-  // SDL_FillRect(screenSurface, NULL, SDL_MapRGB(screenSurface->format, 0xFF, 0xFF, 0xFF));
-  // SDL_UpdateWindowSurface(window);
-  // printf("%p: HERE\n", (void*)window);
-  // SDL_DestroyWindow(window);
-
   luaInterface.setGraphicsInterface(graphicsInterface);
   luaInterface.setMidiInterface(midiInterface);
 
@@ -86,13 +71,22 @@ local midi = require('pallet').midi
 
 local state = false
 
+local originx = 1
+local originy = 1
+
+local function text(x, y, string, c)
+screen.text(x, y, string, c, 0, screen.Default, screen.Default)
+end
+
 screen.setOnEvent(function(event)
-  print("Screen:", event.type)
   if (event.type == "MouseMove") then
     if (event.x ~= 0) then
       beatClock.setBPM(event.x * 2)
     end
-    print(event.x, ", ", event.y)
+    originx = event.x
+    originy = event.y
+  elseif event.type == "Quit" then
+    screen.quit()
   end
 end)
 
@@ -102,7 +96,9 @@ local actionFunction = function()
   local num = 0
   if state then num = 1 end
   midi.sendMidi({144, 60, 127 * num})
-  screen.rect(0, 0, 30, 30, 15 * num)
+  screen.clear()
+  text(30, 30, string.format("%f, %f", originx, originy), math.floor(15 * originx / 129 + 0.5))
+  screen.rect(originx, originy, 30, 30, math.floor(15 * originy / 64 * num + 0.5))
   screen.render()
 end
 

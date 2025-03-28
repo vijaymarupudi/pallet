@@ -80,10 +80,13 @@ struct GraphicsEventKey {
   uint32_t mod;
 };
 
+struct GraphicsEventQuit {};
+
 
 using GraphicsEvent = std::variant<GraphicsEventMouseButton,
                                    GraphicsEventMouseMove,
-                                   GraphicsEventKey>;
+                                   GraphicsEventKey,
+                                   GraphicsEventQuit>;
 
 
 template <class T>
@@ -94,6 +97,8 @@ consteval const char* getGraphicsEventName() {
     return "MouseMove";
   } else if constexpr (std::is_same_v<T, GraphicsEventKey>) {
     return "Key";
+  } else if constexpr (std::is_same_v<T, GraphicsEventQuit>) {
+    return "Quit";
   } else {
     static_assert(false, "Cannot find a string name for GraphicsEvent");
   }
@@ -192,6 +197,7 @@ class GraphicsInterface {
   };
 
   virtual void render() = 0;
+  virtual void quit() = 0;
   virtual void rect(float x, float y, float w, float h, int c) = 0;
   virtual void clear() = 0;
   virtual void point(float x, float y, int c) = 0;
@@ -242,6 +248,7 @@ public:
   void addOperation(auto&& op);
 
   virtual void render() override;
+  virtual void quit() override;
   virtual void clear() override;
   virtual void rect(float x, float y, float w, float h, int c) override;
   virtual void point(float x, float y, int c) override;
@@ -250,6 +257,7 @@ public:
                     GraphicsPosition align = GraphicsPosition::Default,
                     GraphicsPosition baseline = GraphicsPosition::Default) override;
   virtual GraphicsTextMeasurement measureText(std::string_view str) override;
+  
 };
 
   static_assert(std::is_move_constructible_v<LinuxGraphicsInterface>);

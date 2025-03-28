@@ -1,6 +1,12 @@
+#include <inttypes.h>
 #include "GraphicsInterface.hpp"
 
 namespace pallet {
+
+  enum class GraphicsUserEventType : int32_t {
+    Render,
+    Quit
+  };
 
 void GraphicsHardwareInterface::renderCompressedBitmap(float x, float y, int w, int h, uint8_t* data, int fc, int bc) {
   for (int ypos = 0; ypos < h; ypos++) {
@@ -8,9 +14,9 @@ void GraphicsHardwareInterface::renderCompressedBitmap(float x, float y, int w, 
       auto arrayIndex = ypos * w + xpos;
       auto byteIndex = arrayIndex / 8;
       auto bitIndex = (arrayIndex % 8);
+      auto reading = (0x80 >> bitIndex) & data[byteIndex];
       auto xloc = x + xpos;
       auto yloc = y + ypos;
-      auto reading = (0x80 >> bitIndex) & data[byteIndex];
       if (reading) {
         this->point(xloc, yloc, fc);
       } else if (bc != -1) {
@@ -23,8 +29,8 @@ void GraphicsHardwareInterface::renderCompressedBitmap(float x, float y, int w, 
 // fc = foreground color
 // bc = background color
 void GraphicsHardwareInterface::text(float x, float y, const char* str, size_t strLen, int fc, int bc, const GFXfont* font) {
-  int xpos = x;
-  int ypos = y;
+  float xpos = x;
+  float ypos = y;
   for (size_t i = 0; i < strLen; i++) {
     char c = str[i];
     if (c == '\n') {
@@ -34,8 +40,8 @@ void GraphicsHardwareInterface::text(float x, float y, const char* str, size_t s
     }
     auto glyph = &font->glyph[c - font->first];
     uint8_t* data = &font->bitmap[glyph->bitmapOffset];
-    int xrenderpos = xpos + glyph->xOffset;
-    int yrenderpos = ypos + glyph->yOffset;
+    float xrenderpos = xpos + glyph->xOffset;
+    float yrenderpos = ypos + glyph->yOffset;
     this->renderCompressedBitmap(xrenderpos, yrenderpos, glyph->width,
                                  glyph->height, data, fc, bc);
     xpos += glyph->xAdvance;
@@ -126,7 +132,7 @@ void SDLHardwareInterface::rect(float x, float y, float w, float h, int c) {
   int v = (c << 4) | c;
   SDL_SetRenderDrawColor(data->renderer, v, v, v, 255);
   int ret = SDL_RenderFillRect(data->renderer, &rect);
-  if (ret) {
+  if (!ret) {
     printf("%s\n", SDL_GetError());
   }
 }
@@ -237,8 +243,9 @@ void LinuxGraphicsInterface::uponPipeIn(void* datain, size_t len) {
         state,
         button
       };
+    } else if (sdlEvent.type == SDL_EVENT_QUIT) {
+      event = GraphicsEventQuit{};
     }
-
     if (event) {
       if (this->onEventCallback) {
         this->onEventCallback(std::move(*event), this->onEventCallbackUserData);
@@ -259,8 +266,20 @@ void LinuxGraphicsInterface::render() {
   SDL_Event event;
   SDL_zero(event);
   event.type = sdlHardwareInterface.userEventType;
-  event.user.code = 1;
+  event.user.code = (int32_t)GraphicsUserEventType::Render;
   event.user.data1 = old.release();
+  event.user.timestamp = SDL_GetTicks();
+  int ret = SDL_PushEvent(&event);
+  if (ret < 0) {
+    printf("%s\n", SDL_GetError());
+  }
+}
+
+void LinuxGraphicsInterface::quit() {
+  SDL_Event event;
+  SDL_zero(event);
+  event.type = sdlHardwareInterface.userEventType;
+  event.user.code = (int32_t)GraphicsUserEventType::Quit;
   event.user.timestamp = SDL_GetTicks();
   int ret = SDL_PushEvent(&event);
   if (ret < 0) {
@@ -282,7 +301,6 @@ void LinuxGraphicsInterface::renderOperations(std::vector<Operation>& operations
     }
 
     void operator()(OperationText& op) {
-
       auto opx = op.x;
       auto opy = op.y;
       auto text = op.text;
@@ -312,6 +330,8 @@ void LinuxGraphicsInterface::renderOperations(std::vector<Operation>& operations
         }
       }
 
+      // printf("(%f, %f) %d %d text: %s\n", opx, opy, op.fc, op.bc, text.data());
+
       this->sdlHardwareInterface.text(opx, opy,
                                       text.data(),
                                       text.size(),
@@ -339,9 +359,7 @@ void LinuxGraphicsInterface::uponEvents(SDL_Event* events, size_t len) {
   size_t nEvents = 0;
   for (size_t i = 0; i < len; i++) {
     SDL_Event *event = &events[i];
-    if (event->type == SDL_EVENT_QUIT) {
-      this->sdlHardwareInterface.close();
-    } else if (event->type == this->sdlHardwareInterface.userEventType) {
+    if (event->type == this->sdlHardwareInterface.userEventType) {
       this->uponUserEvent(event);
     } else {
       eventsToSend[nEvents] = *event;
@@ -352,11 +370,23 @@ void LinuxGraphicsInterface::uponEvents(SDL_Event* events, size_t len) {
 }
 
 void LinuxGraphicsInterface::uponUserEvent(SDL_Event* event) {
-  auto data1 = reinterpret_cast<std::vector<Operation>*>(event->user.data1);
-  std::unique_ptr<std::vector<Operation>> operations (data1);
-  this->renderOperations(*operations);
-  operations->clear();
-  this->operationVectorStack.push(std::move(operations));
+  auto userEventType = static_cast<GraphicsUserEventType>(event->user.code);
+  switch (userEventType) {
+  case GraphicsUserEventType::Render:
+    {
+      auto data1 = reinterpret_cast<std::vector<Operation>*>(event->user.data1);
+      std::unique_ptr<std::vector<Operation>> operations (data1);
+      this->renderOperations(*operations);
+      operations->clear();
+      this->operationVectorStack.push(std::move(operations)); 
+    }
+    break;
+  case GraphicsUserEventType::Quit:
+    {
+      this->sdlHardwareInterface.close();
+    }
+    break;
+  }
 }
 
 void LinuxGraphicsInterface::addOperation(auto&& op) {

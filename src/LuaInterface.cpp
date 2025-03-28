@@ -198,7 +198,7 @@ int LuaInterface::dostring(const char* str) {
   if (ret) {
     size_t len;
     const char* s = lua_tolstring(this->L, -1, &len);
-    printf("%s\n", s);
+    printf("error: %s\n", s);
   }
   return ret;
 }
@@ -296,10 +296,10 @@ static void bindGrid(lua_State* L) {
   lua_rawset(L, palletCTableIndex);
 }
 
-  void LuaInterface::setMonomeGridInterface(MonomeGridInterface& gridInterface) {
-    this->gridInterface = &gridInterface;
-    bindGrid(this->L);
-  }
+void LuaInterface::setMonomeGridInterface(MonomeGridInterface& gridInterface) {
+  this->gridInterface = &gridInterface;
+  bindGrid(this->L);
+}
 
   /*
    *
@@ -551,6 +551,12 @@ static int luaScreenRender(lua_State* L) {
   return 0;
 }
 
+static int luaScreenQuit(lua_State* L) {
+  auto& luaInterface = getLuaInterfaceObject(L);
+  luaInterface.graphicsInterface->quit();
+  return 0;
+}
+
 static int luaScreenClear(lua_State* L) {
   auto& luaInterface = getLuaInterfaceObject(L);
   luaInterface.graphicsInterface->clear();
@@ -562,7 +568,7 @@ static int luaScreenRect(lua_State* L) {
   auto [x, y, w, h, c] =
     luaCheckedPullMultiple<float, float, float, float, int>(L, 1);
 
-  luaInterface.graphicsInterface->rect(x, y, w, h, c);
+  luaInterface.graphicsInterface->rect(x - 1, y - 1, w, h, c);
   return 0;
 }
 
@@ -571,7 +577,7 @@ static int luaScreenStrokeRect(lua_State* L) {
   auto [x, y, w, h, c] =
     luaCheckedPullMultiple<float, float, float, float, int>(L, 1);
 
-  luaInterface.graphicsInterface->strokeRect(x, y, w, h, c);
+  luaInterface.graphicsInterface->strokeRect(x - 1, y - 1, w, h, c);
   return 0;
 }
 
@@ -579,7 +585,7 @@ static int luaScreenPoint(lua_State* L) {
   auto& luaInterface = getLuaInterfaceObject(L);
   auto [x, y, c] =
     luaCheckedPullMultiple<float, float, int>(L, 1);
-  luaInterface.graphicsInterface->point(x, y, c);
+  luaInterface.graphicsInterface->point(x - 1, y - 1, c);
   return 0;
 }
 
@@ -589,7 +595,7 @@ static int luaScreenText(lua_State* L) {
     luaCheckedPullMultiple<float, float, std::string_view,
                            int, int, pallet::GraphicsPosition,
                            pallet::GraphicsPosition>(L, 1);
-  luaInterface.graphicsInterface->text(x, y, str, fc, bc, align, baseline);
+  luaInterface.graphicsInterface->text(x - 1, y - 1, str, fc, bc, align, baseline);
   return 0;
 }
 
@@ -606,14 +612,14 @@ static int luaGraphicsEventToTable(lua_State* L,
   auto visitor = overloads
     {
       [&](const pallet::GraphicsEventMouseButton& e) {
-        luaRawSetTable(L, tableIndex, "x", e.x);
-        luaRawSetTable(L, tableIndex, "y", e.y);
+        luaRawSetTable(L, tableIndex, "x", e.x + 1);
+        luaRawSetTable(L, tableIndex, "y", e.y + 1);
         luaRawSetTable(L, tableIndex, "state", e.state);
         luaRawSetTable(L, tableIndex, "button", e.button);
       },
       [&](const pallet::GraphicsEventMouseMove& e) {
-        luaRawSetTable(L, tableIndex, "x", e.x);
-        luaRawSetTable(L, tableIndex, "y", e.y);
+        luaRawSetTable(L, tableIndex, "x", e.x + 1);
+        luaRawSetTable(L, tableIndex, "y", e.y + 1);
       },
       [&](const pallet::GraphicsEventKey& e) {
         luaRawSetTable(L, tableIndex, "repeat", e.repeat);
@@ -621,6 +627,9 @@ static int luaGraphicsEventToTable(lua_State* L,
         luaRawSetTable(L, tableIndex, "keycode", e.keycode);
         luaRawSetTable(L, tableIndex, "scancode", e.scancode);
         luaRawSetTable(L, tableIndex, "mod", e.mod);
+      },
+      [&](const pallet::GraphicsEventQuit&) {
+        
       }
     };
   std::visit(visitor, event);
@@ -653,6 +662,7 @@ static void bindGraphicsInterface(lua_State* L) {
   auto& luaInterface = getLuaInterfaceObject(L);
   
   luaRawSetTable(L, screenTableIndex, "render", luaScreenRender);
+  luaRawSetTable(L, screenTableIndex, "quit", luaScreenQuit);
   luaRawSetTable(L, screenTableIndex, "clear", luaScreenClear);
   luaRawSetTable(L, screenTableIndex, "rect", luaScreenRect);
   luaRawSetTable(L, screenTableIndex, "strokeRect", luaScreenStrokeRect);
