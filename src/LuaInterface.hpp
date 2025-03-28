@@ -42,7 +42,7 @@ public:
     id_type id;
     Clock::id_type clockId;
     bool interval;
-    int luaFunctionRef = 0;
+    int luaFunctionRef = -1;
   };
 
   Clock* clock = nullptr;
@@ -59,7 +59,7 @@ public:
     id_type id;
     BeatClock::id_type beatClockId;
     bool interval;
-    int luaFunctionRef = 0;
+    int luaFunctionRef = -1;
   };
 
   BeatClock* beatClock = nullptr;
@@ -80,7 +80,7 @@ public:
    */
 
   GraphicsInterface* graphicsInterface = nullptr;
-  int screenTableRef = 0;
+  int screenOnEventRef = -1;
   std::array<int, std::variant_size_v<pallet::GraphicsEvent>> graphicsEventStringsRef;
 
   /*

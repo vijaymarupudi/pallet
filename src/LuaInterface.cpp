@@ -123,6 +123,11 @@ int getRegistryEntry(lua_State* L, const void* key) {
   return 1;
 }
 
+int getRegistryEntry(lua_State* L, int index) {
+  lua_rawgeti(L, LUA_REGISTRYINDEX, index);
+  return 1;
+}
+
 int getPalletCTable(lua_State* L) {
   return getRegistryEntry(L, &__palletCTableRegistryIndex);
 }
@@ -622,23 +627,38 @@ static int luaGraphicsEventToTable(lua_State* L,
   return 1;
 }
 
+  static int luaScreenSetOnEvent(lua_State* L) {
+    auto& luaInterface = getLuaInterfaceObject(L);
+    if (lua_isnil(L, -1)) {
+      if (!(luaInterface.screenOnEventRef < 0)) {
+        luaL_unref(L, LUA_REGISTRYINDEX, luaInterface.screenOnEventRef);
+        luaInterface.screenOnEventRef = -1;
+      }
+    } else {
+      if (!(luaInterface.screenOnEventRef < 0)) {
+        luaL_unref(L, LUA_REGISTRYINDEX, luaInterface.screenOnEventRef);
+        luaInterface.screenOnEventRef = -1;
+      }
+      luaInterface.screenOnEventRef = luaL_ref(L, LUA_REGISTRYINDEX);
+    }
+    return 0;
+  }
+
 
 static void bindGraphicsInterface(lua_State* L) {
   auto start = lua_gettop(L);
   lua_newtable(L); // screen
   int screenTableIndex = lua_gettop(L);
 
-  // store a reference to the screen table
   auto& luaInterface = getLuaInterfaceObject(L);
-  lua_pushvalue(L, -1);
-  luaInterface.screenTableRef = luaL_ref(L, LUA_REGISTRYINDEX);
-
+  
   luaRawSetTable(L, screenTableIndex, "render", luaScreenRender);
   luaRawSetTable(L, screenTableIndex, "clear", luaScreenClear);
   luaRawSetTable(L, screenTableIndex, "rect", luaScreenRect);
   luaRawSetTable(L, screenTableIndex, "strokeRect", luaScreenStrokeRect);
   luaRawSetTable(L, screenTableIndex, "point", luaScreenPoint);
   luaRawSetTable(L, screenTableIndex, "text", luaScreenText);
+  luaRawSetTable(L, screenTableIndex, "setOnEvent", luaScreenSetOnEvent);
 
   // enums
   luaRawSetTable(L, screenTableIndex, "Default",
@@ -673,14 +693,8 @@ void LuaInterface::setGraphicsInterface(GraphicsInterface& graphicsInterface) {
   graphicsInterface.setOnEvent([](pallet::GraphicsEvent e, void* ud) {
     auto L = static_cast<lua_State*>(ud);
     auto& luaInterface = getLuaInterfaceObject(L);
-    // get screen table
-    lua_rawgeti(L, LUA_REGISTRYINDEX, luaInterface.screenTableRef);
-    auto screenTable = lua_gettop(L);
-    lua_pushliteral(L, "onEvent");
-
-    // onEvent cb or nil
-    lua_rawget(L, screenTable);
-    if (!lua_isnil(L, -1)) {
+    if (!(luaInterface.screenOnEventRef < 0)) {
+      getRegistryEntry(L, luaInterface.screenOnEventRef);
       auto nargs = luaGraphicsEventToTable(L, e);
       lua_call(L, nargs, 0);
     }

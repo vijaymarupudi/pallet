@@ -86,7 +86,7 @@ local midi = require('pallet').midi
 
 local state = false
 
-screen.onEvent = function(event)
+screen.setOnEvent(function(event)
   print("Screen:", event.type)
   if (event.type == "MouseMove") then
     if (event.x ~= 0) then
@@ -94,7 +94,7 @@ screen.onEvent = function(event)
     end
     print(event.x, ", ", event.y)
   end
-end
+end)
 
 local actionFunction = function()
   print("beat cb", beatClock.currentBeat())
