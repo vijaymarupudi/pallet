@@ -1,7 +1,7 @@
 #pragma once
 
 #include <concepts>
-#include <cinttypes>
+#include <cstdint>
 #include "macros.hpp"
 
 namespace pallet {

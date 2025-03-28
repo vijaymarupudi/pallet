@@ -4,7 +4,7 @@
 #include <utility>
 #include <string.h>
 #include <string>
-#include <cinttypes>
+#include <cstdint>
 #include <optional>
 #include "constants.hpp"
 #include "error.hpp"

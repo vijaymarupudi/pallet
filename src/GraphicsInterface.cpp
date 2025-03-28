@@ -1,4 +1,4 @@
-#include <inttypes.h>
+#include <cstdint>
 #include "GraphicsInterface.hpp"
 
 namespace pallet {

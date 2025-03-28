@@ -2,7 +2,7 @@
 
 #include <algorithm>
 #include <array>
-#include <inttypes.h>
+#include <cstdint>
 #include <vector>
 #include "containerUtils.hpp"
 #include "StaticVector.hpp"

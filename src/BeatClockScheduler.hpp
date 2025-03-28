@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Clock.hpp"
-#include <inttypes.h>
+#include <cstdint>
 #include <type_traits>
 #include <vector>
 #include "containers/KeyedPriorityQueue.hpp"

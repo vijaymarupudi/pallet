@@ -2,7 +2,7 @@
 #include "miniaudio.h"
 #include "constants.hpp"
 #include <cmath>
-#include <inttypes.h>
+#include <cstdint>
 extern "C" {
 #include "amy.h"
 }

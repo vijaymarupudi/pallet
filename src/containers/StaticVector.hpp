@@ -1,6 +1,6 @@
 #pragma once
 #include <array>
-#include <inttypes.h>
+#include <cstdint>
 #include <stdio.h>
 #include "containerUtils.hpp"
 

@@ -1,6 +1,6 @@
 #include <algorithm>
 #include <utility>
-#include <inttypes.h>
+#include <cstdint>
 #include <string.h>
 #include <type_traits>
 

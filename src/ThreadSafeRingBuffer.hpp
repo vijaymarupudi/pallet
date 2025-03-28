@@ -1,7 +1,7 @@
 #pragma once
 
 #include <atomic>
-#include <inttypes.h>
+#include <cstdint>
 #include <array>
 #include <optional>
 

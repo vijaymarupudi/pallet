@@ -1,5 +1,5 @@
 #pragma once
-#include <inttypes.h>
+#include <stdint.h>
 
 typedef struct {
   uint16_t bitmapOffset; ///< Pointer into GFXfont->bitmap

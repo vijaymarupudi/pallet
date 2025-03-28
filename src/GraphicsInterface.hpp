@@ -1,6 +1,6 @@
 #pragma once
 
-#include <inttypes.h>
+#include <cstdint>
 #include <thread>
 #include <memory>
 #include <string_view>
@@ -87,7 +87,6 @@ using GraphicsEvent = Variant<GraphicsEventMouseButton,
                               GraphicsEventMouseMove,
                               GraphicsEventKey,
                               GraphicsEventQuit>;
-
 
 template <class T>
 consteval const char* getGraphicsEventName() {
