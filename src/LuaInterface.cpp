@@ -249,12 +249,12 @@ static int luaGridAll(lua_State* L) {
     auto& iface = getLuaInterfaceObject(L);
     iface.gridKeyFunction = functionRef;
     grid->setOnKey([](int x, int y, int z, void* ud) {
-      auto thi = (LuaInterface*)ud;
-      lua_rawgeti(thi->L, LUA_REGISTRYINDEX, thi->gridKeyFunction);
-      luaPush(thi->L, x + 1);
-      luaPush(thi->L, y + 1);
-      luaPush(thi->L, z);
-      lua_call(thi->L, 3, 0);
+      auto& luaInterface = *(LuaInterface*)ud;
+      lua_rawgeti(luaInterface.L, LUA_REGISTRYINDEX, luaInterface.gridKeyFunction);
+      luaPush(luaInterface.L, x + 1);
+      luaPush(luaInterface.L, y + 1);
+      luaPush(luaInterface.L, z);
+      lua_call(luaInterface.L, 3, 0);
     }, &iface);
     return 0;
   }
@@ -270,10 +270,10 @@ static int luaGridAll(lua_State* L) {
                                          MonomeGrid* grid, void* ud) {
       (void)id;
       (void)state;
-      auto thi = (LuaInterface*)ud;
-      lua_rawgeti(thi->L, LUA_REGISTRYINDEX, thi->gridOnConnectFunction);
-      luaPush(thi->L, grid);
-      lua_call(thi->L, 1, 0);
+      auto& luaInterface = *(LuaInterface*)ud;
+      lua_rawgeti(luaInterface.L, LUA_REGISTRYINDEX, luaInterface.gridOnConnectFunction);
+      luaPush(luaInterface.L, grid);
+      lua_call(luaInterface.L, 1, 0);
     }, &iface);
     iface.gridInterface->connect(id);
     return 0;
