@@ -99,14 +99,14 @@ struct LuaIsTypeVariant;
 
 template <class... Types>
 struct LuaIsTypeVariant<Variant<Types...>> {
-  bool operator()(lua_State* L, int index) {
+  static bool apply(lua_State* L, int index) {
     return (luaIsType<Types>(L, index) || ...);
   }
 };
 
 template <VariantConcept T>
 bool luaIsType(lua_State* L, int index) {
-  return LuaIsTypeVariant<T>{}(L, index);
+  return LuaIsTypeVariant<T>::apply(L, index);
 }
 
 template <class T>
@@ -150,11 +150,12 @@ T luaPull(lua_State* L, int index) {
     using variant_type = Variant<Types...>;
 
     template <class First, class... ArgTypes>
-    variant_type recursive_apply_many(lua_State* L, int index) {
+    static variant_type recursive_apply_many(lua_State* L, int index) {
       if (luaIsType<First>(L, index)) {
           return luaPull<First>(L, index);
       } else {
         if constexpr (sizeof...(ArgTypes) == 0) {
+          luaL_argerror(L, index, "wrong argument");
           std::unreachable();
         } else {
           return recursive_apply_many<ArgTypes...>(L, index);
@@ -162,14 +163,14 @@ T luaPull(lua_State* L, int index) {
       }
     }
     
-    variant_type operator()(lua_State* L, int index) {
+    static variant_type apply(lua_State* L, int index) {
       return recursive_apply_many<Types...>(L, index);
     }
   };
 
 template <VariantConcept T>
 T luaPull(lua_State* L, int index) {
-  return luaPullVariant<T>{}(L, index);
+  return luaPullVariant<T>::apply(L, index);
 }
 
 template <class T>
@@ -178,7 +179,7 @@ T luaCheckedPull(lua_State* L, int index) {
     return luaPull<T>(L, index);
   } else {
     luaL_argerror(L, index, "wrong argument");
-    return T{};
+    std::unreachable();
   }
 }
 
