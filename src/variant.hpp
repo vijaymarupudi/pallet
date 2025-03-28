@@ -40,4 +40,7 @@ void variantForEach(auto&& lambda) {
   detail::VariantForEach<V>::apply(std::forward<decltype(lambda)>(lambda));
 }
 
+template<class... Ts>
+struct overloads : Ts... { using Ts::operator()...; };
+
 }
