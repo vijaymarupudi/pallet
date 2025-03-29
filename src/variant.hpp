@@ -43,4 +43,15 @@ void variantForEach(auto&& lambda) {
 template<class... Ts>
 struct overloads : Ts... { using Ts::operator()...; };
 
+template <class Type, class... Types>
+Type& get_unchecked(Variant<Types...>& variant) {
+  return *std::get_if<Type>(variant);
+}
+
+template <class Type, class... Types>
+const Type& get_unchecked(const Variant<Types...>& variant) {
+  return *std::get_if<Type>(&variant);
+}
+
+
 }

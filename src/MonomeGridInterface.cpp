@@ -1,4 +1,11 @@
+#include <cstdint>
+#include <string_view>
+#include <tuple>
+
+#include "variant.hpp"
+
 #include "MonomeGridInterface.hpp"
+
 
 namespace pallet {
 
@@ -94,71 +101,76 @@ int MonomeGrid::getCols() {
 
 static const int gridOscServerPort = 7072;
 
-  
-LinuxMonomeGridInterface::LinuxMonomeGridInterface(LinuxPlatform& platform) : oscInterface(platform) {
-  this->gridAddr = nullptr;
 
-  serialoscdAddr = oscInterface.newAddress(12002);
-  oscInterface.setOnMessage([](const char *path, const char *types,
-                               lo_arg ** argv,
-                               int argc, lo_message data, void* ud){
-    ((LinuxMonomeGridInterface*)ud)->uponOscMessage(path, types, argv, argc, data);
+  template <class... Types>
+  std::tuple<Types...> extractOscValues(const OscItem* items) {
+    auto tmp = ([&]<class... T, size_t... index>(std::index_sequence<index...>) {
+        return std::make_tuple(get_unchecked<T>(items[index])...);
+    });
+
+    return tmp.template operator()<Types...>(std::make_index_sequence<sizeof...(Types)>{});
+  }
+
+
+LinuxMonomeGridInterface::LinuxMonomeGridInterface(LinuxPlatform& platform) : oscInterface(platform) {
+  serialoscdAddr = oscInterface.createAddress(12002);
+  oscInterface.setOnMessage([](const char *path, const OscItem* items,
+                               size_t n, void* ud){
+    ((LinuxMonomeGridInterface*)ud)->uponOscMessage(path, items, n);
   }, this);
   this->oscInterface.bind(gridOscServerPort);
   requestDeviceNotifications();
 }
 
 void LinuxMonomeGridInterface::sendRawQuadMap(int offX, int offY, MonomeGrid::QuadType data) {
-  if (!this->gridAddr) {return;}
-  lo_message msg = lo_message_new();
-  lo_message_add_int32(msg, offX);
-  lo_message_add_int32(msg, offY);
-  for (int i = 0; i < 64; i++) {
-    lo_message_add_int32(msg, data[i]);
-  }
-  this->oscInterface.sendMessage(this->gridAddr, "/monome/grid/led/level/map", msg);
-  lo_message_free(msg);
+
+  auto tmp = [&]<size_t... indexes>(std::index_sequence<indexes...>){
+    this->oscInterface.send(this->gridAddr,
+                            "/monome/grid/led/level/map", offX, offY, (static_cast<int32_t>(data[indexes]))...);
+  };
+
+  tmp(std::make_index_sequence<64>{});
+  // this->oscInterface.sendMessage(this->gridAddr, "/monome/grid/led/level/map", msg);
 }
 
 void LinuxMonomeGridInterface::connect(int id) {
   (void)id;
-  this->oscInterface.sendMessage(this->serialoscdAddr, "/serialosc/list", "si",
-                                 "localhost", this->oscInterface.port, LO_ARGS_END);
+  this->oscInterface.send(this->serialoscdAddr, "/serialosc/list",
+                          "localhost", this->oscInterface.port);
 }
 
-void LinuxMonomeGridInterface::uponOscMessage(const char *path, const char *types,
-                    lo_arg ** argv,
-                    int argc, lo_message data) {
-  (void)types;
-  (void)argc;
-  (void)data;
+void LinuxMonomeGridInterface::uponOscMessage(const char *path, const OscItem* items,
+                                              size_t n) {
+
+  (void)n;
 
   if (strcmp(path, "/monome/grid/key") == 0) {
-    int x = argv[0]->i;
-    int y = argv[1]->i;
-    int z = argv[2]->i;
+
+    auto [x, y, z] = extractOscValues<int32_t, int32_t, int32_t>(items);
+
     if (this->grid) {
       this->grid->uponKey(x, y, z);
     }
-        
+
   } else if (strcmp(path, "/serialosc/device") == 0) {
     // currently only support a single grid
     if (this->grid) { return; }
-     
-    int gridPort = argv[2]->i;
-    gridId = &argv[0]->s;
+
+    int gridPort = get_unchecked<int32_t>(items[2]);
+    this->gridId = get_unchecked<std::string_view>(items[0]);
+
     // printf("%s\n", &argv[1]->s); => "monome zero"
-      
-    this->gridAddr = this->oscInterface.newAddress(gridPort);
+
+    this->gridAddr = this->oscInterface.createAddress(gridPort);
 
     // set port, set prefix, ask for information
-    this->oscInterface.sendMessage(this->gridAddr, "/sys/port", "i", this->oscInterface.port, LO_ARGS_END);
-    this->oscInterface.sendMessage(this->gridAddr, "/sys/prefix", "s", "/monome", LO_ARGS_END);
-    this->oscInterface.sendMessage(this->gridAddr, "/sys/info", NULL, LO_ARGS_END);
-      
+
+    this->oscInterface.send(this->gridAddr, "/sys/port", this->oscInterface.port);
+    this->oscInterface.send(this->gridAddr, "/sys/prefix", "/monome");
+    this->oscInterface.send(this->gridAddr, "/sys/info");
+
   } else if (strcmp(path, "/sys/size") == 0) {
-    int rows = argv[0]->i;
-    int cols = argv[1]->i;
+    auto [rows, cols] = extractOscValues<int32_t, int32_t >(items);
 
     auto renderFunc = [](int offX, int offY, uint8_t* data, void* ud0, void* ud1) {
       (void)ud1;
@@ -174,9 +186,11 @@ void LinuxMonomeGridInterface::uponOscMessage(const char *path, const char *type
     }
 
   } else if (strcmp(path, "/serialosc/remove") == 0) {
-    this->uponDeviceChange(&argv[0]->s, false);
+    const char* id = get_unchecked<std::string_view>(items[0]).data();
+    this->uponDeviceChange(id, false);
   } else if (strcmp(path, "/serialosc/add") == 0) {
-    this->uponDeviceChange(&argv[0]->s, true);
+    const char* id = get_unchecked<std::string_view>(items[0]).data();
+    this->uponDeviceChange(id, true);
   }
 }
 
@@ -193,15 +207,14 @@ void LinuxMonomeGridInterface::uponDeviceChange(const char* cStrId, bool additio
 }
 
 void LinuxMonomeGridInterface::requestDeviceNotifications() {
-  this->oscInterface.sendMessage(this->serialoscdAddr, "/serialosc/notify",
-                                 "si", "localhost", this->oscInterface.port, LO_ARGS_END);
+  this->oscInterface.send(this->serialoscdAddr, "/serialosc/notify",
+                          "localhost", this->oscInterface.port);
 
 }
 
 void LinuxMonomeGridInterface::disconnect(bool manual) {
   if (grid && grid->isConnected()) {
     this->oscInterface.freeAddress(this->gridAddr);
-    this->gridAddr = nullptr;
     this->grid->uponConnectionState(false);
     if (manual) {
       this->autoReconnect = false;
@@ -220,7 +233,3 @@ LinuxMonomeGridInterface::~LinuxMonomeGridInterface() {
 #endif
 
 }
-
-
-
-

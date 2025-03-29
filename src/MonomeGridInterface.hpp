@@ -23,7 +23,7 @@ public:
   int rows;
   int cols;
   int nQuads;
-  
+
   bool connected = true;
 
   QuadRenderFunc quadRenderFunc;
@@ -85,9 +85,9 @@ namespace pallet {
 
 class LinuxMonomeGridInterface final : public MonomeGridInterface {
 public:
-  using address_type = LinuxOscInterface::address_type;
-  address_type serialoscdAddr;
-  address_type gridAddr;
+  using OscAddressType = OscInterface::AddressIdType;
+  OscAddressType serialoscdAddr;
+  OscAddressType gridAddr;
   LinuxOscInterface oscInterface;
   std::string gridId;
   std::optional<MonomeGrid> grid;
@@ -97,13 +97,14 @@ public:
   LinuxMonomeGridInterface(LinuxPlatform& platform);
   void sendRawQuadMap(int offX, int offY, MonomeGrid::QuadType data) override;
   void connect(int id) override;
-  void uponOscMessage(const char *path, const char *types,
-                      lo_arg ** argv,
-                      int argc, lo_message data);
   void uponDeviceChange(const char* cStrId, bool addition);
   void requestDeviceNotifications();
   void disconnect(bool manual = true);
   ~LinuxMonomeGridInterface();
+
+private:
+  void uponOscMessage(const char *path, const OscItem* items,
+                      size_t n);
 };
 
   // Raw bytes

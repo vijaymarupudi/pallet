@@ -9,6 +9,8 @@
 
 namespace pallet::containers {
 
+  // TODO: items that have move constructors won't work properly because it won't be called when the Container is resizing
+
 template <class EntryType, template<class> class Container = std::vector, class id_type = uint32_t>
 class IdTable {
   Container<Space<EntryType>> storage;

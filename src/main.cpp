@@ -4,6 +4,7 @@
 #include "GraphicsInterface.hpp"
 #include "LuaInterface.hpp"
 #include "BeatClock.hpp"
+#include "MonomeGridInterface.hpp"
 
 template <class... Args>
 auto make_c_callback(auto& lambda) {
@@ -60,50 +61,53 @@ int main() {
   auto& graphicsInterface = *graphicsInterfaceResult;
   // auto graphicsInterface = *std::move(graphicsInterfaceResult);
 
+  auto gridInterface = pallet::LinuxMonomeGridInterface(platform);
+
   luaInterface.setGraphicsInterface(graphicsInterface);
   luaInterface.setMidiInterface(midiInterface);
+  luaInterface.setMonomeGridInterface(gridInterface);
 
   luaInterface.dostring(R"(
 local beatClock = require('pallet').beatClock
 local clock = require('pallet').clock
 local screen = require('pallet').screen
 local midi = require('pallet').midi
+local grid = require('pallet').grid
 
 local state = false
 
 local originx = 1
 local originy = 1
 
+local TEXT = ""
+
 local function text(x, y, string, c)
-screen.text(x, y, string, c, 0, screen.Default, screen.Default)
+  screen.text(x, y, string, c, 0, screen.Default, screen.Default)
 end
 
-screen.setOnEvent(function(event)
-  if (event.type == "MouseMove") then
-    if (event.x ~= 0) then
-      beatClock.setBPM(event.x * 2)
-    end
-    originx = event.x
-    originy = event.y
-  elseif event.type == "Quit" then
-    screen.quit()
-  end
+grid.connect(1, function(g)
+  g:setOnKey(function(x, y, z)
+    TEXT = string.format("%d %d %d", x, y, z)
+  end)
 end)
 
-local actionFunction = function()
-  print("beat cb", beatClock.currentBeat())
-  state = not state
-  local num = 0
-  if state then num = 1 end
-  midi.sendMidi({144, 60, 127 * num})
+clock.setInterval(clock.timeInMs(math.floor(1/60 * 1000)), function()
   screen.clear()
-  text(30, 30, string.format("%f, %f", originx, originy), math.floor(15 * originx / 129 + 0.5))
-  screen.rect(originx, originy, 30, 30, math.floor(15 * originy / 64 * num + 0.5))
+  text(30, 30, TEXT, 15)
   screen.render()
-end
+end)
 
-beatClock.setBeatSyncInterval(1/16, 0, 1/16, actionFunction)
-beatClock.setBPM(166)
+-- screen.setOnEvent(function(event)
+--   if (event.type == "MouseMove") then
+--     if (event.x ~= 0) then
+--       beatClock.setBPM(event.x * 2)
+--     end
+--     originx = event.x
+--     originy = event.y
+--   elseif event.type == "Quit" then
+--     screen.quit()
+--   end
+-- end)
 
 -- clock.setInterval(clock.timeInMs(25), actionFunction)
 
