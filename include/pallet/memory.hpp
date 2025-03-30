@@ -4,6 +4,8 @@
 #include <memory>
 #include <type_traits>
 
+#include "types.hpp"
+
 namespace pallet {
 
 template <class T>
@@ -16,27 +18,53 @@ concept isNothrowMovable = std::is_nothrow_move_constructible_v<T> &&
   std::is_nothrow_move_assignable_v<T>;
 
 namespace detail {
-template <class T>
-struct UniqueResourceDefaultCleanup {
-  void operator()(T& x) noexcept {(void)x;}
-};
+
+  template <class T, class ObjT>
+  concept hasValidityChecks = requires(T& t, ObjT& obj) {
+    { t.isValid(obj) } -> std::convertible_to<bool>;
+    t.setValid(obj, true);
+  };
+
+  template <class T, class ObjT>
+  concept hasDestructor = requires(T& t, ObjT& obj) {
+    t(obj);
+  };
+
+
+
+  template <class T>
+  struct UniqueResourceDefaultPropertiesType
+  {
+    bool valid = false;
+    bool isValid(const T&) const {return valid;}
+    void setValid(T&, bool val) {valid = val;}
+  };
+
+  template <class UserProvidedPropertiesType, class ObjectType>
+  struct PropertiesType;
+
+  template <class UserProvidedPropertiesType, class ObjectType>
+  requires (hasValidityChecks<UserProvidedPropertiesType, ObjectType>)
+  struct PropertiesType<UserProvidedPropertiesType, ObjectType> : public UserProvidedPropertiesType {};
+
+  template <class UserProvidedPropertiesType, class ObjectType>
+  requires (!hasValidityChecks<UserProvidedPropertiesType, ObjectType>)
+  struct PropertiesType<UserProvidedPropertiesType, ObjectType> : public UniqueResourceDefaultPropertiesType<ObjectType> {};
+
+  template <class T, class O>
+  consteval bool isDestructorNoExcept() {
+    if constexpr (!hasDestructor<T, O>) { return true; }
+    else {
+      noexcept(std::declval<T&>()(std::declval<O&>()));
+    }
+  }
 }
 
 template <class ObjectType,
-          class D = detail::UniqueResourceDefaultCleanup<ObjectType>>
-class UniqueResource : private D {
-
-  static constexpr bool _nonthrowing_move =
-    std::is_nothrow_move_constructible_v<D> &&
-    std::is_nothrow_move_assignable_v<D> &&
-    std::is_nothrow_move_constructible_v<ObjectType> &&
-    std::is_nothrow_move_assignable_v<ObjectType>;
-    
+          class UserPropertiesType = pallet::Blank>
+class UniqueResource : private detail::PropertiesType<UserPropertiesType, ObjectType> {
 
  public:
-
-  ObjectType object;
-  bool valid = false;
 
   UniqueResource(const UniqueResource& other) = delete;
   UniqueResource(UniqueResource& other) = delete;
@@ -44,61 +72,60 @@ class UniqueResource : private D {
   UniqueResource& operator=(UniqueResource& other) = delete;
 
   UniqueResource()
-    : D{}, object{}, valid{true} {}
+    : PropertiesType{}, object{} {}
 
   template <class Arg>
   UniqueResource(Arg&& value)
-    : D{}, object{std::forward<Arg>(value)}, valid{true} {}  
-  
-  template <class Arg, class DArg>
-  UniqueResource(Arg&& value, DArg&& destructor)
-    : D{std::forward<DArg>(destructor)}, object{std::forward<Arg>(value)}, valid{true} {
-  }
+    : PropertiesType{}, object{std::forward<Arg>(value)} {}
+
+  template <class Arg, class PropertiesArg>
+  UniqueResource(Arg&& value, PropertiesArg&& properties)
+    : PropertiesType{std::forward<PropertiesArg>(properties)},
+      object{std::forward<Arg>(value)} {}
 
   UniqueResource(UniqueResource&& other) noexcept(_nonthrowing_move)
-    : D{std::move(other)},
-      object{std::move(other.object)},
-      valid(other.valid) {
-    other.valid = false;
-  }
+    : PropertiesType{std::move(other)}, object{std::move(other.object)}
+  { other.setValid(other.object, false); }
 
   UniqueResource& operator=(UniqueResource&& other) noexcept(_nonthrowing_move) {
-    D::operator=(std::move(other));
-    std::swap(valid, other.valid);
+    PropertiesType::operator=(std::move(other));
     std::swap(object, other.object);
     return *this;
   }
 
-  ObjectType& operator*() noexcept {
-    return object;
-  }
+  ObjectType& operator*() noexcept {return object;}
+  const ObjectType& operator*() const noexcept {return object;}
+  ObjectType* operator->() noexcept {return &object;}
+  const ObjectType* operator->() const noexcept  {return &object;}
 
-  const ObjectType& operator*() const noexcept {
-    return object;
-  }
-
-  ObjectType* operator->() noexcept {
-    return &object;
-  }
-
-  const ObjectType* operator->() const noexcept  {
-    return &object;
-  }
-
-  void cleanup() noexcept(noexcept(D::operator()(object))) {
-    if (valid) {
-      D::operator()(object);
-      valid = false;
+  void cleanup() noexcept(detail::isDestructorNoExcept<PropertiesType, ObjectType>())
+  {
+    if (this->isValid(object)) {
+      if constexpr (hasDestructor) {
+        PropertiesType::operator()(object);
+      }
+      this->setValid(object, false);
     }
   }
 
   ~UniqueResource() noexcept(noexcept(this->cleanup())) {
     this->cleanup();
   }
+
+  private:
+  ObjectType object;
+  using PropertiesType = detail::PropertiesType<UserPropertiesType, ObjectType>;
+  static constexpr bool _nonthrowing_move =
+    std::is_nothrow_move_constructible_v<PropertiesType> &&
+    std::is_nothrow_move_assignable_v<PropertiesType> &&
+    std::is_nothrow_move_constructible_v<ObjectType> &&
+    std::is_nothrow_move_assignable_v<ObjectType>;
+  static constexpr bool hasDestructor = detail::hasDestructor<PropertiesType, ObjectType>;
+
 };
 
-template <class Arg, class DArg>
-UniqueResource(Arg&& value, DArg&& destructor) -> UniqueResource<std::remove_cvref_t<Arg>, std::remove_cvref_t<DArg>>;
+template <class Arg, class PropertiesArg>
+UniqueResource(Arg&& value, PropertiesArg&& properties) -> UniqueResource<std::remove_cvref_t<Arg>, std::remove_cvref_t<PropertiesArg>>;
 
 template <class Arg>
 UniqueResource(Arg&& value) -> UniqueResource<std::remove_cvref_t<Arg>>;
