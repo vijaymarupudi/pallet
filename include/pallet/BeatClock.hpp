@@ -2,11 +2,11 @@
 #include <array>
 #include <cstdint>
 #include <print>
-#include "Clock.hpp"
-#include "utils.hpp"
-#include "BeatClockScheduler.hpp"
-#include "macros.hpp"
-#include "MidiInterface.hpp"
+#include "pallet/Clock.hpp"
+#include "pallet/utils.hpp"
+#include "pallet/BeatClockScheduler.hpp"
+#include "pallet/macros.hpp"
+#include "pallet/MidiInterface.hpp"
 
 namespace pallet {
 

@@ -1,11 +1,11 @@
 #include <stdio.h>
-#include "LinuxPlatform.hpp"
-#include "Clock.hpp"
-#include "PosixGraphicsInterface.hpp"
-#include "LuaInterface.hpp"
-#include "BeatClock.hpp"
-#include "OscMonomeGridInterface.hpp"
-#include "LoOscInterface.hpp"
+#include "pallet/LinuxPlatform.hpp"
+#include "pallet/Clock.hpp"
+#include "pallet/PosixGraphicsInterface.hpp"
+#include "pallet/LuaInterface.hpp"
+#include "pallet/BeatClock.hpp"
+#include "pallet/OscMonomeGridInterface.hpp"
+#include "pallet/LoOscInterface.hpp"
 
 template <class... Args>
 auto make_c_callback(auto& lambda) {
@@ -37,23 +37,14 @@ int main() {
 
   auto& midiInterface = *midiInterfaceResult;
 
-  auto luaInterfaceResult = pallet::LuaInterface::create();
 
-  if (!luaInterfaceResult) {
-    return 1;
-  }
-
-  auto& luaInterface = *luaInterfaceResult;
-
-  luaInterface.setClock(clock);
   auto beatClockResult = pallet::BeatClock::create(clock);
   if (!beatClockResult) {
     return 1;
   }
 
   auto& beatClock = *beatClockResult;
-  luaInterface.setBeatClock(beatClock);
-
+  
   auto graphicsInterfaceResult = pallet::PosixGraphicsInterface::create(platform);
   if (!graphicsInterfaceResult) {
     return 1;
@@ -71,6 +62,15 @@ int main() {
     return 1;
   }
 
+    auto luaInterfaceResult = pallet::LuaInterface::create();
+
+  if (!luaInterfaceResult) {
+    return 1;
+  }
+
+  auto& luaInterface = *luaInterfaceResult;
+  luaInterface.setBeatClock(beatClock);
+  luaInterface.setClock(clock);
   luaInterface.setGraphicsInterface(graphicsInterface);
   luaInterface.setMidiInterface(midiInterface);
   luaInterface.setMonomeGridInterface(*gridInterfaceResult);

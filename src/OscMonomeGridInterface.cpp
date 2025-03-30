@@ -1,4 +1,4 @@
-#include "OscMonomeGridInterface.hpp"
+#include "pallet/OscMonomeGridInterface.hpp"
 
 namespace pallet {
 

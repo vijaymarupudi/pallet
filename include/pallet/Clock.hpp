@@ -2,14 +2,14 @@
 #include <cstdint>
 #include <type_traits>
 #include <vector>
-#include "Platform.hpp"
+#include "pallet/Platform.hpp"
 
-#include "containers/KeyedPriorityQueue.hpp"
-#include "containers/StaticVector.hpp"
-#include "containers/IdTable.hpp"
-#include "constants.hpp"
-#include "time.hpp"
-#include "error.hpp"
+#include "pallet/containers/KeyedPriorityQueue.hpp"
+#include "pallet/containers/StaticVector.hpp"
+#include "pallet/containers/IdTable.hpp"
+#include "pallet/constants.hpp"
+#include "pallet/time.hpp"
+#include "pallet/error.hpp"
 
 namespace pallet {
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "RtMidi.h"
-#include "error.hpp"
+#include "pallet/error.hpp"
 
 namespace pallet {
 
@@ -35,7 +35,7 @@ public:
 
 }
 
-#include "PosixPlatform.hpp"
+#include "pallet/PosixPlatform.hpp"
 
 namespace pallet {
 

@@ -1,4 +1,4 @@
-#include "constants.hpp"
+#include "pallet/constants.hpp"
 
 #if PALLET_CONSTANTS_PLATFORM == PALLET_CONSTANTS_PLATFORM_LINUX
 
@@ -8,7 +8,7 @@
 #include <cstring>
 #include <fcntl.h>
 
-#include "LinuxPlatform.hpp"
+#include "pallet/LinuxPlatform.hpp"
 
 namespace pallet {
 

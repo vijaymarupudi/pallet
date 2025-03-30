@@ -1,13 +1,13 @@
 #pragma once
 
-#include "Clock.hpp"
+#include "pallet/Clock.hpp"
 #include <cstdint>
 #include <type_traits>
 #include <vector>
-#include "containers/KeyedPriorityQueue.hpp"
-#include "containers/StaticVector.hpp"
-#include "containers/IdTable.hpp"
-#include "constants.hpp"
+#include "pallet/containers/KeyedPriorityQueue.hpp"
+#include "pallet/containers/StaticVector.hpp"
+#include "pallet/containers/IdTable.hpp"
+#include "pallet/constants.hpp"
 
 namespace pallet {
 

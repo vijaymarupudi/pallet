@@ -4,7 +4,7 @@
 #include <string.h>
 #include <string>
 #include <cstdint>
-#include "error.hpp"
+#include "pallet/error.hpp"
 
 namespace pallet {
 

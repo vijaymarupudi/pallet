@@ -5,16 +5,16 @@
 
 #include "lua.hpp"
 
-#include "containers/IdTable.hpp"
-#include "containers/StaticVector.hpp"
+#include "pallet/containers/IdTable.hpp"
+#include "pallet/containers/StaticVector.hpp"
 
-#include "Clock.hpp"
-#include "MonomeGridInterface.hpp"
-#include "BeatClock.hpp"
-#include "GraphicsInterface.hpp"
-#include "MidiInterface.hpp"
+#include "pallet/Clock.hpp"
+#include "pallet/MonomeGridInterface.hpp"
+#include "pallet/BeatClock.hpp"
+#include "pallet/GraphicsInterface.hpp"
+#include "pallet/MidiInterface.hpp"
 
-#include "error.hpp"
+#include "pallet/error.hpp"
 
 namespace pallet {
 

@@ -6,7 +6,8 @@
 #include <utility>
 
 #include "lua.hpp"
-#include "variant.hpp"
+
+#include "pallet/variant.hpp"
 
 namespace pallet::luaHelper {
 

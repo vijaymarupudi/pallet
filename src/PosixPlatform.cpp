@@ -1,8 +1,8 @@
-#include "constants.hpp"
+#include "pallet/constants.hpp"
 
 #ifdef PALLET_CONSTANTS_PLATFORM_IS_POSIX
 
-#include "PosixPlatform.hpp"
+#include "pallet/PosixPlatform.hpp"
 
 #include <map>
 #include <utility>
@@ -17,7 +17,7 @@
 // not posix
 #include <sys/timerfd.h>
 
-#include "macros.hpp"
+#include "pallet/macros.hpp"
 
 namespace pallet {
 

@@ -6,10 +6,10 @@
 
 #include "lo/lo.h"
 
-#include "OscInterface.hpp"
-#include "containers/IdTable.hpp"
-#include "PosixPlatform.hpp"
-#include "error.hpp"
+#include "pallet/OscInterface.hpp"
+#include "pallet/containers/IdTable.hpp"
+#include "pallet/PosixPlatform.hpp"
+#include "pallet/error.hpp"
 
 namespace pallet {
 

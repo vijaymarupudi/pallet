@@ -1,5 +1,5 @@
 #include <cstdint>
-#include "GraphicsInterface.hpp"
+#include "pallet/GraphicsInterface.hpp"
 
 namespace pallet {
 

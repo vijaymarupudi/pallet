@@ -5,10 +5,10 @@
 #include <poll.h>
 #include <time.h>
 
-#include "Platform.hpp"
+#include "pallet/Platform.hpp"
 
-#include "error.hpp"
-#include "time.hpp"
+#include "pallet/error.hpp"
+#include "pallet/time.hpp"
 
 namespace pallet {
 
@@ -21,7 +21,7 @@ public:
 
   static Result<PosixPlatform> create();
   PosixPlatform();
-  ~PosixPlatform();
+  virtual ~PosixPlatform();
   void watchFdIn(int fd, FdCallback callback, void* userData);
   void watchFdOut(int fd, FdCallback callback, void* userData);
   void watchFdEvents(int fd, short events, FdCallback callback, void* userData);

@@ -2,7 +2,7 @@
 
 #include <concepts>
 #include <cstdint>
-#include "macros.hpp"
+#include "pallet/macros.hpp"
 
 namespace pallet {
 

@@ -4,8 +4,8 @@
 #include <string.h>
 #include <type_traits>
 
-#include "variant.hpp"
-#include "LuaInterface.hpp"
+#include "pallet/variant.hpp"
+#include "pallet/LuaInterface.hpp"
 #include "filesystem.h"
 #include "LuaInterfaceImpl.hpp"
 

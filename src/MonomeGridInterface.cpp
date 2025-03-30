@@ -2,9 +2,9 @@
 #include <string_view>
 #include <tuple>
 
-#include "variant.hpp"
+#include "pallet/variant.hpp"
 
-#include "MonomeGridInterface.hpp"
+#include "pallet/MonomeGridInterface.hpp"
 
 
 namespace pallet {

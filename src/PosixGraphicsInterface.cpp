@@ -1,8 +1,8 @@
-#include "constants.hpp"
+#include "pallet/constants.hpp"
 
 #ifdef PALLET_CONSTANTS_PLATFORM_IS_POSIX
 
-#include "PosixGraphicsInterface.hpp"
+#include "pallet/PosixGraphicsInterface.hpp"
 
 #include <unistd.h>
 #include <optional>

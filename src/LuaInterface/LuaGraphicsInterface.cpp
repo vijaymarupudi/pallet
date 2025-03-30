@@ -1,5 +1,5 @@
-#include "LuaInterface.hpp"
-#include "variant.hpp"
+#include "pallet/LuaInterface.hpp"
+#include "pallet/variant.hpp"
 #include "../LuaInterfaceImpl.hpp"
 
 

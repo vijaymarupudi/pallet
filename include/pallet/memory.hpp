@@ -4,7 +4,7 @@
 #include <memory>
 #include <type_traits>
 
-#include "types.hpp"
+#include "pallet/types.hpp"
 
 namespace pallet {
 

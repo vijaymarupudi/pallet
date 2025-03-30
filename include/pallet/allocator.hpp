@@ -1,6 +1,6 @@
 #pragma once
-#include "containerUtils.hpp"
-#include "IdTable.hpp"
+#include "pallet/containerUtils.hpp"
+#include "pallet/IdTable.hpp"
 
 namespace pallet {
 template<class T>

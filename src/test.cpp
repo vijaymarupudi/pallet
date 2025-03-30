@@ -1,5 +1,5 @@
 #include <cstdio>
-#include "error.hpp"
+#include "pallet/error.hpp"
 #include <memory>
 
 struct X {

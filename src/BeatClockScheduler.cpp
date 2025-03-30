@@ -1,4 +1,4 @@
-#include "BeatClockScheduler.hpp"
+#include "pallet/BeatClockScheduler.hpp"
 #include <cmath>
 
 namespace pallet {

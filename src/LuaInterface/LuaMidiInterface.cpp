@@ -1,4 +1,4 @@
-#include "LuaInterface.hpp"
+#include "pallet/LuaInterface.hpp"
 #include "../LuaInterfaceImpl.hpp"
 
 namespace pallet {

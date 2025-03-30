@@ -1,7 +1,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <vector>
-#include "MidiInterface.hpp"
+#include "pallet/MidiInterface.hpp"
 
 namespace pallet {
 

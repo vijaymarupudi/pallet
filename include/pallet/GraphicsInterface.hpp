@@ -4,10 +4,10 @@
 #include <string_view>
 #include <string>
 
-#include "constants.hpp"
-#include "CGPixel.h"
+#include "pallet/constants.hpp"
+#include "pallet/CGPixel.h"
 
-#include "variant.hpp"
+#include "pallet/variant.hpp"
 
 
 namespace pallet {

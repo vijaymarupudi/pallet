@@ -1,4 +1,4 @@
-#include "BeatClock.hpp"
+#include "pallet/BeatClock.hpp"
 
 namespace pallet {
 

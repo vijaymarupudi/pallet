@@ -1,7 +1,7 @@
 #pragma once
 
-#include "error.hpp"
-#include "time.hpp"
+#include "pallet/error.hpp"
+#include "pallet/time.hpp"
 
 namespace pallet {
 
