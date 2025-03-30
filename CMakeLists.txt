@@ -49,6 +49,7 @@ set(CXX_FILES
   src/MidiInterface.cpp
   src/BeatClockScheduler.cpp
   src/GraphicsInterface.cpp
+  src/PosixGraphicsInterface.cpp
   src/BeatClock.cpp
   src/MonomeGridInterface.cpp
   src/OscMonomeGridInterface.cpp
