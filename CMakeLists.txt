@@ -39,6 +39,10 @@ add_link_options(-fsanitize=address)
 set(CXX_FILES
   src/LuaInterface.cpp
   src/LuaInterface/LuaGraphicsInterface.cpp
+  src/LuaInterface/LuaGridInterface.cpp
+  src/LuaInterface/LuaClockInterface.cpp
+  src/LuaInterface/LuaBeatClockInterface.cpp
+  src/LuaInterface/LuaMidiInterface.cpp
   src/Platform.cpp
   src/Clock.cpp
   src/MidiInterface.cpp
