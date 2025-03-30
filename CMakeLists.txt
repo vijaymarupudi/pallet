@@ -38,6 +38,7 @@ add_link_options(-fsanitize=address)
 
 set(CXX_FILES
   src/LuaInterface.cpp
+  src/LuaInterface/LuaGraphicsInterface.cpp
   src/Platform.cpp
   src/Clock.cpp
   src/MidiInterface.cpp
@@ -51,6 +52,7 @@ add_library(pallet STATIC ${CXX_FILES})
 set_property(TARGET pallet PROPERTY CXX_STANDARD 23)
 target_link_libraries(pallet PUBLIC RT::RtMidi Miniaudio::Miniaudio Lua::Lua Amy::Amy PkgConfig::SDL3 PkgConfig::LO)
 target_include_directories(pallet PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(pallet PUBLIC include/pallet)
 add_dependencies(pallet PalletLuaFilesystem)
 
 add_executable(main src/main.cpp)

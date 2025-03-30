@@ -1,8 +1,7 @@
 #include <cstdio>
 #include <utility>
-#include <memory>
 #include <type_traits>
-
+#include <print>
 #include "memory.hpp"
 
 // #include "Platform.hpp"
@@ -10,7 +9,16 @@
 // #include "time.hpp"
 // #include "containers/containerUtils.hpp"
 
+template <class T>
+struct A {
+  bool valid = 0;
+};
 
+template <class T>
+requires (std::is_trivially_copyable_v<T>)
+struct A<T> {
+  
+};
 
 // template <class ObjectType, class... Args>
 // UniqueResource(auto&& cleanup, Args... args) ->
@@ -19,15 +27,21 @@
 // template <class... Args>
 // auto createUniqueResource(Args... args)
 
+class X {
+  ~X() {
+    
+  }
+};
+
+template <class T>
+class B : A<T> {
+  T member;
+};
 
 int main()
 
 {
-
-  auto v1 = pallet::UniqueResource(std::make_unique<int>(3));
-  auto v2 = std::move(v1);
-  auto v3 = std::move(v2);
-  printf("%d: value %lu\n", **v3, sizeof(decltype(v1)));
+  std::println("size: {}, {}", sizeof(B<int>), sizeof(B<X>));
   
   // [](int v) {(void)v;}, 3
   // auto v1 = UniqueResource(3, [](int& v){(void)v;});
