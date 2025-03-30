@@ -4,7 +4,6 @@
 #include <string.h>
 #include <string>
 #include <cstdint>
-#include "constants.hpp"
 #include "error.hpp"
 
 namespace pallet {
@@ -82,41 +81,6 @@ protected:
 
 }
 
-#if PALLET_CONSTANTS_PLATFORM == PALLET_CONSTANTS_PLATFORM_LINUX
-
-#include <optional>
-
-#include "PosixPlatform.hpp"
-#include "LinuxOscInterface.hpp"
-
-namespace pallet {
-
-class LinuxMonomeGridInterface final : public MonomeGridInterface {
-public:
-  using OscAddressIdType = OscInterface::AddressIdType;
-  
-  static Result<LinuxMonomeGridInterface> create(PosixPlatform& platform);
-  LinuxMonomeGridInterface(PosixPlatform& platform);
-  void connect(int id) override;
-  void disconnect(bool manual = true);
-  ~LinuxMonomeGridInterface();
-
-private:
-
-  OscAddressIdType serialoscdAddr;
-  OscAddressIdType gridAddr;
-  LinuxOscInterface oscInterface;
-  std::string gridId;
-  std::optional<MonomeGrid> grid;
-  bool autoReconnect = true;
-  
-  virtual void sendRawQuadMap(int offX, int offY, MonomeGrid::QuadType data) override;
-  void uponOscMessage(const char *path, const OscItem* items, size_t n);
-  void uponDeviceChange(const char* cStrId, bool addition);
-  void requestDeviceNotifications();
-  
-};
-
   // Raw bytes
 
   // #include <termios.h>
@@ -187,6 +151,5 @@ private:
   // }, nullptr);
 
 
-}
+// }
 
-#endif

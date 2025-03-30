@@ -9,6 +9,7 @@
 #include "OscInterface.hpp"
 #include "containers/IdTable.hpp"
 #include "PosixPlatform.hpp"
+#include "error.hpp"
 
 namespace pallet {
 
@@ -80,6 +81,10 @@ class LoOscInterface final : public OscInterface {
 public:
 
   int port = 0;
+
+  static Result<LoOscInterface> create(PosixPlatform& platform) {
+    return Result<LoOscInterface>(std::in_place_t{}, platform);
+  }
 
   LoOscInterface(PosixPlatform& platform) : platform(&platform) {}
 

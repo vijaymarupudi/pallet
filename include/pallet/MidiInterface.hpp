@@ -39,7 +39,7 @@ public:
 
 namespace pallet {
 
-class LinuxMidiInterface final : public MidiInterface {
+class PosixMidiInterface final : public MidiInterface {
 public:
   bool status = false;
   int threadReadFd;
@@ -47,10 +47,10 @@ public:
   RtMidiIn midiIn;
   RtMidiOut midiOut;
   PosixPlatform& platform;
-  LinuxMidiInterface(PosixPlatform& platform);
+  PosixMidiInterface(PosixPlatform& platform);
   virtual void sendMidi(const unsigned char* buf,
                         size_t len) override;
-  static Result<LinuxMidiInterface> create(PosixPlatform& platform);
+  static Result<PosixMidiInterface> create(PosixPlatform& platform);
 };
 
 }

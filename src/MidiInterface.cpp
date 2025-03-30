@@ -5,7 +5,7 @@
 
 namespace pallet {
 
-void LinuxMidiInterface::sendMidi(const unsigned char* buf,
+void PosixMidiInterface::sendMidi(const unsigned char* buf,
                                   size_t len) {
   midiOut.sendMessage(buf, len);
 }
@@ -20,7 +20,7 @@ static void midiInterfaceMidiInCallback(double ts,
                                         std::vector<unsigned char>* message,
                                         void* data) {
   (void)ts;
-  auto mface = reinterpret_cast<LinuxMidiInterface*>(data);
+  auto mface = reinterpret_cast<PosixMidiInterface*>(data);
   if (message->size() <= 3) {
     LinuxMidiInterfaceMessage msg;
     for (size_t i = 0; i < message->size(); i++) {
@@ -32,7 +32,7 @@ static void midiInterfaceMidiInCallback(double ts,
   }
 }
 
-LinuxMidiInterface::LinuxMidiInterface(PosixPlatform& platform) : platform(platform) {
+PosixMidiInterface::PosixMidiInterface(PosixPlatform& platform) : platform(platform) {
   status = true;
   int fds[2];
   pipe(fds);
@@ -41,7 +41,7 @@ LinuxMidiInterface::LinuxMidiInterface(PosixPlatform& platform) : platform(platf
   platform.setFdNonBlocking(threadReadFd);
   platform.watchFdIn(threadReadFd, [](int fd, short revents, void* ud) {
     (void)revents;
-    auto mface = (LinuxMidiInterface*)ud;
+    auto mface = (PosixMidiInterface*)ud;
     LinuxMidiInterfaceMessage messages[16];
     ssize_t len = read(fd, &messages[0],
                        16 * sizeof(LinuxMidiInterfaceMessage)) /
@@ -75,8 +75,8 @@ void MidiInterface::internalOnMidi(uint64_t time, const unsigned char* buf, size
   }
 }
 
-Result<LinuxMidiInterface> LinuxMidiInterface::create(PosixPlatform& platform) {
-  return Result<LinuxMidiInterface>(std::in_place_t{}, platform);
+Result<PosixMidiInterface> PosixMidiInterface::create(PosixPlatform& platform) {
+  return Result<PosixMidiInterface>(std::in_place_t{}, platform);
 }
 
 }

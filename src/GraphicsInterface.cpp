@@ -1,5 +1,6 @@
 #include <cstdint>
 #include "GraphicsInterface.hpp"
+#include "PosixGraphicsInterface.hpp"
 
 namespace pallet {
 
@@ -161,11 +162,11 @@ void SDLHardwareInterface::close() {
   data.cleanup();
 }
 
-Result<LinuxGraphicsInterface> LinuxGraphicsInterface::create(PosixPlatform& platform) {
-  return Result<LinuxGraphicsInterface>(std::in_place_t{}, platform);
+Result<PosixGraphicsInterface> PosixGraphicsInterface::create(PosixPlatform& platform) {
+  return Result<PosixGraphicsInterface>(std::in_place_t{}, platform);
 }
 
-LinuxGraphicsInterface::LinuxGraphicsInterface(PosixPlatform& platform) :
+PosixGraphicsInterface::PosixGraphicsInterface(PosixPlatform& platform) :
   platform(&platform), pipeFdManager(platform),
   operationsBuffer(new std::vector<Operation>)
 
@@ -175,13 +176,13 @@ LinuxGraphicsInterface::LinuxGraphicsInterface(PosixPlatform& platform) :
 
   pipeFdManager.startReading([](int fd, void* data, size_t len, void* ud) {
     (void)fd;
-    reinterpret_cast<LinuxGraphicsInterface*>(ud)->uponPipeIn(data, len);
+    reinterpret_cast<PosixGraphicsInterface*>(ud)->uponPipeIn(data, len);
   }, this);
 
   this->sdlHardwareInterface.onEventsUserData = this;
   this->sdlHardwareInterface.onEventsCallback = [](SDL_Event* e, size_t len,
                                                    void* u) {
-    reinterpret_cast<LinuxGraphicsInterface*>(u)->uponEvents(e, len);
+    reinterpret_cast<PosixGraphicsInterface*>(u)->uponEvents(e, len);
   };
 
   std::atomic<bool> sdlInterfaceInited = false;
@@ -199,7 +200,7 @@ LinuxGraphicsInterface::LinuxGraphicsInterface(PosixPlatform& platform) :
   }
 }
 
-LinuxGraphicsInterface::LinuxGraphicsInterface(LinuxGraphicsInterface&& iface)
+PosixGraphicsInterface::PosixGraphicsInterface(PosixGraphicsInterface&& iface)
   : platform{iface.platform},
     pipeFdManager{std::move(iface.pipeFdManager)},
     sdlHardwareInterface{std::move(iface.sdlHardwareInterface)},
@@ -212,7 +213,7 @@ LinuxGraphicsInterface::LinuxGraphicsInterface(LinuxGraphicsInterface&& iface)
 }
 
 
-void LinuxGraphicsInterface::uponPipeIn(void* datain, size_t len) {
+void PosixGraphicsInterface::uponPipeIn(void* datain, size_t len) {
   unsigned char* data = reinterpret_cast<unsigned char*>(datain);
   auto scaleFactor = this->sdlHardwareInterface.scaleFactor;
   for (size_t i = 0; i < len; i += sizeof(SDL_Event)) {
@@ -254,7 +255,7 @@ void LinuxGraphicsInterface::uponPipeIn(void* datain, size_t len) {
   }
 }
 
-void LinuxGraphicsInterface::render() {
+void PosixGraphicsInterface::render() {
   auto old = std::move(this->operationsBuffer);
   auto previous_vector = this->operationVectorStack.pop();
   if (previous_vector) {
@@ -275,7 +276,7 @@ void LinuxGraphicsInterface::render() {
   }
 }
 
-void LinuxGraphicsInterface::quit() {
+void PosixGraphicsInterface::quit() {
   SDL_Event event;
   SDL_zero(event);
   event.type = sdlHardwareInterface.userEventType;
@@ -287,7 +288,7 @@ void LinuxGraphicsInterface::quit() {
   }
 }
 
-void LinuxGraphicsInterface::renderOperations(std::vector<Operation>& operations) {
+void PosixGraphicsInterface::renderOperations(std::vector<Operation>& operations) {
   // This is called in the SDL thread
 
   struct OperationActions {
@@ -354,7 +355,7 @@ void LinuxGraphicsInterface::renderOperations(std::vector<Operation>& operations
   this->sdlHardwareInterface.render();
 }
 
-void LinuxGraphicsInterface::uponEvents(SDL_Event* events, size_t len) {
+void PosixGraphicsInterface::uponEvents(SDL_Event* events, size_t len) {
   SDL_Event eventsToSend[MAX_BATCH_LEN];
   size_t nEvents = 0;
   for (size_t i = 0; i < len; i++) {
@@ -369,7 +370,7 @@ void LinuxGraphicsInterface::uponEvents(SDL_Event* events, size_t len) {
   write((*this->pipes)[1], eventsToSend, sizeof(SDL_Event) * nEvents);
 }
 
-void LinuxGraphicsInterface::uponUserEvent(SDL_Event* event) {
+void PosixGraphicsInterface::uponUserEvent(SDL_Event* event) {
   auto userEventType = static_cast<GraphicsUserEventType>(event->user.code);
   switch (userEventType) {
   case GraphicsUserEventType::Render:
@@ -389,23 +390,23 @@ void LinuxGraphicsInterface::uponUserEvent(SDL_Event* event) {
   }
 }
 
-void LinuxGraphicsInterface::addOperation(auto&& op) {
+void PosixGraphicsInterface::addOperation(auto&& op) {
   this->operationsBuffer->push_back(std::forward<decltype(op)>(op));
 }
 
-void LinuxGraphicsInterface::rect(float x, float y, float w, float h, int c) {
+void PosixGraphicsInterface::rect(float x, float y, float w, float h, int c) {
   this->addOperation(OperationRect {x, y, w, h, c});
 }
 
-void LinuxGraphicsInterface::clear() {
+void PosixGraphicsInterface::clear() {
   this->addOperation(OperationClear{});
 }
 
-void LinuxGraphicsInterface::point(float x, float y, int c) {
+void PosixGraphicsInterface::point(float x, float y, int c) {
   this->addOperation(OperationPoint {x, y, c});
 }
 
-void LinuxGraphicsInterface::text(float x, float y, std::string_view str, int fc, int bc,
+void PosixGraphicsInterface::text(float x, float y, std::string_view str, int fc, int bc,
                                   GraphicsPosition align, GraphicsPosition baseline) {
   this->addOperation(OperationText {
       x, y, std::string(str.data(),
@@ -415,7 +416,7 @@ void LinuxGraphicsInterface::text(float x, float y, std::string_view str, int fc
     });
 }
 
-GraphicsTextMeasurement LinuxGraphicsInterface::measureText(std::string_view str) {
+GraphicsTextMeasurement PosixGraphicsInterface::measureText(std::string_view str) {
   return this->sdlHardwareInterface.measureText(str.data(), str.size());
 }
 

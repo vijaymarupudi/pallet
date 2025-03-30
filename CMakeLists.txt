@@ -9,7 +9,7 @@ set(BYTECODE_COMPILER_PATH "${CMAKE_CURRENT_BINARY_DIR}/bytecode-compiler-prefix
 ExternalProject_Add(bytecode-compiler
                     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/build-tools
                     CONFIGURE_COMMAND ${CMAKE_COMMAND} -S ${CMAKE_CURRENT_SOURCE_DIR}/build-tools -DCMAKE_BUILD_TYPE=Release
-                    BUILD_COMMAND make -j8
+                    BUILD_COMMAND make -j4
                     BUILD_BYPRODUCTS ${BYTECODE_COMPILER_PATH} # ${CMAKE_CURRENT_BINARY_DIR}/bytecode-compiler
                     INSTALL_COMMAND "")
 
@@ -51,6 +51,7 @@ set(CXX_FILES
   src/GraphicsInterface.cpp
   src/BeatClock.cpp
   src/MonomeGridInterface.cpp
+  src/OscMonomeGridInterface.cpp
   )
 
 add_library(pallet STATIC ${CXX_FILES})

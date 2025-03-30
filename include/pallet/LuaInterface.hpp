@@ -7,11 +7,13 @@
 
 #include "containers/IdTable.hpp"
 #include "containers/StaticVector.hpp"
+
 #include "Clock.hpp"
 #include "MonomeGridInterface.hpp"
 #include "BeatClock.hpp"
 #include "GraphicsInterface.hpp"
 #include "MidiInterface.hpp"
+
 #include "error.hpp"
 
 namespace pallet {
