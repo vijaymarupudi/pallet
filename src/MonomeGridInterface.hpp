@@ -11,42 +11,21 @@
 
 namespace pallet {
 
+class MonomeGridInterface;
 
 class MonomeGrid {
 public:
 
-  using QuadRenderFunc = void(*)(int offX, int offY, uint8_t* data,
-                                 void* ud0, void* ud1);
   using QuadType = uint8_t[64];
-
-  std::string id;
-  int rows;
-  int cols;
-  int nQuads;
-
-  bool connected = true;
-
-  QuadRenderFunc quadRenderFunc;
-  void* quadRenderFuncUd0;
-  void* quadRenderFuncUd1;
-
-  void (*onKeyCb)(int x, int y, int z, void*) = nullptr;
-  void* onKeyData = nullptr;
-
-  QuadType quadData[4];
-  uint8_t quadDirtyFlags = 0xFF;
-
+  using QuadRenderFunction = void(*)(int offX, int offY, uint8_t* data,
+                                 void* ud0, void* ud1);
+  
   MonomeGrid(std::string id, int rows, int cols,
-             QuadRenderFunc quadRenderFunc,
+             QuadRenderFunction quadRenderFunc,
              void* quadRenderFuncUd0, void* quadRenderFuncUd1);
 
-  void setQuadDirty(int quadIndex);
-  bool isQuadDirty(int quadIndex);
-
-public:
   void setOnKey(void (*cb)(int x, int y, int z, void*), void* data);
-  void uponKey(int x, int y, int z);
-  void uponConnectionState(bool state);
+
   bool isConnected();
   void led(int x, int y, int c);
   void all(int z);
@@ -54,57 +33,87 @@ public:
   void render();
   int getRows();
   int getCols();
+
+private:
+  void (*onKeyCb)(int x, int y, int z, void*);
+  void* onKeyData;
+  
+  bool connected = true;
+  std::string id;
+  int rows;
+  int cols;
+  int nQuads;
+
+  QuadRenderFunction quadRenderFunc;
+  void* quadRenderFuncUd0;
+  void* quadRenderFuncUd1;
+
+  QuadType quadData[4];
+  uint8_t quadDirtyFlags = 0xFF;
+
+  void setQuadDirty(int quadIndex);
+  bool isQuadDirty(int quadIndex);
+  void uponKey(int x, int y, int z);
+  void uponConnectionState(bool state);
+  friend class MonomeGridInterface;
+
 };
 
 
-using MonomeGridInterfaceConnectCallback = void(*)(const std::string&, bool, MonomeGrid* grid, void*);
-
 class MonomeGridInterface {
-protected:
-  MonomeGridInterfaceConnectCallback onConnectCb = nullptr;
-  void* onConnectData = nullptr;
-
+  
 public:
 
-  void setOnConnect(MonomeGridInterfaceConnectCallback cb, void* data) {
+  using OnConnectCallback = void(*)(const std::string&, bool, MonomeGrid* grid, void*);
+
+  void setOnConnect(OnConnectCallback cb, void* data) {
     this->onConnectCb = cb;
     this->onConnectData = data;
   }
-
   virtual void sendRawQuadMap(int offX, int offY, MonomeGrid::QuadType data) = 0;
   virtual void connect(int idx) = 0;
+
+protected:
+  
+  OnConnectCallback onConnectCb = nullptr;
+  void* onConnectData = nullptr;
+  static void uponConnectionState(MonomeGrid&, bool);
+  static void uponKey(MonomeGrid&, int x, int y, int z);
+
 };
 
 }
 
 #if PALLET_CONSTANTS_PLATFORM == PALLET_CONSTANTS_PLATFORM_LINUX
 
-#include "OscInterface.hpp"
+#include "LinuxOscInterface.hpp"
 
 namespace pallet {
 
 class LinuxMonomeGridInterface final : public MonomeGridInterface {
 public:
-  using OscAddressType = OscInterface::AddressIdType;
-  OscAddressType serialoscdAddr;
-  OscAddressType gridAddr;
-  LinuxOscInterface oscInterface;
-  std::string gridId;
-  std::optional<MonomeGrid> grid;
-  bool autoReconnect = true;
-
+  using OscAddressIdType = OscInterface::AddressIdType;
+  
   static Result<LinuxMonomeGridInterface> create(LinuxPlatform& platform);
   LinuxMonomeGridInterface(LinuxPlatform& platform);
-  void sendRawQuadMap(int offX, int offY, MonomeGrid::QuadType data) override;
   void connect(int id) override;
-  void uponDeviceChange(const char* cStrId, bool addition);
-  void requestDeviceNotifications();
   void disconnect(bool manual = true);
   ~LinuxMonomeGridInterface();
 
 private:
-  void uponOscMessage(const char *path, const OscItem* items,
-                      size_t n);
+
+  OscAddressIdType serialoscdAddr;
+  OscAddressIdType gridAddr;
+  LinuxOscInterface oscInterface;
+  std::string gridId;
+  std::optional<MonomeGrid> grid;
+  bool autoReconnect = true;
+  
+  virtual void sendRawQuadMap(int offX, int offY, MonomeGrid::QuadType data) override;
+  void uponOscMessage(const char *path, const OscItem* items, size_t n);
+  void uponDeviceChange(const char* cStrId, bool addition);
+  void requestDeviceNotifications();
+  
 };
 
   // Raw bytes

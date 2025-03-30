@@ -17,11 +17,8 @@ static inline std::pair<int, int> calcQuadIndexAndPointIndex(int x, int y) {
   return std::pair(calcQuadIndex(x, y), (x % 8) + 8 * (y % 8));
 }
 
-Result<LinuxMonomeGridInterface> LinuxMonomeGridInterface::create(LinuxPlatform& platform) {
-  return Result<LinuxMonomeGridInterface>(std::in_place_t{}, platform);
-}
 
-MonomeGrid::MonomeGrid(std::string id, int rows, int cols, MonomeGrid::QuadRenderFunc quadRenderFunc,
+MonomeGrid::MonomeGrid(std::string id, int rows, int cols, MonomeGrid::QuadRenderFunction quadRenderFunc,
            void* quadRenderFuncUd0, void* quadRenderFuncUd1) :
   id(std::move(id)), rows(rows), cols(cols), nQuads((rows / 8) * (cols / 8)), quadRenderFunc(quadRenderFunc),
   quadRenderFuncUd0(quadRenderFuncUd0), quadRenderFuncUd1(quadRenderFuncUd1)
@@ -97,6 +94,14 @@ int MonomeGrid::getCols() {
 }
 
 
+  void MonomeGridInterface::uponConnectionState(MonomeGrid& g, bool b) {
+    g.uponConnectionState(b);
+  }
+  void MonomeGridInterface::uponKey(MonomeGrid& g, int x, int y, int z) {
+    g.uponKey(x, y, z);
+  }
+
+
 #if PALLET_CONSTANTS_PLATFORM == PALLET_CONSTANTS_PLATFORM_LINUX
 
 static const int gridOscServerPort = 7072;
@@ -111,6 +116,9 @@ static const int gridOscServerPort = 7072;
     return tmp.template operator()<Types...>(std::make_index_sequence<sizeof...(Types)>{});
   }
 
+Result<LinuxMonomeGridInterface> LinuxMonomeGridInterface::create(LinuxPlatform& platform) {
+  return Result<LinuxMonomeGridInterface>(std::in_place_t{}, platform);
+}
 
 LinuxMonomeGridInterface::LinuxMonomeGridInterface(LinuxPlatform& platform) : oscInterface(platform) {
   serialoscdAddr = oscInterface.createAddress(12002);
@@ -149,7 +157,7 @@ void LinuxMonomeGridInterface::uponOscMessage(const char *path, const OscItem* i
     auto [x, y, z] = extractOscValues<int32_t, int32_t, int32_t>(items);
 
     if (this->grid) {
-      this->grid->uponKey(x, y, z);
+      MonomeGridInterface::uponKey(*this->grid, x, y, z);
     }
 
   } else if (strcmp(path, "/serialosc/device") == 0) {
@@ -215,7 +223,7 @@ void LinuxMonomeGridInterface::requestDeviceNotifications() {
 void LinuxMonomeGridInterface::disconnect(bool manual) {
   if (grid && grid->isConnected()) {
     this->oscInterface.freeAddress(this->gridAddr);
-    this->grid->uponConnectionState(false);
+    MonomeGridInterface::uponConnectionState(*this->grid, false);
     if (manual) {
       this->autoReconnect = false;
     }
