@@ -1,11 +1,9 @@
 #pragma once
 
-#include "Platform.hpp"
 #include <utility>
 #include <string.h>
 #include <string>
 #include <cstdint>
-#include <optional>
 #include "constants.hpp"
 #include "error.hpp"
 
@@ -86,6 +84,9 @@ protected:
 
 #if PALLET_CONSTANTS_PLATFORM == PALLET_CONSTANTS_PLATFORM_LINUX
 
+#include <optional>
+
+#include "PosixPlatform.hpp"
 #include "LinuxOscInterface.hpp"
 
 namespace pallet {
@@ -94,8 +95,8 @@ class LinuxMonomeGridInterface final : public MonomeGridInterface {
 public:
   using OscAddressIdType = OscInterface::AddressIdType;
   
-  static Result<LinuxMonomeGridInterface> create(LinuxPlatform& platform);
-  LinuxMonomeGridInterface(LinuxPlatform& platform);
+  static Result<LinuxMonomeGridInterface> create(PosixPlatform& platform);
+  LinuxMonomeGridInterface(PosixPlatform& platform);
   void connect(int id) override;
   void disconnect(bool manual = true);
   ~LinuxMonomeGridInterface();

@@ -161,11 +161,11 @@ void SDLHardwareInterface::close() {
   data.cleanup();
 }
 
-Result<LinuxGraphicsInterface> LinuxGraphicsInterface::create(LinuxPlatform& platform) {
+Result<LinuxGraphicsInterface> LinuxGraphicsInterface::create(PosixPlatform& platform) {
   return Result<LinuxGraphicsInterface>(std::in_place_t{}, platform);
 }
 
-LinuxGraphicsInterface::LinuxGraphicsInterface(LinuxPlatform& platform) :
+LinuxGraphicsInterface::LinuxGraphicsInterface(PosixPlatform& platform) :
   platform(&platform), pipeFdManager(platform),
   operationsBuffer(new std::vector<Operation>)
 

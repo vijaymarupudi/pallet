@@ -1,21 +1,14 @@
 #pragma once
 
 #include <cstdint>
-#include <thread>
-#include <memory>
 #include <string_view>
-#include <vector>
-#include <array>
+#include <string>
 
-#include "CGPixel.h"
 #include "constants.hpp"
-#include "containers/ThreadSafeStack.hpp"
-#include "Platform.hpp"
-#include "error.hpp"
-#include "memory.hpp"
+#include "CGPixel.h"
+
 #include "variant.hpp"
 
-#include "SDL3/SDL.h"
 
 namespace pallet {
 
@@ -125,7 +118,23 @@ public:
   
 };
 
+}
+
 #if PALLET_CONSTANTS_PLATFORM == PALLET_CONSTANTS_PLATFORM_LINUX
+
+#include <memory>
+#include <thread>
+#include <vector>
+#include <array>
+
+#include "SDL3/SDL.h"
+
+#include "containers/ThreadSafeStack.hpp"
+#include "error.hpp"
+#include "memory.hpp"
+#include "PosixPlatform.hpp"
+
+namespace pallet {
 
 class SDLHardwareInterface final : public GraphicsHardwareInterface {
 
@@ -225,7 +234,7 @@ namespace detail {
 
 class LinuxGraphicsInterface final : public GraphicsInterface {
 
-  LinuxPlatform* platform;
+  PosixPlatform* platform;
   FdManager pipeFdManager;
   SDLHardwareInterface sdlHardwareInterface;
   std::thread thrd;
@@ -235,9 +244,9 @@ class LinuxGraphicsInterface final : public GraphicsInterface {
 
 public:
 
-  static Result<LinuxGraphicsInterface> create(LinuxPlatform& platform);
+  static Result<LinuxGraphicsInterface> create(PosixPlatform& platform);
 
-  LinuxGraphicsInterface(LinuxPlatform& platform);
+  LinuxGraphicsInterface(PosixPlatform& platform);
   LinuxGraphicsInterface(LinuxGraphicsInterface&& iface);
 
   void uponPipeIn(void* datain, size_t len);

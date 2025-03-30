@@ -10,6 +10,10 @@ namespace pallet {
 #define PALLET_CONSTANTS_PLATFORM_LINUX 0
 #define PALLET_CONSTANTS_PLATFORM_PICO 1
 
+#if defined (__unix__) || (defined (__APPLE__) && defined (__MACH__))
+#define PALLET_CONSTANTS_PLATFORM_IS_POSIX
+#endif
+
 #if defined(RASPBERRYPI_PICO)
 #define PALLET_CONSTANTS_PLATFORM PALLET_CONSTANTS_PLATFORM_PICO
     constexpr platforms currentPlatform = platforms::Pico;

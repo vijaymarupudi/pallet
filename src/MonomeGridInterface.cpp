@@ -116,11 +116,11 @@ static const int gridOscServerPort = 7072;
     return tmp.template operator()<Types...>(std::make_index_sequence<sizeof...(Types)>{});
   }
 
-Result<LinuxMonomeGridInterface> LinuxMonomeGridInterface::create(LinuxPlatform& platform) {
+Result<LinuxMonomeGridInterface> LinuxMonomeGridInterface::create(PosixPlatform& platform) {
   return Result<LinuxMonomeGridInterface>(std::in_place_t{}, platform);
 }
 
-LinuxMonomeGridInterface::LinuxMonomeGridInterface(LinuxPlatform& platform) : oscInterface(platform) {
+LinuxMonomeGridInterface::LinuxMonomeGridInterface(PosixPlatform& platform) : oscInterface(platform) {
   serialoscdAddr = oscInterface.createAddress(12002);
   oscInterface.setOnMessage([](const char *path, const OscItem* items,
                                size_t n, void* ud){

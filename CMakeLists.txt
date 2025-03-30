@@ -43,7 +43,8 @@ set(CXX_FILES
   src/LuaInterface/LuaClockInterface.cpp
   src/LuaInterface/LuaBeatClockInterface.cpp
   src/LuaInterface/LuaMidiInterface.cpp
-  src/Platform.cpp
+  src/PosixPlatform.cpp
+  src/LinuxPlatform.cpp
   src/Clock.cpp
   src/MidiInterface.cpp
   src/BeatClockScheduler.cpp

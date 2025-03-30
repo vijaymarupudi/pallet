@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "Platform.hpp"
+#include "LinuxPlatform.hpp"
 #include "Clock.hpp"
 #include "GraphicsInterface.hpp"
 #include "LuaInterface.hpp"

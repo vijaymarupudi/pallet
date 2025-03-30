@@ -8,7 +8,7 @@
 
 #include "OscInterface.hpp"
 #include "containers/IdTable.hpp"
-#include "Platform.hpp"
+#include "PosixPlatform.hpp"
 
 namespace pallet {
 
@@ -81,7 +81,7 @@ public:
 
   int port = 0;
 
-  LoOscInterface(LinuxPlatform& platform) : platform(&platform) {}
+  LoOscInterface(PosixPlatform& platform) : platform(&platform) {}
 
   virtual AddressIdType createAddress(int port) override {
     auto addr = detail::makeLoAddress(port);
@@ -117,7 +117,7 @@ public:
 
 private:
 
-  LinuxPlatform* platform;
+  PosixPlatform* platform;
   detail::LoServerType server;
   pallet::containers::IdTable<detail::LoAddressType, std::vector, AddressIdType> addressIdTable;
   std::vector<OscItem> messageBuffer;

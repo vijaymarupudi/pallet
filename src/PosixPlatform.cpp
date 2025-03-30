@@ -1,6 +1,8 @@
-#include "Platform.hpp"
+#include "constants.hpp"
 
-#if PALLET_CONSTANTS_PLATFORM == PALLET_CONSTANTS_PLATFORM_LINUX
+#ifdef PALLET_CONSTANTS_PLATFORM_IS_POSIX
+
+#include "PosixPlatform.hpp"
 
 #include <map>
 #include <utility>
@@ -9,37 +11,13 @@
 
 #include <poll.h>
 #include <unistd.h>
-#include <sys/timerfd.h>
 #include <time.h>
-#include <sched.h>
 #include <fcntl.h>
-#include <sys/resource.h>
+
+// not posix
+#include <sys/timerfd.h>
 
 #include "macros.hpp"
-
-
-// Most likely buggy
-
-// template <class UIntType>
-// std::pair<UIntType, bool> unsignedAdditionHelper(UIntType a, UIntType b) {
-//   bool overflow;
-//   UIntType res = a + b;
-//   if (res < a) { overflow = true; }
-//   else { overflow = false; }
-//   return {res, overflow};
-// }
-
-// template <class UIntType>
-// std::pair<UIntType, bool> unsignedSubtractionHelper(UIntType a, UIntType b) {
-//   bool underflow;
-//   UIntType res = a - b;
-//   if (res > a) {
-//     underflow = true;
-
-//   }
-//   else { underflow = false; }
-//   return {res, underflow};
-// }
 
 namespace pallet {
 
@@ -89,54 +67,38 @@ static uint64_t timespecToTime(struct timespec* reference, struct timespec* spec
   return (s * 1000000000) + ns;
 }
 
-static void timerCallback(int fd, short revents, void* data);
-
-static void linuxSetThreadToHighPriority() {
-  // increase the niceness of the process
-  int ret = getpriority(PRIO_PROCESS, 0);
-  setpriority(PRIO_PROCESS, 0, ret - 4);
-
-  // enable SCHED_FIFO for realtime scheduling without preemption
-  // new threads can't inherit realtime status
-  struct sched_param schparam;
-  memset(&schparam, 0, sizeof(struct sched_param));
-  schparam.sched_priority = 60;
-  if (sched_setscheduler(0, SCHED_FIFO | SCHED_RESET_ON_FORK,
-                         &schparam) == 0) {
-    fprintf(stderr, "realtime scheduling enabled\n");
-  }
+Result<PosixPlatform> PosixPlatform::create() {
+  return Result<PosixPlatform>(std::in_place_t{});
 }
 
-Result<LinuxPlatform> LinuxPlatform::create() {
-  return Result<LinuxPlatform>(std::in_place_t{});
-}
-
-LinuxPlatform::LinuxPlatform() {
+PosixPlatform::PosixPlatform() {
   // get reference time
   clock_gettime(CLOCK_MONOTONIC, &referenceTime);
 
   timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
-  this->watchFdIn(timerfd, &timerCallback, this);
 
-  // for reducing latency
-  this->cpu_dma_latency_fd = open("/dev/cpu_dma_latency", O_RDONLY);
-  if (this->cpu_dma_latency_fd >= 0) {
-    int val = 0;
-    write(this->cpu_dma_latency_fd, &val, sizeof(val));
-  }
-
-  // for reducing latency
-  linuxSetThreadToHighPriority();
+  auto timerCallback = [](int fd, short revents, void* data) {
+    (void)fd;
+    (void)revents;
+    auto platform = ((PosixPlatform*) data);
+    platform->uponTimer();
+  };
+  
+  this->watchFdIn(timerfd, timerCallback, this);
 }
 
-uint64_t LinuxPlatform::currentTime() {
+PosixPlatform::~PosixPlatform() {
+  close(this->timerfd);
+}
+
+uint64_t PosixPlatform::currentTime() {
   struct timespec spec;
   clock_gettime(CLOCK_MONOTONIC, &spec);
   auto t = timespecToTime(&this->referenceTime, &spec);
   return t;
 }
 
-void LinuxPlatform::timer(uint64_t time, bool off) {
+void PosixPlatform::timer(uint64_t time, bool off) {
   // if off = true, turn off
   struct timespec it_interval = {};
   struct timespec it_value = {};
@@ -148,7 +110,7 @@ void LinuxPlatform::timer(uint64_t time, bool off) {
   timerfd_settime(this->timerfd, TFD_TIMER_ABSTIME, &its, nullptr);
 }
 
-void LinuxPlatform::uponTimer() {
+void PosixPlatform::uponTimer() {
   uint64_t expirations;
   read(this->timerfd, &expirations, sizeof(expirations));
   if (this->timerCb) {
@@ -157,7 +119,7 @@ void LinuxPlatform::uponTimer() {
 }
 
 
-LinuxPlatform::FdPollState& LinuxPlatform::findOrCreateFdPollState(int fd) {
+PosixPlatform::FdPollState& PosixPlatform::findOrCreateFdPollState(int fd) {
   auto it = this->fdCallbacks.find(fd);
   if (it == this->fdCallbacks.end()) {
     return (this->fdCallbacks[fd] = FdPollState({0, nullptr, nullptr}));
@@ -166,29 +128,29 @@ LinuxPlatform::FdPollState& LinuxPlatform::findOrCreateFdPollState(int fd) {
   }
 }
 
-void LinuxPlatform::watchFdEvents(int fd, short events, FdCallback callback, void* userData) {
+void PosixPlatform::watchFdEvents(int fd, short events, FdCallback callback, void* userData) {
   auto& state = this->findOrCreateFdPollState(fd);
   state.events |= events;
   state.callback = callback;
   state.ud = userData;
 }
 
-void LinuxPlatform::watchFdIn(int fd, FdCallback callback, void* userData) {
+void PosixPlatform::watchFdIn(int fd, FdCallback callback, void* userData) {
   return watchFdEvents(fd, POLLIN, callback, userData);
 }
-void LinuxPlatform::watchFdOut(int fd, FdCallback callback, void* userData) {
+void PosixPlatform::watchFdOut(int fd, FdCallback callback, void* userData) {
   return watchFdEvents(fd, POLLOUT, callback, userData);
 }
 
-void LinuxPlatform::unwatchFdIn(int fd) {
+void PosixPlatform::unwatchFdIn(int fd) {
   this->unwatchFdEvents(fd, POLLIN);
 }
 
-void LinuxPlatform::unwatchFdOut(int fd) {
+void PosixPlatform::unwatchFdOut(int fd) {
   this->unwatchFdEvents(fd, POLLOUT);
 }
 
-void LinuxPlatform::unwatchFdEvents(int fd, short events) {
+void PosixPlatform::unwatchFdEvents(int fd, short events) {
   auto it = this->fdCallbacks.find(fd);
   if (it != this->fdCallbacks.end()) {
     auto& [fd, state] = *it;
@@ -199,10 +161,10 @@ void LinuxPlatform::unwatchFdEvents(int fd, short events) {
   }
 }
 
-void LinuxPlatform::removeFd(int fd) {
+void PosixPlatform::removeFd(int fd) {
   this->fdCallbacks.erase(fd);
 }
-void LinuxPlatform::loopIter() {
+void PosixPlatform::loopIter() {
   int i = 0;
   for (const auto& [fd, state] : this->fdCallbacks) {
     this->pollFds[i].fd = fd;
@@ -220,23 +182,11 @@ void LinuxPlatform::loopIter() {
   }
 }
 
-void LinuxPlatform::setFdNonBlocking(int fd) {
+void PosixPlatform::setFdNonBlocking(int fd) {
   int flags = fcntl(fd, F_GETFL, 0);
   fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 }
 
-
-LinuxPlatform::~LinuxPlatform() {
-  close(this->timerfd);
-  if (this->cpu_dma_latency_fd >= 0) { close(this->cpu_dma_latency_fd); }
-}
-
-static void timerCallback(int fd, short revents, void* data) {
-  (void)fd;
-  (void)revents;
-  auto platform = ((LinuxPlatform*) data);
-  platform->uponTimer();
-}
 
 /*
  * FdManager
@@ -260,16 +210,16 @@ void FdManager::uponReadReady() {
 }
 
 void FdManager::uponReady(short revents) {
-  if (revents & LinuxPlatform::Read) {
+  if (revents & PosixPlatform::Read) {
     this->uponReadReady();
   }
 
-  if (revents & LinuxPlatform::Write) {
+  if (revents & PosixPlatform::Write) {
     this->uponWriteReady();
   }
 }
 
-FdManager::FdManager(LinuxPlatform& platform, int fd) : platform(&platform), fd(fd) {}
+FdManager::FdManager(PosixPlatform& platform, int fd) : platform(&platform), fd(fd) {}
 
 FdManager::FdManager(FdManager&& other)
   : platform{std::move(other.platform)},
@@ -307,31 +257,31 @@ FdManager& FdManager::operator=(FdManager&& other) {
 void FdManager::setFd(int fd) { this->fd = fd; }
 
 void FdManager::write(void* data, size_t len, WriteCallback cb, void* ud) {
-  this->revents |= LinuxPlatform::Write;
+  this->revents |= PosixPlatform::Write;
   writeState = {data, len, 0, cb, ud};
   this->platform->watchFdEvents(this->fd, this->revents,
                                FdManager::platformCallback, this);
 }
 
 void FdManager::startReading(ReadCallback cb, void* ud) {
-  this->revents |= LinuxPlatform::Read;
+  this->revents |= PosixPlatform::Read;
   readState = {cb, ud};
   this->platform->watchFdEvents(fd, this->revents, FdManager::platformCallback, this);
 }
 
 void FdManager::stopReading() {
-  this->revents &= ~LinuxPlatform::Read;
-  this->platform->unwatchFdEvents(this->fd, LinuxPlatform::Read);
+  this->revents &= ~PosixPlatform::Read;
+  this->platform->unwatchFdEvents(this->fd, PosixPlatform::Read);
 }
 
 void FdManager::stopWriting() {
-  this->revents &= ~LinuxPlatform::Write;
-  this->platform->unwatchFdEvents(this->fd, LinuxPlatform::Write);
+  this->revents &= ~PosixPlatform::Write;
+  this->platform->unwatchFdEvents(this->fd, PosixPlatform::Write);
 }
 
 FdManager::~FdManager() {
   if (fd >= 0) {
-    this->platform->unwatchFdEvents(this->fd, LinuxPlatform::Read | LinuxPlatform::Write);
+    this->platform->unwatchFdEvents(this->fd, PosixPlatform::Read | PosixPlatform::Write);
   }
 }
 

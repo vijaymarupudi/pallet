@@ -32,7 +32,7 @@ static void midiInterfaceMidiInCallback(double ts,
   }
 }
 
-LinuxMidiInterface::LinuxMidiInterface(LinuxPlatform& platform) : platform(platform) {
+LinuxMidiInterface::LinuxMidiInterface(PosixPlatform& platform) : platform(platform) {
   status = true;
   int fds[2];
   pipe(fds);
@@ -75,7 +75,7 @@ void MidiInterface::internalOnMidi(uint64_t time, const unsigned char* buf, size
   }
 }
 
-Result<LinuxMidiInterface> LinuxMidiInterface::create(LinuxPlatform& platform) {
+Result<LinuxMidiInterface> LinuxMidiInterface::create(PosixPlatform& platform) {
   return Result<LinuxMidiInterface>(std::in_place_t{}, platform);
 }
 

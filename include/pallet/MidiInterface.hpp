@@ -1,9 +1,7 @@
 #pragma once
 
 #include "RtMidi.h"
-
 #include "error.hpp"
-#include "Platform.hpp"
 
 namespace pallet {
 
@@ -35,6 +33,12 @@ public:
   
 };
 
+}
+
+#include "PosixPlatform.hpp"
+
+namespace pallet {
+
 class LinuxMidiInterface final : public MidiInterface {
 public:
   bool status = false;
@@ -42,11 +46,11 @@ public:
   int threadWriteFd;
   RtMidiIn midiIn;
   RtMidiOut midiOut;
-  LinuxPlatform& platform;
-  LinuxMidiInterface(LinuxPlatform& platform);
+  PosixPlatform& platform;
+  LinuxMidiInterface(PosixPlatform& platform);
   virtual void sendMidi(const unsigned char* buf,
                         size_t len) override;
-  static Result<LinuxMidiInterface> create(LinuxPlatform& platform);
+  static Result<LinuxMidiInterface> create(PosixPlatform& platform);
 };
 
 }
