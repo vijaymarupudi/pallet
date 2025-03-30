@@ -18,8 +18,8 @@ public:
 
   using QuadType = uint8_t[64];
   using QuadRenderFunction = void(*)(int offX, int offY, uint8_t* data,
-                                 void* ud0, void* ud1);
-  
+                                     void* ud0, void* ud1);
+
   MonomeGrid(std::string id, int rows, int cols,
              QuadRenderFunction quadRenderFunc,
              void* quadRenderFuncUd0, void* quadRenderFuncUd1);
@@ -37,7 +37,7 @@ public:
 private:
   void (*onKeyCb)(int x, int y, int z, void*);
   void* onKeyData;
-  
+
   bool connected = true;
   std::string id;
   int rows;
