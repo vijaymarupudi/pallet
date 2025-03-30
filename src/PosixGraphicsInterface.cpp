@@ -78,8 +78,9 @@ void SDLHardwareInterface::close() {
 }
 
 Result<PosixGraphicsInterface> PosixGraphicsInterface::create(PosixPlatform& platform) {
-  Result<pallet::Pipe> res = pallet::Pipe::create();
-  return Result<PosixGraphicsInterface>(std::in_place, platform, *std::move(res));
+  return pallet::Pipe::create().and_then([&](auto&& pipes) {
+    return Result<PosixGraphicsInterface>(std::in_place, platform, std::move(pipes));
+  });
 }
 
 PosixGraphicsInterface::PosixGraphicsInterface(PosixPlatform& platform, pallet::Pipe&& pipes) :
