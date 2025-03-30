@@ -85,27 +85,13 @@ namespace detail {
 }
 
 class PosixGraphicsInterface final : public GraphicsInterface {
-
-  PosixPlatform* platform;
-  FdManager pipeFdManager;
-  SDLHardwareInterface sdlHardwareInterface;
-  std::thread thrd;
-  std::unique_ptr<std::vector<Operation>> operationsBuffer = nullptr;
-  containers::ThreadSafeStack<std::unique_ptr<std::vector<Operation>>> operationVectorStack;
-  pallet::Pipe pipes;
-
 public:
 
   static Result<PosixGraphicsInterface> create(PosixPlatform& platform);
   // needs to be public to construct it through Result<...>
+  // But I can use PrivateType to prevent use
   PosixGraphicsInterface(PosixPlatform& platform, pallet::Pipe&& pipes);
   PosixGraphicsInterface(PosixGraphicsInterface&& iface);
-
-  void uponPipeIn(void* datain, size_t len);
-  void renderOperations(std::vector<Operation>& operations);
-  void uponEvents(SDL_Event* events, size_t len);
-  void uponUserEvent(SDL_Event* event);
-  void addOperation(auto&& op);
 
   virtual void render() override;
   virtual void quit() override;
@@ -118,9 +104,26 @@ public:
                     GraphicsPosition baseline = GraphicsPosition::Default) override;
   virtual GraphicsTextMeasurement measureText(std::string_view str) override;
 
+private:
+
+  PosixPlatform* platform;
+  FdManager pipeFdManager;
+  SDLHardwareInterface sdlHardwareInterface;
+  std::thread thrd;
+  std::unique_ptr<std::vector<Operation>> operationsBuffer = nullptr;
+  containers::ThreadSafeStack<std::unique_ptr<std::vector<Operation>>> operationVectorStack;
+  pallet::Pipe pipes;
+
+  void uponPipeIn(void* datain, size_t len);
+  void renderOperations(std::vector<Operation>& operations);
+  void uponEvents(SDL_Event* events, size_t len);
+  void uponUserEvent(SDL_Event* event);
+  void addOperation(auto&& op);
+
 };
 
-  static_assert(std::is_move_constructible_v<PosixGraphicsInterface>);
+ static_assert(std::is_move_constructible_v<PosixGraphicsInterface>);
+
 
 }
 
