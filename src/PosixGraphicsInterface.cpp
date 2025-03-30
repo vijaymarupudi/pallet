@@ -78,17 +78,16 @@ void SDLHardwareInterface::close() {
 }
 
 Result<PosixGraphicsInterface> PosixGraphicsInterface::create(PosixPlatform& platform) {
-  return Result<PosixGraphicsInterface>(std::in_place_t{}, platform);
+  Result<pallet::Pipe> res = pallet::Pipe::create();
+  return Result<PosixGraphicsInterface>(std::in_place, platform, *std::move(res));
 }
 
-PosixGraphicsInterface::PosixGraphicsInterface(PosixPlatform& platform) :
+PosixGraphicsInterface::PosixGraphicsInterface(PosixPlatform& platform, pallet::Pipe&& pipes) :
   platform(&platform), pipeFdManager(platform),
-  operationsBuffer(new std::vector<Operation>)
+  operationsBuffer(new std::vector<Operation>), pipes(std::move(pipes))
 
 {
-  pipe(&(*(this->pipes))[0]);
-  pipeFdManager.setFd((*(this->pipes))[0]);
-
+  pipeFdManager.setFd(pipes.getReadFd());
   pipeFdManager.startReading([](int fd, void* data, size_t len, void* ud) {
     (void)fd;
     reinterpret_cast<PosixGraphicsInterface*>(ud)->uponPipeIn(data, len);
@@ -282,7 +281,7 @@ void PosixGraphicsInterface::uponEvents(SDL_Event* events, size_t len) {
       nEvents++;
     }
   }
-  write((*this->pipes)[1], eventsToSend, sizeof(SDL_Event) * nEvents);
+  this->pipes.write(eventsToSend, sizeof(SDL_Event) * nEvents);
 }
 
 void PosixGraphicsInterface::uponUserEvent(SDL_Event* event) {

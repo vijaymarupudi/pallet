@@ -14,6 +14,7 @@
 #include "error.hpp"
 #include "memory.hpp"
 #include "PosixPlatform.hpp"
+#include "posix.hpp"
 
 namespace pallet {
 
@@ -91,13 +92,13 @@ class PosixGraphicsInterface final : public GraphicsInterface {
   std::thread thrd;
   std::unique_ptr<std::vector<Operation>> operationsBuffer = nullptr;
   containers::ThreadSafeStack<std::unique_ptr<std::vector<Operation>>> operationVectorStack;
-  UniqueResource<std::array<int, 2>, detail::PipeDataDestroyer> pipes;
+  pallet::Pipe pipes;
 
 public:
 
   static Result<PosixGraphicsInterface> create(PosixPlatform& platform);
-
-  PosixGraphicsInterface(PosixPlatform& platform);
+  // needs to be public to construct it through Result<...>
+  PosixGraphicsInterface(PosixPlatform& platform, pallet::Pipe&& pipes);
   PosixGraphicsInterface(PosixGraphicsInterface&& iface);
 
   void uponPipeIn(void* datain, size_t len);
@@ -116,7 +117,7 @@ public:
                     GraphicsPosition align = GraphicsPosition::Default,
                     GraphicsPosition baseline = GraphicsPosition::Default) override;
   virtual GraphicsTextMeasurement measureText(std::string_view str) override;
-  
+
 };
 
   static_assert(std::is_move_constructible_v<PosixGraphicsInterface>);
@@ -124,4 +125,3 @@ public:
 }
 
 #endif
-

@@ -22,7 +22,7 @@ namespace detail {
   template <class T, class ObjT>
   concept hasValidityChecks = requires(T& t, ObjT& obj) {
     { t.isValid(obj) } -> std::convertible_to<bool>;
-    t.setValid(obj, true);
+    t.setValid(obj, false);
   };
 
   template <class T, class ObjT>
@@ -55,7 +55,7 @@ namespace detail {
   consteval bool isDestructorNoExcept() {
     if constexpr (!hasDestructor<T, O>) { return true; }
     else {
-      noexcept(std::declval<T&>()(std::declval<O&>()));
+      return noexcept(std::declval<T&>()(std::declval<O&>()));
     }
   }
 }
@@ -112,8 +112,10 @@ class UniqueResource : private detail::PropertiesType<UserPropertiesType, Object
     this->cleanup();
   }
 
-  private:
+protected:
   ObjectType object;
+
+  private:
   using PropertiesType = detail::PropertiesType<UserPropertiesType, ObjectType>;
   static constexpr bool _nonthrowing_move =
     std::is_nothrow_move_constructible_v<PropertiesType> &&
