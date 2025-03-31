@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <stdio.h>
 #include "containerUtils.hpp"
+#include "pallet/math.hpp"
 
 namespace pallet::containers {
 
@@ -15,15 +16,36 @@ private:
   size_type top;
 public:
   StaticVector() : top(0) {}
-  StaticVector(const StaticVector<ItemType, _capacity>& other) = delete;
-  StaticVector(StaticVector<ItemType, _capacity>&& other) = delete;
   StaticVector<ItemType, _capacity>& operator=(const StaticVector<ItemType, _capacity>& other) = delete;
   StaticVector<ItemType, _capacity>& operator=(StaticVector<ItemType, _capacity>&& other) = delete;
+  
   ~StaticVector() {
     for (size_type i = 0; i < this->size(); i++) {
       this->storage[i].destroy();
     }
   }
+
+  StaticVector(StaticVector&& other) {
+    this->top = other.top;
+    for (size_t i = 0; i < other.size(); i++) {
+      this->storage.construct(std::move(other.storage[i].ref()));
+    }
+    other.top = 0;
+  }
+
+  StaticVector(const StaticVector& other) {
+    this->top = other.top;
+    for (size_t i = 0; i < other.size(); i++) {
+      this->storage[i].construct(other.storage[i].ref());
+    }
+  }
+
+  // StaticVector& operator=(StaticVector&& other) {
+  //   auto min_size = pallet::min(this->top, other.top);
+  //   // TODO
+    
+  // }
+
 
   size_type capacity() const {
     return _capacity;
