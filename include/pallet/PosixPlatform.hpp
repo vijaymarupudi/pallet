@@ -21,7 +21,7 @@ public:
 
   static Result<PosixPlatform> create();
   PosixPlatform();
-  virtual ~PosixPlatform();
+  ~PosixPlatform();
   void watchFdIn(int fd, FdCallback callback, void* userData);
   void watchFdOut(int fd, FdCallback callback, void* userData);
   void watchFdEvents(int fd, short events, FdCallback callback, void* userData);
