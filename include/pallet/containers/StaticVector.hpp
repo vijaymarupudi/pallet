@@ -97,6 +97,10 @@ public:
     }
   }
 
+  void clear() {
+    this->resize(0);
+  }
+
   void reserve(size_type in) {
     (void)in;
     // do nothing
