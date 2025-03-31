@@ -139,6 +139,7 @@ public:
       }
     }
   }
+
 private:
   Container<Space<EntryType>> storage;
   Container<id_type> freeVector;

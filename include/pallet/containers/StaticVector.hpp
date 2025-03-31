@@ -10,44 +10,69 @@ namespace pallet::containers {
 template <class ItemType, size_t _capacity>
 class StaticVector {
 public:
-  using size_type = size_t;
+  using SizeType = size_t;
+
 private:
   std::array<Space<ItemType>, _capacity> storage;
-  size_type top;
+  SizeType top;
 public:
   StaticVector() : top(0) {}
-  StaticVector<ItemType, _capacity>& operator=(const StaticVector<ItemType, _capacity>& other) = delete;
-  StaticVector<ItemType, _capacity>& operator=(StaticVector<ItemType, _capacity>&& other) = delete;
   
-  ~StaticVector() {
-    for (size_type i = 0; i < this->size(); i++) {
-      this->storage[i].destroy();
-    }
-  }
-
   StaticVector(StaticVector&& other) {
     this->top = other.top;
-    for (size_t i = 0; i < other.size(); i++) {
+    for (SizeType i = 0; i < other.size(); i++) {
       this->storage.construct(std::move(other.storage[i].ref()));
     }
     other.top = 0;
   }
 
+  ~StaticVector() {
+    for (SizeType i = 0; i < this->size(); i++) {
+      this->storage[i].destroy();
+    }
+  }
+
+  StaticVector& operator=(StaticVector&& other) {
+
+    StaticVector* less;
+    StaticVector* more;
+
+    if (this->size() > other.size()) {
+      more = this;
+      less = &other;
+    } else {
+      less = this;
+      more = &other;
+    }
+
+    for (SizeType i = 0; i < less->size(); i++) {
+      std::swap(less->storage[i].ref(), more->storage[i].ref());
+    }
+
+    for (SizeType i = less->size(); i < more->size(); i++) {
+      less->storage[i].construct(std::move(more->storage[i].ref()));
+      more->storage[i].destroy();
+    }
+
+    std::swap(less->top, more->top);
+  }
+
   StaticVector(const StaticVector& other) {
     this->top = other.top;
-    for (size_t i = 0; i < other.size(); i++) {
+    for (SizeType i = 0; i < other.size(); i++) {
       this->storage[i].construct(other.storage[i].ref());
     }
   }
 
-  // StaticVector& operator=(StaticVector&& other) {
-  //   auto min_size = pallet::min(this->top, other.top);
-  //   // TODO
-    
-  // }
+  StaticVector& operator=(const StaticVector& other) {
+    this->clear();
+    for (SizeType i = 0; i < other.size(); i++) {
+      this->storage[i].construct(other.storage[i].ref());
+    }
+    this->top = other.top;
+  }
 
-
-  size_type capacity() const {
+  SizeType capacity() const {
     return _capacity;
   }
 
@@ -77,15 +102,15 @@ public:
     return this->storage[this->size() - 1].ref();
   }
 
-  size_type size() const {
+  SizeType size() const {
     return this->top;
   }
 
-  ItemType& operator[](size_type index) {
+  ItemType& operator[](SizeType index) {
     return this->storage[index].ref();
   }
 
-  const ItemType& operator[](size_type index) const {
+  const ItemType& operator[](SizeType index) const {
     return this->storage[index].ref();
   }
 
@@ -105,14 +130,14 @@ public:
     return this->storage[this->size()].ptr();
   }
 
-  void resize(size_type target) {
+  void resize(SizeType target) {
     if (target < this->size()) {
-      for (size_type i = target; i < this->size(); i++) {
+      for (SizeType i = target; i < this->size(); i++) {
         this->storage[i].destroy();
       }
       this->top = target;
     } else if (target > this->size()) {
-      for (size_type i = this->size(); i < target; i++) {
+      for (SizeType i = this->size(); i < target; i++) {
         this->storage[i].construct();
       }
       this->top = target;
@@ -123,7 +148,7 @@ public:
     this->resize(0);
   }
 
-  void reserve(size_type in) {
+  void reserve(SizeType in) {
     (void)in;
     // do nothing
   }
