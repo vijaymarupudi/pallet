@@ -53,7 +53,7 @@ void BeatClockScheduler::processSoon() {
   clockTimeoutStatus = true;
 }
 
-BeatClockScheduler::id_type BeatClockScheduler::setBeatTimeout(double duration,
+BeatClockScheduler::Id BeatClockScheduler::setBeatTimeout(double duration,
                                                                BeatClockCbT callback,
                                                                void* callbackUserData) {
   auto now = this->beatInfo->getCurrentBeat();
@@ -61,7 +61,7 @@ BeatClockScheduler::id_type BeatClockScheduler::setBeatTimeout(double duration,
   return setBeatTimeoutAbsolute(goal, callback, callbackUserData);
 }
 
-BeatClockScheduler::id_type BeatClockScheduler::setBeatTimeoutAbsolute(double goal,
+BeatClockScheduler::Id BeatClockScheduler::setBeatTimeoutAbsolute(double goal,
                                              BeatClockCbT callback,
                                              void* callbackUserData) {
   auto id = idTable.push(BeatClockEvent {
@@ -72,7 +72,7 @@ BeatClockScheduler::id_type BeatClockScheduler::setBeatTimeoutAbsolute(double go
   return id;
 }
 
-BeatClockScheduler::id_type BeatClockScheduler::setBeatSyncTimeout(double sync,
+BeatClockScheduler::Id BeatClockScheduler::setBeatSyncTimeout(double sync,
                                                                    double offset,
                                                                    BeatClockCbT callback,
                                                                    void* callbackUserData){
@@ -81,14 +81,14 @@ BeatClockScheduler::id_type BeatClockScheduler::setBeatSyncTimeout(double sync,
   return setBeatTimeoutAbsolute(goal, callback, callbackUserData);
 }
 
-BeatClockScheduler::id_type BeatClockScheduler::setBeatInterval(double period,
+BeatClockScheduler::Id BeatClockScheduler::setBeatInterval(double period,
                                       BeatClockCbT callback,
                                       void* callbackUserData){
   auto now = this->beatInfo->getCurrentBeat();
   return setBeatIntervalAbsolute(now + period, period, callback, callbackUserData);
 }
 
-BeatClockScheduler::id_type BeatClockScheduler::setBeatIntervalAbsolute(double goal,
+BeatClockScheduler::Id BeatClockScheduler::setBeatIntervalAbsolute(double goal,
                                               double period,
                                               BeatClockCbT callback,
                                               void* callbackUserData){
@@ -100,7 +100,7 @@ BeatClockScheduler::id_type BeatClockScheduler::setBeatIntervalAbsolute(double g
   return id;
 }
 
-BeatClockScheduler::id_type BeatClockScheduler::setBeatSyncInterval(double sync,
+BeatClockScheduler::Id BeatClockScheduler::setBeatSyncInterval(double sync,
                                                                     double offset,
                                                                     double period,
                                                                     BeatClockCbT callback,
@@ -110,23 +110,23 @@ BeatClockScheduler::id_type BeatClockScheduler::setBeatSyncInterval(double sync,
   return setBeatIntervalAbsolute(goal, period, callback, callbackUserData);
 }
 
-void BeatClockScheduler::clearBeatTimeout(BeatClockScheduler::id_type id) {
+void BeatClockScheduler::clearBeatTimeout(BeatClockScheduler::Id id) {
   idTable[id].deleted = true;
 }
 
-void* BeatClockScheduler::getBeatTimeoutUserData(BeatClockScheduler::id_type id) {
+void* BeatClockScheduler::getBeatTimeoutUserData(BeatClockScheduler::Id id) {
   return idTable[id].callbackUserData;
 }
 
-void BeatClockScheduler::clearBeatInterval(BeatClockScheduler::id_type id) {
+void BeatClockScheduler::clearBeatInterval(BeatClockScheduler::Id id) {
   this->clearBeatTimeout(id);
 }
 
-void BeatClockScheduler::clearBeatSyncTimeout(BeatClockScheduler::id_type id) {
+void BeatClockScheduler::clearBeatSyncTimeout(BeatClockScheduler::Id id) {
   this->clearBeatTimeout(id);
 }
 
-void BeatClockScheduler::processEvent(BeatClockScheduler::id_type id, double now, double goal) {
+void BeatClockScheduler::processEvent(BeatClockScheduler::Id id, double now, double goal) {
   // at this point, the event is out of the queue, but still in the
   // id table
   BeatClockEvent* event = &idTable[id];

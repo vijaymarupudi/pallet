@@ -52,7 +52,7 @@ static int _luaBeatClockSyncTimeout(lua_State* L, bool interval) {
       luaInterface, 0, 0, false, functionRef
     });
   auto& state = luaInterface.beatClockCallbackState[id];
-  BeatClock::id_type cid;
+  BeatClock::Id cid;
   if (interval) {
     cid = beatClock.setBeatSyncInterval(sync, offset, period,
                                         luaBeatClockSetTimeoutIntervalCb,

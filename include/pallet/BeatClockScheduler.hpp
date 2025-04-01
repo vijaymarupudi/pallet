@@ -33,7 +33,7 @@ using BeatClockCbT = void(*)(BeatClockEventInfo*, void*);
 
 class BeatClockScheduler {
 public:
-  using id_type = BeatClockSchedulerIdT;
+  using Id = BeatClockSchedulerIdT;
 private:
   struct BeatClockEvent {
     double prev;
@@ -48,48 +48,48 @@ private:
   using ContainerType = std::conditional_t<pallet::constants::isEmbeddedDevice,
                                            pallet::containers::StaticVector<T, 256>,
                                            std::vector<T>>;
-  containers::KeyedPriorityQueue<double, id_type, ContainerType, std::greater<double>> queue;
-  containers::IdTable<BeatClockEvent, ContainerType, id_type> idTable;
+  containers::KeyedPriorityQueue<double, Id, ContainerType, std::greater<double>> queue;
+  containers::IdTable<BeatClockEvent, ContainerType, Id> idTable;
   BeatClockSchedulerInformationInterface* beatInfo;
 public:
   bool clockTimeoutStatus = false;
-  Clock::id_type clockTimeoutId;
+  Clock::Id clockTimeoutId;
   Clock* clock;
   // public
   void init(Clock* clock, BeatClockSchedulerInformationInterface* beatInfo);
   void setBeatInfo(BeatClockSchedulerInformationInterface* beatInfo) { this->beatInfo = beatInfo; }
-  id_type setBeatTimeout(double duration,
+  Id setBeatTimeout(double duration,
                          BeatClockCbT callback,
                          void* callbackUserData);
-  id_type setBeatSyncTimeout(double sync,
+  Id setBeatSyncTimeout(double sync,
                              double offset,
                              BeatClockCbT callback,
                              void* callbackUserData);
-  id_type setBeatTimeoutAbsolute(double goal,
+  Id setBeatTimeoutAbsolute(double goal,
                                  BeatClockCbT callback,
                                  void* callbackUserData);
-  id_type setBeatInterval(double period,
+  Id setBeatInterval(double period,
                           BeatClockCbT callback,
                           void* callbackUserData);
-  id_type setBeatSyncInterval(double sync,
+  Id setBeatSyncInterval(double sync,
                               double offset,
                               double period,
                               BeatClockCbT callback,
                               void* callbackUserData); 
-  id_type setBeatIntervalAbsolute(double goal,
+  Id setBeatIntervalAbsolute(double goal,
                                   double period,
                                   BeatClockCbT callback,
                                   void* callbackUserData);
-  void clearBeatTimeout(id_type id);
-  void* getBeatTimeoutUserData(id_type id);
-  void clearBeatSyncTimeout(id_type id);
-  void clearBeatInterval(id_type id);
+  void clearBeatTimeout(Id id);
+  void* getBeatTimeoutUserData(Id id);
+  void clearBeatSyncTimeout(Id id);
+  void clearBeatInterval(Id id);
   double getCurrentBeat() {
     return beatInfo->getCurrentBeat();
   }
 
   // private
-  void processEvent(BeatClockScheduler::id_type id, double now, double goal);
+  void processEvent(BeatClockScheduler::Id id, double now, double goal);
   void updateWaitingTime();
   void process();
   void timer(pallet::Time time, bool off = false);

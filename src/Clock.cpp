@@ -13,7 +13,7 @@ pallet::Time Clock::currentTime() {
   return platform.currentTime();
 }
 
-Clock::id_type Clock::setTimeout(pallet::Time duration,
+Clock::Id Clock::setTimeout(pallet::Time duration,
                                  ClockCbT callback,
                                  void* callbackUserData) {
   auto now = this->currentTime();
@@ -21,7 +21,7 @@ Clock::id_type Clock::setTimeout(pallet::Time duration,
   return setTimeoutAbsolute(goal, callback, callbackUserData);
 }
 
-Clock::id_type Clock::setTimeoutAbsolute(pallet::Time goal,
+Clock::Id Clock::setTimeoutAbsolute(pallet::Time goal,
                                          ClockCbT callback,
                                          void* callbackUserData) {
   auto id = idTable.push(ClockEvent {
@@ -32,14 +32,14 @@ Clock::id_type Clock::setTimeoutAbsolute(pallet::Time goal,
   return id;
 }
 
-Clock::id_type Clock::setInterval(pallet::Time period,
+Clock::Id Clock::setInterval(pallet::Time period,
                                   ClockCbT callback,
                                   void* callbackUserData){
   auto now = this->currentTime();
   return setIntervalAbsolute(now + period, period, callback, callbackUserData);
 }
 
-Clock::id_type Clock::setIntervalAbsolute(pallet::Time goal,
+Clock::Id Clock::setIntervalAbsolute(pallet::Time goal,
                                           pallet::Time period,
                                           ClockCbT callback,
                                           void* callbackUserData){
@@ -51,19 +51,19 @@ Clock::id_type Clock::setIntervalAbsolute(pallet::Time goal,
   return id;
 }
 
-void Clock::clearTimeout(Clock::id_type id) {
+void Clock::clearTimeout(Clock::Id id) {
   idTable[id].deleted = true;
 }
 
-void* Clock::getTimeoutUserData(Clock::id_type id) {
+void* Clock::getTimeoutUserData(Clock::Id id) {
   return idTable[id].callbackUserData;
 }
 
-void Clock::clearInterval(Clock::id_type id) {
+void Clock::clearInterval(Clock::Id id) {
   this->clearTimeout(id);
 }
 
-void Clock::processEvent(Clock::id_type id, pallet::Time goal) {
+void Clock::processEvent(Clock::Id id, pallet::Time goal) {
   // at this point, the event is out of the queue, but still in the
   // id table
   ClockEvent* event = &idTable[id];

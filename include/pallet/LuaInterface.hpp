@@ -25,7 +25,7 @@ const int __palletCTableRegistryIndex = 0;
 class LuaInterface {
 public:
 
-  using id_type = uint32_t;
+  using Id = uint32_t;
 
   // I need pointer stability, cannot use std::vector
   template <class T>
@@ -41,8 +41,8 @@ public:
 
   struct ClockCallbackStateEntry {
     LuaInterface& luaInterface;
-    id_type id;
-    Clock::id_type clockId;
+    Id id;
+    Clock::Id clockId;
     bool interval;
     int luaFunctionRef = -1;
   };
@@ -50,7 +50,7 @@ public:
   Clock* clock = nullptr;
   containers::IdTable<ClockCallbackStateEntry,
                       IdTableContainer,
-                      id_type> clockCallbackState;
+                      Id> clockCallbackState;
 
   /*
    * BeatClock binding state
@@ -58,8 +58,8 @@ public:
 
   struct BeatClockCallbackStateEntry {
     LuaInterface& luaInterface;
-    id_type id;
-    BeatClock::id_type beatClockId;
+    Id id;
+    BeatClock::Id beatClockId;
     bool interval;
     int luaFunctionRef = -1;
   };
@@ -67,7 +67,7 @@ public:
   BeatClock* beatClock = nullptr;
   containers::IdTable<BeatClockCallbackStateEntry,
                       IdTableContainer,
-                      id_type> beatClockCallbackState;
+                      Id> beatClockCallbackState;
 
   /*
    * Grid binding state

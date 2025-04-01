@@ -56,7 +56,7 @@ using ClockCbT = void(*)(ClockEventInfo*, void*);
 
 class Clock {
 public:
-  using id_type = ClockIdT;
+  using Id = ClockIdT;
 private:
   struct ClockEvent {
     pallet::Time prev;
@@ -72,8 +72,8 @@ private:
                                            pallet::containers::StaticVector<T, 256>,
                                            std::vector<T>>;
 
-  containers::KeyedPriorityQueue<pallet::Time, id_type, ContainerType, std::greater<pallet::Time>> queue;
-  containers::IdTable<ClockEvent, ContainerType, id_type> idTable;
+  containers::KeyedPriorityQueue<pallet::Time, Id, ContainerType, std::greater<pallet::Time>> queue;
+  containers::IdTable<ClockEvent, ContainerType, Id> idTable;
   Platform& platform;
   bool platformTimerStatus = false;
   pallet::Time waitingTime = 0;
@@ -82,23 +82,23 @@ public:
   static Result<Clock> create(Platform& platform);
   Clock(Platform& platform);
   pallet::Time currentTime();
-  id_type setTimeout(pallet::Time duration,
+  Id setTimeout(pallet::Time duration,
                      ClockCbT callback,
                      void* callbackUserData);
-  id_type setTimeoutAbsolute(pallet::Time goal,
+  Id setTimeoutAbsolute(pallet::Time goal,
                              ClockCbT callback,
                              void* callbackUserData);
-  id_type setInterval(pallet::Time period,
+  Id setInterval(pallet::Time period,
                       ClockCbT callback,
                       void* callbackUserData);
-  id_type setIntervalAbsolute(pallet::Time goal,
+  Id setIntervalAbsolute(pallet::Time goal,
                               pallet::Time period,
                               ClockCbT callback,
                               void* callbackUserData);
-  void clearTimeout(id_type id);
-  void* getTimeoutUserData(id_type id);
-  void clearInterval(id_type id);
-  void processEvent(Clock::id_type id, pallet::Time goal);
+  void clearTimeout(Id id);
+  void* getTimeoutUserData(Id id);
+  void clearInterval(Id id);
+  void processEvent(Clock::Id id, pallet::Time goal);
   void updateWaitingTime();
   void process();
 

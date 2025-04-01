@@ -76,7 +76,7 @@ public:
   ma_encoder encoder;
   ma_pcm_rb recordingRingBuffer;
   std::atomic<bool> recording = false;
-  Clock::id_type recordingIntervalId;
+  Clock::Id recordingIntervalId;
 
   void init(Clock* clock) {
     this->clock = clock;

@@ -49,10 +49,10 @@ void recapContainer(Container& existing, size_t newCapacity) {
 
   // TODO: items that have move constructors won't work properly because it won't be called when the Container is resizing
 
-template <class EntryType, template<class> class Container = std::vector, class id_type = uint32_t>
-requires detail::IdTableContainerRequirements<Container<id_type>, id_type> &&
+template <class EntryType, template<class> class Container = std::vector, class Id = uint32_t>
+requires detail::IdTableContainerRequirements<Container<Id>, Id> &&
   detail::IdTableContainerRequirements<Container<EntryType>, EntryType> &&
-  std::unsigned_integral<id_type>
+  std::unsigned_integral<Id>
 class IdTable {
 public:
 
@@ -67,14 +67,14 @@ public:
   }
 
   template <class T>
-  id_type push(T&& item) {
+  Id push(T&& item) {
     return emplace(std::forward<T>(item));
   }
 
   template <class... Args>
-  id_type emplace(Args... args) {
+  Id emplace(Args... args) {
     if (freeVector.size() != 0) {
-      id_type index = freeVector.back();
+      Id index = freeVector.back();
       freeVector.pop_back();
       this->storage[index].construct(std::forward<Args>(args)...);
       return index;
@@ -82,23 +82,23 @@ public:
     return emplaceToStorage(std::forward<Args>(args)...);
   }
 
-  void free(id_type index) {
+  void free(Id index) {
     Space<EntryType>& space = storage[index];
     space.destroy();
     freeVector.push_back(index);
   }
 
-  EntryType& operator[](id_type index) {
+  EntryType& operator[](Id index) {
     return storage[index].ref();
   }
 
-  const EntryType& operator[](id_type index) const {
+  const EntryType& operator[](Id index) const {
     return storage[index].ref();
   }
 
   IdTable(IdTable&& other) {
 
-    std::sort(other.freeVector.begin(), other.freeVector.end(), std::greater<id_type>{});
+    std::sort(other.freeVector.begin(), other.freeVector.end(), std::greater<Id>{});
 
     for (size_t idTableIndex = 0;
          idTableIndex < other.storage.size();
@@ -128,7 +128,7 @@ public:
   }
 
   ~IdTable() {
-    std::sort(freeVector.begin(), freeVector.end(), std::greater<id_type>{});
+    std::sort(freeVector.begin(), freeVector.end(), std::greater<Id>{});
     for (size_t idTableIndex = 0;
          idTableIndex < this->storage.size(); idTableIndex++) {
       if (freeVector.size() != 0 && freeVector.back() == idTableIndex) {
@@ -142,10 +142,10 @@ public:
 
 private:
   Container<Space<EntryType>> storage;
-  Container<id_type> freeVector;
+  Container<Id> freeVector;
 
   template <class... Args>
-  id_type emplaceToStorage(Args&&... args) {
+  Id emplaceToStorage(Args&&... args) {
     if constexpr (detail::Vectorish<Container<Space<EntryType>>>) {
       bool hasCapacity = storage.capacity() >= storage.size() + 1;
       if (!hasCapacity) {

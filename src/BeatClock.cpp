@@ -79,7 +79,7 @@ void BeatClock::sendMidiClock(bool state) {
   this->_sendMidiClock = state;
 }
 
-BeatClock::id_type BeatClock::setBeatSyncTimeout(double sync,
+BeatClock::Id BeatClock::setBeatSyncTimeout(double sync,
                            double offset,
                            BeatClockCbT callback,
                            void* callbackUserData){
@@ -87,7 +87,7 @@ BeatClock::id_type BeatClock::setBeatSyncTimeout(double sync,
     setBeatSyncTimeout(sync, offset, callback, callbackUserData);
 }
 
-BeatClock::id_type BeatClock::setBeatSyncInterval(double sync,
+BeatClock::Id BeatClock::setBeatSyncInterval(double sync,
                             double offset,
                             double period,
                             BeatClockCbT callback,
@@ -96,12 +96,12 @@ BeatClock::id_type BeatClock::setBeatSyncInterval(double sync,
     setBeatSyncInterval(sync, offset, period, callback, callbackUserData);
 }
 
-void BeatClock::clearBeatSyncTimeout(BeatClock::id_type id) {
+void BeatClock::clearBeatSyncTimeout(BeatClock::Id id) {
   return scheduler.
     clearBeatSyncTimeout(id);
 }
 
-void BeatClock::clearBeatSyncInterval(BeatClock::id_type id) {
+void BeatClock::clearBeatSyncInterval(BeatClock::Id id) {
   return scheduler.
     clearBeatSyncTimeout(id);
 }

@@ -136,7 +136,7 @@ public:
 
 class BeatClockInternalImplementation : public BeatClockImplementationInterface  {
 public:
-  Clock::id_type interval;
+  Clock::Id interval;
 
   // virtual void init(Clock* clock, MidiInterface* midi) override {
   //   BeatClockImplementationInterface::init(clock, midi);
@@ -286,7 +286,7 @@ public:
 
 class BeatClock {
 public:
-  using id_type = BeatClockScheduler::id_type;
+  using Id = BeatClockScheduler::Id;
 
   Clock* clock;
   MidiInterface* midiInterface;
@@ -311,19 +311,19 @@ public:
   void setClockSource(BeatClockType mode);
   void uponTick();
   void sendMidiClock(bool state);
-  id_type setBeatSyncTimeout(double sync,
+  Id setBeatSyncTimeout(double sync,
                              double offset,
                              BeatClockCbT callback,
                              void* callbackUserData);
 
-  id_type setBeatSyncInterval(double sync,
+  Id setBeatSyncInterval(double sync,
                               double offset,
                               double period,
                               BeatClockCbT callback,
                               void* callbackUserData);
 
-  void clearBeatSyncTimeout(id_type id);
-  void clearBeatSyncInterval(id_type id);
+  void clearBeatSyncTimeout(Id id);
+  void clearBeatSyncInterval(Id id);
   void setBPM(double bpm);
   void cleanup();
   double currentBeat();
