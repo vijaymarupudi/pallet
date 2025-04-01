@@ -3,6 +3,7 @@
 #ifdef PALLET_CONSTANTS_PLATFORM_IS_POSIX
 
 #include "pallet/PosixPlatform.hpp"
+#include "pallet/posix.hpp"
 
 #include <map>
 #include <utility>
@@ -48,7 +49,7 @@ std::pair<UIntType, bool> nanosecondSubtractionHelper(UIntType a, UIntType b) {
 }
 
 
-static void timeToTimespec(struct timespec* reference, uint64_t time, struct timespec* spec) {
+static void timeToTimespec(struct timespec* reference, pallet::Time time, struct timespec* spec) {
   auto sSince = time / 1000000000;
   auto nsSince = (time % 1000000000);
   time_t s = sSince + reference->tv_sec;
@@ -58,7 +59,7 @@ static void timeToTimespec(struct timespec* reference, uint64_t time, struct tim
   spec->tv_nsec = ns;
 }
 
-static uint64_t timespecToTime(struct timespec* reference, struct timespec* spec) {
+static pallet::Time timespecToTime(struct timespec* reference, struct timespec* spec) {
   auto [ns, underflow] = nanosecondSubtractionHelper<uint64_t>(spec->tv_nsec, reference->tv_nsec);
   time_t s = spec->tv_sec - reference->tv_sec;
   if (underflow) {
@@ -91,19 +92,23 @@ PosixPlatform::~PosixPlatform() {
   close(this->timerfd);
 }
 
-uint64_t PosixPlatform::currentTime() {
+pallet::Time PosixPlatform::currentTime() {
   struct timespec spec;
   clock_gettime(CLOCK_MONOTONIC, &spec);
   auto t = timespecToTime(&this->referenceTime, &spec);
   return t;
 }
 
-void PosixPlatform::timer(uint64_t time, bool off) {
+void PosixPlatform::timer(pallet::Time time, bool off) {
   // if off = true, turn off
   struct timespec it_interval = {};
   struct timespec it_value = {};
+
+  
+  // if off then the structs will be zero
   if (!off) {
-    timeToTimespec(&this->referenceTime, time, &it_value);
+    this->timerGoalTime = time;
+    timeToTimespec(&this->referenceTime, this->timerGoalTime, &it_value);
   }
 
   struct itimerspec its = {it_interval, it_value};
@@ -113,6 +118,7 @@ void PosixPlatform::timer(uint64_t time, bool off) {
 void PosixPlatform::uponTimer() {
   uint64_t expirations;
   read(this->timerfd, &expirations, sizeof(expirations));
+  
   if (this->timerCb) {
     this->timerCb(this->timerCbUserData);
   }
@@ -185,6 +191,10 @@ void PosixPlatform::loopIter() {
 void PosixPlatform::setFdNonBlocking(int fd) {
   int flags = fcntl(fd, F_GETFL, 0);
   fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+}
+
+void PosixPlatform::pause() {
+  pallet::architecturePause();
 }
 
 

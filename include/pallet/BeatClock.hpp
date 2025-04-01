@@ -1,54 +1,14 @@
 #pragma once
-#include <array>
 #include <cstdint>
-#include <print>
 #include "pallet/Clock.hpp"
 #include "pallet/utils.hpp"
 #include "pallet/BeatClockScheduler.hpp"
 #include "pallet/macros.hpp"
 #include "pallet/MidiInterface.hpp"
+#include "pallet/measurement.hpp"
 
 namespace pallet {
 
-template <class T, size_t maxLen>
-struct BeatClockMeanMeasurer {
-  std::array<T, maxLen> measurements = {0};
-  size_t len = 0;
-  size_t i = 0;
-
-  void addSample(T sample) {
-    measurements[i] = sample;
-    i = (i + 1) % maxLen;
-    if (len < maxLen) {
-      len++;
-    }
-  }
-
-  T mean(double defaultValue) {
-
-    if (len == 0) {
-      return defaultValue;
-    }
-
-    T total = 0;
-    if (len == maxLen) {
-      for (size_t i = 0; i < len; i++) {
-        total += measurements[i] / maxLen;
-      }
-    } else {
-      for (size_t i = 0; i < len; i++) {
-        total += measurements[i] / len;
-      }
-    }
-
-    return total;
-  }
-
-  void clear() {
-    len = 0;
-    i = 0;
-  }
-};
 
 constexpr PALLET_ALWAYS_INLINE pallet::Time bpmToBeatPeriod(double bpm) {
   return pallet::timeInS(60.0 / bpm);
@@ -271,7 +231,7 @@ public:
 };
 
 class BeatClockMidiImplementation : public BeatClockImplementationInterface {
-  BeatClockMeanMeasurer<double, 32> meanMeasurer;
+  RunningMeanMeasurer<double, 32> meanMeasurer;
 public:
   virtual void run(bool state) override {
     if (state) {
@@ -288,7 +248,7 @@ public:
     if (!(len == 1 && buf[0] == 0xF8)) { return; }
     auto sample = time - this->lastTickTime;
     meanMeasurer.addSample(sample);
-    this->ppqnPeriod =  meanMeasurer.mean(1.0 / 120 / 24);//default period
+    this->ppqnPeriod =  meanMeasurer.mean() == 0 ? (1.0 / 120 / 24) : meanMeasurer.mean();
     this->beatPeriod = ppqnPeriod * 24;
     this->bpm = 1.0 / pallet::timeToS(this->beatPeriod) * 60;
     this->uponTick(time, time);

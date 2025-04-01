@@ -15,7 +15,7 @@ namespace pallet {
 class PosixPlatform : public Platform {
 public:
   using FdCallback = void(*)(int fd, short revents, void* ud);
-  
+
   static constexpr short Read  = POLLIN;
   static constexpr short Write = POLLOUT;
 
@@ -35,7 +35,7 @@ public:
 
   virtual pallet::Time currentTime() override;
   virtual void timer(pallet::Time time, bool off = false) override;
-
+  virtual void pause() override;
 private:
 
   struct FdPollState {
@@ -47,9 +47,11 @@ private:
   struct timespec referenceTime;
   struct pollfd pollFds[32];
   std::map<int, FdPollState> fdCallbacks;
+  pallet::Time timerGoalTime = 0;
 
   // TODO: Not Posix
   int timerfd;
+
 
   void uponTimer();
   FdPollState& findOrCreateFdPollState(int fd);
@@ -60,7 +62,7 @@ class FdManager {
 
   using WriteCallback = void (*)(int fd, void* ud);
   using ReadCallback = void (*)(int fd, void* data, size_t len, void* ud);
-  
+
   struct WriteState {
     void* data;
     size_t len;
@@ -80,6 +82,8 @@ class FdManager {
   int fd;
   short revents = 0;
 
+
+
   void uponWriteReady();
   void uponReadReady();
   void uponReady(short revents);
@@ -90,7 +94,7 @@ public:
   FdManager(PosixPlatform& platform, int fd = -1);
   FdManager(FdManager&& other);
   FdManager& operator=(FdManager&& other);
-    
+
   void setFd(int fd);
   void write(void* data, size_t len, WriteCallback cb, void* ud);
   void setReadWriteUserData(void* = nullptr, void* = nullptr);

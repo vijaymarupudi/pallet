@@ -7,20 +7,49 @@
 #include "pallet/containers/KeyedPriorityQueue.hpp"
 #include "pallet/containers/StaticVector.hpp"
 #include "pallet/containers/IdTable.hpp"
+#include "pallet/measurement.hpp"
 #include "pallet/constants.hpp"
 #include "pallet/time.hpp"
 #include "pallet/error.hpp"
 
 namespace pallet {
 
+namespace detail {
+
+struct ClockPrecisionTimingManager {
+  static constexpr int eventProcessingFactor = 10;
+  static constexpr int spinFactor = 2;
+  static_assert(eventProcessingFactor > spinFactor);
+  pallet::RunningMeanMeasurer<double, 8> errorMeasurer;
+  pallet::Time platformWaitTillTime = 0;
+
+  pallet::Time tillWhenShouldPlatformWait(pallet::Time goalTime) {
+    this->platformWaitTillTime = goalTime - errorMeasurer.mean() * spinFactor;
+    return this->platformWaitTillTime;
+  }
+
+  bool shouldIProceedToEventProcessing(pallet::Time now, pallet::Time nextEventTime) {
+    if (now >= nextEventTime) { return true; }
+    auto duration = nextEventTime - now;
+    return duration < (errorMeasurer.mean() * eventProcessingFactor);
+  }
+
+  // after this function, busy wait
+  void beforeBusyWait(pallet::Time now) {
+    auto err = now - this->platformWaitTillTime;
+    errorMeasurer.addSample(err);
+  }
+};
+}
+
 using ClockIdT = std::conditional_t<pallet::constants::isEmbeddedDevice,
                               uint8_t, uint32_t>;
 
 struct ClockEventInfo {
   ClockIdT id;
-  uint64_t now;
-  uint64_t intended;
-  uint64_t period;
+  pallet::Time now;
+  pallet::Time intended;
+  pallet::Time period;
 };
 
 using ClockCbT = void(*)(ClockEventInfo*, void*);
@@ -30,8 +59,8 @@ public:
   using id_type = ClockIdT;
 private:
   struct ClockEvent {
-    uint64_t prev;
-    uint64_t period;
+    pallet::Time prev;
+    pallet::Time period;
     ClockCbT callback;
     void* callbackUserData;
     bool deleted;
@@ -43,35 +72,36 @@ private:
                                            pallet::containers::StaticVector<T, 256>,
                                            std::vector<T>>;
 
-  containers::KeyedPriorityQueue<uint64_t, id_type, ContainerType, std::greater<uint64_t>> queue;
+  containers::KeyedPriorityQueue<pallet::Time, id_type, ContainerType, std::greater<pallet::Time>> queue;
   containers::IdTable<ClockEvent, ContainerType, id_type> idTable;
   Platform& platform;
   bool platformTimerStatus = false;
-  uint64_t waitingTime = 0;
+  pallet::Time waitingTime = 0;
+  detail::ClockPrecisionTimingManager precisionTimingManager;
 public:
   static Result<Clock> create(Platform& platform);
   Clock(Platform& platform);
-  uint64_t currentTime();
-  id_type setTimeout(uint64_t duration,
+  pallet::Time currentTime();
+  id_type setTimeout(pallet::Time duration,
                      ClockCbT callback,
                      void* callbackUserData);
-  id_type setTimeoutAbsolute(uint64_t goal,
+  id_type setTimeoutAbsolute(pallet::Time goal,
                              ClockCbT callback,
                              void* callbackUserData);
-  id_type setInterval(uint64_t period,
+  id_type setInterval(pallet::Time period,
                       ClockCbT callback,
                       void* callbackUserData);
-  id_type setIntervalAbsolute(uint64_t goal,
-                              uint64_t period,
+  id_type setIntervalAbsolute(pallet::Time goal,
+                              pallet::Time period,
                               ClockCbT callback,
                               void* callbackUserData);
   void clearTimeout(id_type id);
   void* getTimeoutUserData(id_type id);
   void clearInterval(id_type id);
-  void processEvent(Clock::id_type id, uint64_t now, uint64_t goal);
+  void processEvent(Clock::id_type id, pallet::Time goal);
   void updateWaitingTime();
   void process();
-  
+
 };
 
 }

@@ -12,9 +12,17 @@ class Platform {
     this->timerCb = cb;
     this->timerCbUserData = userData;
   }
+
+  void busyWaitUntil(auto&& condFunc) {
+    while (!condFunc()) {
+      this->pause();
+    }
+  }
+
   // Required to be thread safe!
   virtual pallet::Time currentTime() = 0;
   virtual void timer(pallet::Time time, bool off = false) = 0;
+  virtual void pause() = 0;
 
 protected:
   

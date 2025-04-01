@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <print>
 #include "pallet/LinuxPlatform.hpp"
 #include "pallet/Clock.hpp"
 #include "pallet/PosixGraphicsInterface.hpp"
@@ -6,6 +7,7 @@
 #include "pallet/BeatClock.hpp"
 #include "pallet/OscMonomeGridInterface.hpp"
 #include "pallet/LoOscInterface.hpp"
+#include "pallet/measurement.hpp"
 
 template <class... Args>
 auto make_c_callback(auto& lambda) {
@@ -15,21 +17,51 @@ auto make_c_callback(auto& lambda) {
   return +c_callback;
 }
 
+
+void measureTiming(pallet::PosixPlatform& platform, pallet::Clock& clock) {
+
+  auto intervalTime = pallet::timeInMs(100);
+
+  auto meas = pallet::RunningMeanMeasurer<double, 32>();
+
+  auto cb = [&](pallet::ClockEventInfo* info) {
+    auto now = clock.currentTime();
+    auto diff = now - info->intended;
+    meas.addSample(diff);
+    std::println("clock: {}, main: {}, main avg: {}",
+                 info->now - info->intended,
+                 diff,
+                 meas.mean());
+  };
+
+  auto simpleForwardingCallback = [](pallet::ClockEventInfo* info, void* ud) {
+       (static_cast<decltype(&cb)>(ud))->operator()(info);
+  };
+
+  clock.setInterval(intervalTime,
+                    simpleForwardingCallback,
+                    &cb);
+
+  while (1) {
+    platform.loopIter();
+  }
+}
+
 int main() {
   auto platformResult = pallet::LinuxPlatform::create();
   if (!platformResult) return 1;
   auto clockResult = pallet::Clock::create(*platformResult);
-  auto midiInterfaceResult = pallet::PosixMidiInterface::create(*platformResult);
-  auto beatClockResult = pallet::BeatClock::create(*clockResult);
-  auto graphicsInterfaceResult = pallet::PosixGraphicsInterface::create(*platformResult);
-  auto oscInterfaceResult = pallet::LoOscInterface::create(*platformResult);
-  if (!oscInterfaceResult) return 1;
-  auto gridInterfaceResult = pallet::OscMonomeGridInterface::create(*oscInterfaceResult);
-  auto luaInterfaceResult = pallet::LuaInterface::create();
+  // auto midiInterfaceResult = pallet::PosixMidiInterface::create(*platformResult);
+  // auto beatClockResult = pallet::BeatClock::create(*clockResult);
+  // auto graphicsInterfaceResult = pallet::PosixGraphicsInterface::create(*platformResult);
+  // auto oscInterfaceResult = pallet::LoOscInterface::create(*platformResult);
+  // if (!oscInterfaceResult) return 1;
+  // auto gridInterfaceResult = pallet::OscMonomeGridInterface::create(*oscInterfaceResult);
+  // auto luaInterfaceResult = pallet::LuaInterface::create();
 
-  if (!(platformResult && clockResult && midiInterfaceResult && beatClockResult && graphicsInterfaceResult && oscInterfaceResult && gridInterfaceResult && luaInterfaceResult)) {
-    return 1;
-  }
+  // if (!(platformResult && clockResult && midiInterfaceResult && beatClockResult && graphicsInterfaceResult && oscInterfaceResult && gridInterfaceResult && luaInterfaceResult)) {
+  //   return 1;
+  // }
   
 //   auto& luaInterface = *luaInterfaceResult;
 //   luaInterface.setBeatClock(*beatClockResult);
@@ -85,9 +117,10 @@ int main() {
 // )");
 
   auto& platform = *platformResult;
-  while (1) {
-    platform.loopIter();
-  }
+  auto& clock = *clockResult;
+
+  measureTiming(platform, clock);
+
 
   return 0;
 

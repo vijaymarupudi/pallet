@@ -22,10 +22,16 @@ static void setThreadToHighPriority() {
   struct sched_param schparam;
   memset(&schparam, 0, sizeof(struct sched_param));
   schparam.sched_priority = 60;
-  if (sched_setscheduler(0, SCHED_FIFO | SCHED_RESET_ON_FORK,
-                         &schparam) == 0) {
+  if ((ret = sched_setscheduler(0, SCHED_FIFO | SCHED_RESET_ON_FORK,
+                         &schparam)) == 0) {
     fprintf(stderr, "realtime scheduling enabled\n");
+  } else {
+    fprintf(stderr, "realtime failed: %d\n", ret);
   }
+}
+
+Result<LinuxPlatform> LinuxPlatform::create() {
+  return Result<LinuxPlatform>(std::in_place);
 }
 
 LinuxPlatform::LinuxPlatform() : PosixPlatform() {

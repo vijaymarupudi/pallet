@@ -1,9 +1,20 @@
 #pragma once
 
+#if defined(__x86_64__)
+// INTEL
+#include <immintrin.h>
+#elif defined(__ARM_ACLE)
+// ARM
+#include <arm_acle.h>
+#else
+#error "Don't know the current architecture"
+#endif
+
 #include <array>
 #include <unistd.h>
-#include "memory"
-#include "error.hpp"
+#include "pallet/memory.hpp"
+#include "pallet/error.hpp"
+
 
 namespace pallet {
 
@@ -59,5 +70,16 @@ namespace pallet {
   private:
     Pipe(int rfd, int wfd) : UniqueResource(std::array<int, 2>{rfd, wfd}) {}
   };
+
+
+static inline void architecturePause() {
+#if defined(__x86_64__)
+  // INTEL
+  _mm_pause();
+#elif defined(__ARM_ACLE)
+  // ARM
+  __yield();
+#endif
+}
 
 }

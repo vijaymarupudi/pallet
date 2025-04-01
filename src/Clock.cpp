@@ -1,4 +1,5 @@
 #include "pallet/Clock.hpp"
+#include "pallet/measurement.hpp"
 
 namespace pallet {
 
@@ -8,11 +9,11 @@ Clock::Clock(Platform& platform) : platform(platform) {
   this->platform.setOnTimer(clock_timer_callback, this);
 }
 
-uint64_t Clock::currentTime() {
+pallet::Time Clock::currentTime() {
   return platform.currentTime();
 }
 
-Clock::id_type Clock::setTimeout(uint64_t duration,
+Clock::id_type Clock::setTimeout(pallet::Time duration,
                                  ClockCbT callback,
                                  void* callbackUserData) {
   auto now = this->currentTime();
@@ -20,7 +21,7 @@ Clock::id_type Clock::setTimeout(uint64_t duration,
   return setTimeoutAbsolute(goal, callback, callbackUserData);
 }
 
-Clock::id_type Clock::setTimeoutAbsolute(uint64_t goal,
+Clock::id_type Clock::setTimeoutAbsolute(pallet::Time goal,
                                          ClockCbT callback,
                                          void* callbackUserData) {
   auto id = idTable.push(ClockEvent {
@@ -31,15 +32,15 @@ Clock::id_type Clock::setTimeoutAbsolute(uint64_t goal,
   return id;
 }
 
-Clock::id_type Clock::setInterval(uint64_t period,
+Clock::id_type Clock::setInterval(pallet::Time period,
                                   ClockCbT callback,
                                   void* callbackUserData){
   auto now = this->currentTime();
   return setIntervalAbsolute(now + period, period, callback, callbackUserData);
 }
 
-Clock::id_type Clock::setIntervalAbsolute(uint64_t goal,
-                                          uint64_t period,
+Clock::id_type Clock::setIntervalAbsolute(pallet::Time goal,
+                                          pallet::Time period,
                                           ClockCbT callback,
                                           void* callbackUserData){
   auto id = idTable.push(ClockEvent {
@@ -62,13 +63,29 @@ void Clock::clearInterval(Clock::id_type id) {
   this->clearTimeout(id);
 }
 
-void Clock::processEvent(Clock::id_type id, uint64_t now, uint64_t goal) {
+void Clock::processEvent(Clock::id_type id, pallet::Time goal) {
   // at this point, the event is out of the queue, but still in the
   // id table
   ClockEvent* event = &idTable[id];
-  // callback and reschedule if needed
 
+  // callback and reschedule if needed
   if (!event->deleted) {
+
+    // callbacks should never be called before the asked for time has happened
+    // use the precisionTimingManager to update measurements and then busyWait
+
+    auto now = this->currentTime();
+    precisionTimingManager.beforeBusyWait(now);
+    int iterations = 0;
+    platform.busyWaitUntil([&]() {
+      iterations += 1;
+      now = this->currentTime();
+      return now > goal;
+    });
+
+    // use this variable for tuning the constants
+    (void)iterations;
+
     ClockEventInfo info {id, now, goal, event->period};
     event->callback(&info, event->callbackUserData);
   }
@@ -100,22 +117,26 @@ void Clock::updateWaitingTime() {
   if (this->platformTimerStatus && this->waitingTime == ttime) { return; }
   else {
     this->waitingTime = ttime;
-    this->platform.timer(waitingTime);
+    auto platformWaitTime = precisionTimingManager.tillWhenShouldPlatformWait(ttime);
+    this->platform.timer(platformWaitTime);
     this->platformTimerStatus = true;
   }
 }
 
 void Clock::process() {
-  auto now = this->currentTime();
   while (true) {
     if (queue.size() == 0) { break; }
+    auto now = this->currentTime();
     auto [ttime, teventid] = queue.top();
-    if (now < ttime) {
+    if (precisionTimingManager.shouldIProceedToEventProcessing(now, ttime) ||
+        idTable[teventid].deleted) {
+      // run the event!
+      auto [time, eventid] = queue.top();
+      queue.pop();
+      processEvent(eventid, time);
+    } else {
       break;
     }
-    auto [time, eventid] = queue.top();
-    queue.pop();
-    processEvent(eventid, now, time);
   }
   this->updateWaitingTime();
 }
