@@ -60,7 +60,7 @@ static int luaPrint(lua_State* L) {
   return 0;
 }
 
-static void l_open_io(lua_State* L) {
+static void luaOpenIo(lua_State* L) {
   lua_register(L, "print", luaPrint);
 }
 
@@ -74,7 +74,7 @@ static const luaL_Reg loadedlibs[] = {
   {NULL, NULL}
 };
 
-static void l_open_libs(lua_State* L) {
+static void luaOpenLibs(lua_State* L) {
   const luaL_Reg *lib;
   /* call open functions from 'loadedlibs' and set results to global table */
   for (lib = loadedlibs; lib->func; lib++) {
@@ -105,7 +105,7 @@ struct ReaderState {
   bool state;
 };
 
-const char* l_lua_reader(lua_State* L, void* ud, size_t* size) {
+const char* luaLuaReader(lua_State* L, void* ud, size_t* size) {
   (void)L;
   auto state = (ReaderState*)ud;
   if (!state->state) {
@@ -117,7 +117,7 @@ const char* l_lua_reader(lua_State* L, void* ud, size_t* size) {
   }
 }
 
-static int l_open_function(lua_State* L) {
+static int luaOpenFunction(lua_State* L) {
   const char* lname = lua_tostring(L, -1);
   if (strcmp(lname, "__pallet") == 0) {
     return getPalletCTable(L);
@@ -131,23 +131,23 @@ static int l_open_function(lua_State* L) {
       lua_pushnil(L);
     } else {
       ReaderState state { entry->contents, entry->size, false };
-      lua_load(L, l_lua_reader, &state, lname, NULL);
+      lua_load(L, luaLuaReader, &state, lname, NULL);
       lua_call(L, 0, 1);
     }
     return 1;
   }
 }
 
-static int l_require(lua_State* L) {
+static int luaRequire(lua_State* L) {
   size_t len;
   const char* str = lua_tolstring(L, -1, &len);
-  luaL_requiref(L, str, l_open_function, 0);
+  luaL_requiref(L, str, luaOpenFunction, 0);
   return 1;
 }
 
 void LuaInterface::setupRequire() {
   auto L = this->L;
-  luaPush(L, l_require);
+  luaPush(L, luaRequire);
   lua_setglobal(L, "require");
 }
 
@@ -157,8 +157,8 @@ Result<LuaInterface> LuaInterface::create() {
 
 LuaInterface::LuaInterface() {
   this->L = luaL_newstate();
-  l_open_libs(this->L);
-  l_open_io(this->L);
+  luaOpenLibs(this->L);
+  luaOpenIo(this->L);
 
   // Setting up lightuserdata for the LuaInterface object
   luaPush(this->L, this);
