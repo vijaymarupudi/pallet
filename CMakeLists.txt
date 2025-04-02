@@ -30,10 +30,13 @@ add_custom_command(OUTPUT filesystem.h
 
 add_custom_target (PalletLuaFilesystem DEPENDS filesystem.h)
 
-add_compile_options(-Wall -Wextra -pedantic -fsanitize=address)
-add_link_options(-fsanitize=address)
+# add_compile_options(-Wall -Wextra -pedantic -fsanitize=address)
+# add_link_options(-fsanitize=address)
 
-# add_compile_options(-Wall -Wextra -pedantic)
+add_compile_options(-Wall -Wextra -pedantic)
+
+# add_compile_options(-Wall -Wextra -pedantic -pg)
+# add_link_options(-pg)
 
 
 set(CXX_FILES

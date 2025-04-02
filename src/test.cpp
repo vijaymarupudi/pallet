@@ -1,16 +1,12 @@
 #include <cstdio>
 #include "pallet/error.hpp"
 #include <memory>
+#include "pallet/memory.hpp"
 
-struct X {
-  std::unique_ptr<int> v;
-  X(std::unique_ptr<int>&& v) : v(std::move(v)) {};
-};
 
 int main()
 
 {
-  auto x = std::make_unique<int>(2);
-  auto v = pallet::Result<X>(std::in_place, std::move(x));
+  pallet::UniqueResource<int, decltype([](int fd){printf("here!\n");(void)fd;})> resource {3};
   return 0;
 }

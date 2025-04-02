@@ -32,7 +32,7 @@ int main() {
   luaInterface.setMidiInterface(*midiInterfaceResult);
   luaInterface.setMonomeGridInterface(*gridInterfaceResult);
 
-  luaInterface.dostring(R"(
+  luaInterface.dostring(R"====(
 local beatClock = require('pallet').beatClock
 local clock = require('pallet').clock
 local screen = require('pallet').screen
@@ -63,8 +63,9 @@ clock.setInterval(clock.timeInMs(math.floor(1/60 * 1000)), function()
 end)
 
 screen.setOnEvent(function(event)
+  print(event.type)
   if (event.type == "MouseMove") then
-    print(event.x, event.y)
+    TEXT = string.format("(%f, %f)", event.x, event.y)
     if (event.x ~= 0) then
       beatClock.setBPM(event.x * 2)
     end
@@ -75,7 +76,7 @@ screen.setOnEvent(function(event)
   end
 end)
 
-)");
+)====");
 
   while (1) {
     (*platformResult).loopIter();

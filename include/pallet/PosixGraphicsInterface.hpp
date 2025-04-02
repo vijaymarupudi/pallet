@@ -23,7 +23,7 @@ class SDLHardwareInterface final : public GraphicsHardwareInterface {
   struct Data {
     SDL_Window* window = nullptr;
     SDL_Renderer* renderer = nullptr;
-    bool inited = false;
+    bool running = false;
   };
 
   struct DataDestroyer {
@@ -37,8 +37,8 @@ class SDLHardwareInterface final : public GraphicsHardwareInterface {
         data.window = nullptr;
       }
 
-      if (data.inited) {
-        data.inited = false;
+      if (data.running) {
+        data.running = false;
         SDL_Quit();
       }
     }
@@ -95,9 +95,10 @@ private:
   FdManager pipeFdManager;
   SDLHardwareInterface sdlHardwareInterface;
   std::thread thrd;
-  std::unique_ptr<std::vector<Operation>> operationsBuffer = nullptr;
+  std::unique_ptr<std::vector<Operation>> operationsBuffer;
   containers::ThreadSafeStack<std::unique_ptr<std::vector<Operation>>> operationVectorStack;
   pallet::Pipe pipes;
+  bool running = false;
 
   void uponPipeIn(void* datain, size_t len);
   void renderOperations(std::vector<Operation>& operations);

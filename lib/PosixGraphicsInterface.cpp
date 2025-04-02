@@ -19,7 +19,7 @@ enum class GraphicsUserEventType : int32_t {
 
 void SDLHardwareInterface::init()  {
   SDL_Init(SDL_INIT_VIDEO);
-  data->inited = true;
+  data->running = true;
   data->window = SDL_CreateWindow("Testing", 128 * this->scaleFactor, 64 * this->scaleFactor, 0);
   auto surface = SDL_GetWindowSurface(data->window);
   data->renderer = SDL_CreateSoftwareRenderer(surface);
@@ -59,7 +59,7 @@ void SDLHardwareInterface::point(float x, float y, int c) {
 
 void SDLHardwareInterface::loop() {
   SDL_Event events[MAX_BATCH_LEN];
-  while (SDL_WaitEvent(events)) {
+  while (data->running && SDL_WaitEvent(events)) {
     size_t len = 1;
     for (; len < MAX_BATCH_LEN; len++) {
       if (!SDL_PollEvent(&events[len])) {
@@ -112,6 +112,8 @@ PosixGraphicsInterface::PosixGraphicsInterface(PosixPlatform& platform, pallet::
   if (!old) {
     sdlInterfaceInited.wait(old);
   }
+
+  this->running = true;
 }
 
 PosixGraphicsInterface::PosixGraphicsInterface(PosixGraphicsInterface&& iface)
@@ -170,6 +172,13 @@ void PosixGraphicsInterface::uponPipeIn(void* datain, size_t len) {
 }
 
 void PosixGraphicsInterface::render() {
+
+  if (!this->running) {
+    // It's a no-op if the graphics aren't running!
+    this->operationsBuffer->clear();
+    return;
+  }
+
   auto old = std::move(this->operationsBuffer);
   auto previous_vector = this->operationVectorStack.pop();
   if (previous_vector) {
@@ -199,6 +208,8 @@ void PosixGraphicsInterface::quit() {
   int ret = SDL_PushEvent(&event);
   if (ret < 0) {
     printf("%s\n", SDL_GetError());
+  } else {
+    this->running = false;
   }
 }
 
@@ -295,7 +306,7 @@ void PosixGraphicsInterface::uponUserEventGThread(SDL_Event* event) {
       std::unique_ptr<std::vector<Operation>> operations (data1);
       this->renderOperations(*operations);
       operations->clear();
-      this->operationVectorStack.push(std::move(operations)); 
+      this->operationVectorStack.push(std::move(operations));
     }
     break;
   case GraphicsUserEventType::Quit:
