@@ -34,7 +34,7 @@ namespace pallet {
     return time / 1000.0 / 1000.0;
   }
 
-  constexpr PALLET_ALWAYS_INLINE double timeInUs(detail::TimeArgument auto time) {
+  constexpr PALLET_ALWAYS_INLINE double timeToUs(detail::TimeArgument auto time) {
     return time / 1000.0;
   }
 

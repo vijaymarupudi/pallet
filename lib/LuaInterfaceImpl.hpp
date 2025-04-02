@@ -5,7 +5,7 @@
 
 namespace pallet {
 static inline int getRegistryEntry(lua_State* L, const void* key) {
-  auto t = lua_rawgetp(L, LUA_REGISTRYINDEX, key);
+  lua_rawgetp(L, LUA_REGISTRYINDEX, key);
   return 1;
 }
 

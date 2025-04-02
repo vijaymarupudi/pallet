@@ -66,7 +66,6 @@ void SDLHardwareInterface::loop() {
         break;
       }
     }
-
     if (this->onEventsCallback) {
       this->onEventsCallback(events, len, this->onEventsUserData);
     }
@@ -97,7 +96,7 @@ PosixGraphicsInterface::PosixGraphicsInterface(PosixPlatform& platform, pallet::
   this->sdlHardwareInterface.onEventsUserData = this;
   this->sdlHardwareInterface.onEventsCallback = [](SDL_Event* e, size_t len,
                                                    void* u) {
-    reinterpret_cast<PosixGraphicsInterface*>(u)->uponEvents(e, len);
+    reinterpret_cast<PosixGraphicsInterface*>(u)->uponEventsGThread(e, len);
   };
 
   std::atomic<bool> sdlInterfaceInited = false;
@@ -270,22 +269,24 @@ void PosixGraphicsInterface::renderOperations(std::vector<Operation>& operations
   this->sdlHardwareInterface.render();
 }
 
-void PosixGraphicsInterface::uponEvents(SDL_Event* events, size_t len) {
+void PosixGraphicsInterface::uponEventsGThread(SDL_Event* events, size_t len) {
   SDL_Event eventsToSend[MAX_BATCH_LEN];
   size_t nEvents = 0;
   for (size_t i = 0; i < len; i++) {
     SDL_Event *event = &events[i];
     if (event->type == this->sdlHardwareInterface.userEventType) {
-      this->uponUserEvent(event);
+      this->uponUserEventGThread(event);
     } else {
       eventsToSend[nEvents] = *event;
       nEvents++;
     }
   }
-  this->pipes.write(eventsToSend, sizeof(SDL_Event) * nEvents);
+  if (nEvents > 0) {
+    this->pipes.write(eventsToSend, sizeof(SDL_Event) * nEvents);
+  }
 }
 
-void PosixGraphicsInterface::uponUserEvent(SDL_Event* event) {
+void PosixGraphicsInterface::uponUserEventGThread(SDL_Event* event) {
   auto userEventType = static_cast<GraphicsUserEventType>(event->user.code);
   switch (userEventType) {
   case GraphicsUserEventType::Render:

@@ -12,64 +12,55 @@
 
 #include <array>
 #include <unistd.h>
-#include "pallet/memory.hpp"
 #include "pallet/error.hpp"
 
 
 namespace pallet {
 
-  namespace detail {
-    struct PipeProperties {
-      void operator()(std::array<int, 2>& pipes) noexcept {
-        if (!(pipes[0] < 0)) {
-          close(pipes[0]);
-        }
-
-        if (!(pipes[1] < 0)) {
-          close(pipes[1]);
-        }
-      }
-      
-      bool isValid(const std::array<int, 2>& pipes) const {
-        return pipes[0] >= 0;
-      }
-      void setValid(std::array<int, 2>& pipes, bool val) {
-        if (!val) {
-          pipes[0] = -1;
-          pipes[1] = -1;
-        }
-      }
-    };
+struct Pipe {
+public:
+  static Result<Pipe> create() {
+    int fds[2];
+    pipe(fds);
+    return Pipe(fds[0], fds[1]);
   }
 
-  struct Pipe : private UniqueResource<std::array<int, 2>, detail::PipeProperties> {
-  public:
-    static Result<Pipe> create() {
-      int pipes[2];
-      pipe(pipes);
-      return Pipe(pipes[0], pipes[1]);
-    }
+  int fds[2];
 
-    int getReadFd() const {
-      return object[0];
-    }
+  Pipe(int rfd, int wfd) : fds{rfd, wfd} {}
 
-    int getWriteFd() const {
-      return object[1];
-    }
+  int getReadFd() const {
+    return fds[0];
+  }
 
-    void write(void* buffer, size_t size) {
-      ::write(getWriteFd(), buffer, size);
-    }
+  int getWriteFd() const {
+    return fds[1];
+  }
 
-    // Pipe(Pipe&& other) : UniqueResource(std::move(other)) {};
-    // Pipe& operator=(Pipe&& other) {
-    //   UniqueResource::operator=(std::move(other));
-    //   return *this;
-    // }
-  private:
-    Pipe(int rfd, int wfd) : UniqueResource(std::array<int, 2>{rfd, wfd}) {}
-  };
+  void write(void* buffer, size_t size) {
+    ::write(getWriteFd(), buffer, size);
+  }
+
+  Pipe(Pipe&& other) {
+    fds[0] = other.fds[0];
+    fds[1] = other.fds[1];
+    other.fds[0] = -1;
+    other.fds[1] = -1;
+  }
+
+  Pipe& operator=(Pipe&& other) {
+    std::swap(fds[0], other.fds[0]);
+    std::swap(fds[1], other.fds[1]);
+    return *this;
+  }
+
+  ~Pipe() {
+    if (fds[0] >= 0) {
+      close(fds[0]);
+      close(fds[1]);
+    }
+  }    
+};
 
 
 static inline void architecturePause() {

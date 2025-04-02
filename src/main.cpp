@@ -62,21 +62,24 @@ clock.setInterval(clock.timeInMs(math.floor(1/60 * 1000)), function()
   screen.render()
 end)
 
--- screen.setOnEvent(function(event)
---   if (event.type == "MouseMove") then
---     if (event.x ~= 0) then
---       beatClock.setBPM(event.x * 2)
---     end
---     originx = event.x
---     originy = event.y
---   elseif event.type == "Quit" then
---     screen.quit()
---   end
--- end)
-
--- clock.setInterval(clock.timeInMs(25), actionFunction)
+screen.setOnEvent(function(event)
+  if (event.type == "MouseMove") then
+    print(event.x, event.y)
+    if (event.x ~= 0) then
+      beatClock.setBPM(event.x * 2)
+    end
+    originx = event.x
+    originy = event.y
+  elseif event.type == "Quit" then
+    screen.quit()
+  end
+end)
 
 )");
+
+  while (1) {
+    (*platformResult).loopIter();
+  }
 
   // auto& platform = *platformResult;
   // auto& clock = *clockResult;

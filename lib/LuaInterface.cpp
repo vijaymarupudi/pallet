@@ -170,8 +170,6 @@ LuaInterface::LuaInterface() {
   // Setting up __pallet table
   lua_newtable(this->L);
   lua_rawsetp(this->L, LUA_REGISTRYINDEX, &_palletCTableRegistryIndex);
-  printf("%p\n", &_palletCTableRegistryIndex);
-
   this->setupRequire();
 }
 

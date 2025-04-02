@@ -70,20 +70,6 @@ public:
 
 using namespace detail;
 
-namespace detail {
-  struct PipeDataDestroyer {
-    void operator()(std::array<int, 2>& pipes) noexcept {
-      if (!(pipes[0] < 0)) {
-        close(pipes[0]);
-      }
-
-      if (!(pipes[1] < 0)) {
-        close(pipes[1]);
-      }
-    }
-  };
-}
-
 class PosixGraphicsInterface final : public GraphicsInterface {
 public:
 
@@ -116,8 +102,8 @@ private:
 
   void uponPipeIn(void* datain, size_t len);
   void renderOperations(std::vector<Operation>& operations);
-  void uponEvents(SDL_Event* events, size_t len);
-  void uponUserEvent(SDL_Event* event);
+  void uponEventsGThread(SDL_Event* events, size_t len);
+  void uponUserEventGThread(SDL_Event* event);
   void addOperation(auto&& op);
 
 };

@@ -73,20 +73,16 @@ void Clock::processEvent(Clock::Id id, pallet::Time goal) {
 
     // callbacks should never be called before the asked for time has happened
     // use the precisionTimingManager to update measurements and then busyWait
-
     auto now = this->currentTime();
     precisionTimingManager.beforeBusyWait(now);
-    int iterations = 0;
+    size_t overhead = 0;
     platform.busyWaitUntil([&]() {
-      iterations += 1;
+      overhead += 1;
       now = this->currentTime();
       return now > goal;
     });
 
-    // use this variable for tuning the constants
-    (void)iterations;
-
-    ClockEventInfo info {id, now, goal, event->period};
+    ClockEventInfo info {id, now, goal, event->period, overhead};
     event->callback(&info, event->callbackUserData);
   }
 

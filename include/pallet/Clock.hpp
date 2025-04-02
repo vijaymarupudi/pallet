@@ -37,7 +37,16 @@ struct ClockPrecisionTimingManager {
   // after this function, busy wait
   void beforeBusyWait(pallet::Time now) {
     auto err = now - this->platformWaitTillTime;
-    errorMeasurer.addSample(err);
+
+    // This is necessary to prevent large err values as a result of large io spikes
+
+    // If those occur, it completely deadlocks the program since it
+    // will busy wait for a LOT of time. In that case, it's better for
+    // timing errors to happen.
+
+    if (err < pallet::timeInUs(100)) {
+      errorMeasurer.addSample(err);
+    }
   }
 };
 }
@@ -50,6 +59,7 @@ struct ClockEventInfo {
   pallet::Time now;
   pallet::Time intended;
   pallet::Time period;
+  size_t overhead;
 };
 
 using ClockCbT = void(*)(ClockEventInfo*, void*);
