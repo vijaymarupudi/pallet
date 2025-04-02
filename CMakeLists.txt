@@ -30,10 +30,10 @@ add_custom_command(OUTPUT filesystem.h
 
 add_custom_target (PalletLuaFilesystem DEPENDS filesystem.h)
 
-# add_compile_options(-Wall -Wextra -pedantic -fsanitize=address)
-# add_link_options(-fsanitize=address)
+add_compile_options(-Wall -Wextra -pedantic -fsanitize=address)
+add_link_options(-fsanitize=address)
 
-add_compile_options(-Wall -Wextra -pedantic)
+# add_compile_options(-Wall -Wextra -pedantic)
 
 
 set(CXX_FILES
@@ -71,3 +71,7 @@ add_executable(test src/test.cpp)
 target_link_libraries(test pallet)
 set_property(TARGET test PROPERTY CXX_STANDARD 23)
 
+add_executable(measure-timing-latency
+               src/measure-timing-latency.cpp)
+target_link_libraries(measure-timing-latency pallet)
+set_property(TARGET measure-timing-latency PROPERTY CXX_STANDARD 23)

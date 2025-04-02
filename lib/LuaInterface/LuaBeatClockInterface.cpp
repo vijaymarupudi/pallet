@@ -109,7 +109,6 @@ static void bindBeatClock(lua_State* L) {
   luaRawSetTable(L, beatClockTableIndex, "clearBeatSyncInterval", luaBeatClockClearBeatSyncTimeout);
   luaRawSetTable(L, beatClockTableIndex, "setBPM", luaBeatClockSetBPM);
   luaRawSetTable(L, beatClockTableIndex, "currentBeat", luaBeatClockCurrentBeat);
-
   getPalletCTable(L);
   auto palletCTableIndex = lua_gettop(L);
   lua_pushliteral(L, "beatClock");

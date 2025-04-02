@@ -14,6 +14,8 @@ static int luaClockTimeInMs(lua_State* L);
 
 static void bindClock(lua_State* L) {
   auto start = lua_gettop(L);
+  getPalletCTable(L);
+  auto palletCTableIndex = lua_gettop(L);
   lua_newtable(L); // clock
   int clockTableIndex = lua_gettop(L);
   luaRawSetTable(L, clockTableIndex, "setTimeout", luaClockSetTimeout);
@@ -22,9 +24,7 @@ static void bindClock(lua_State* L) {
   luaRawSetTable(L, clockTableIndex, "clearTimeout", luaClockClearTimeout);
   luaRawSetTable(L, clockTableIndex, "clearInterval", luaClockClearTimeout);
   luaRawSetTable(L, clockTableIndex, "timeInMs", luaClockTimeInMs);
-
-  getPalletCTable(L);
-  auto palletCTableIndex = lua_gettop(L);
+  printf("idx %d %d\n", clockTableIndex, palletCTableIndex);
   lua_pushliteral(L, "clock");
   lua_pushvalue(L, clockTableIndex);
   lua_rawset(L, palletCTableIndex);

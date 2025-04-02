@@ -5,7 +5,7 @@
 
 namespace pallet {
 static inline int getRegistryEntry(lua_State* L, const void* key) {
-  lua_rawgetp(L, LUA_REGISTRYINDEX, key);
+  auto t = lua_rawgetp(L, LUA_REGISTRYINDEX, key);
   return 1;
 }
 
@@ -15,11 +15,11 @@ static inline int getRegistryEntry(lua_State* L, int index) {
 }
 
 static inline int getPalletCTable(lua_State* L) {
-  return getRegistryEntry(L, &__palletCTableRegistryIndex);
+  return getRegistryEntry(L, &_palletCTableRegistryIndex);
 }
 
 static inline LuaInterface& getLuaInterfaceObject(lua_State* L) {
-  getRegistryEntry(L, &__luaInterfaceRegistryIndex);
+  getRegistryEntry(L, &_luaInterfaceRegistryIndex);
   auto ret = luaHelper::luaPull<LuaInterface*>(L, -1);
   lua_pop(L, 1);
   return *ret;

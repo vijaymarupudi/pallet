@@ -19,8 +19,8 @@
 namespace pallet {
 
 // Only the addresses of these values are used
-const int __luaInterfaceRegistryIndex = 0;
-const int __palletCTableRegistryIndex = 0;
+extern const int _luaInterfaceRegistryIndex;
+extern const int _palletCTableRegistryIndex;
 
 class LuaInterface {
 public:

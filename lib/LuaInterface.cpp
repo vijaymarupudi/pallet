@@ -155,6 +155,9 @@ Result<LuaInterface> LuaInterface::create() {
   return Result<LuaInterface>(std::in_place_t{});
 }
 
+extern const int _luaInterfaceRegistryIndex = 0;
+extern const int _palletCTableRegistryIndex = 0;
+
 LuaInterface::LuaInterface() {
   this->L = luaL_newstate();
   luaOpenLibs(this->L);
@@ -162,11 +165,12 @@ LuaInterface::LuaInterface() {
 
   // Setting up lightuserdata for the LuaInterface object
   luaPush(this->L, this);
-  lua_rawsetp(this->L, LUA_REGISTRYINDEX, &__luaInterfaceRegistryIndex);
+  lua_rawsetp(this->L, LUA_REGISTRYINDEX, &_luaInterfaceRegistryIndex);
 
   // Setting up __pallet table
   lua_newtable(this->L);
-  lua_rawsetp(this->L, LUA_REGISTRYINDEX, &__palletCTableRegistryIndex);
+  lua_rawsetp(this->L, LUA_REGISTRYINDEX, &_palletCTableRegistryIndex);
+  printf("%p\n", &_palletCTableRegistryIndex);
 
   this->setupRequire();
 }
