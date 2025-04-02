@@ -46,7 +46,6 @@ class SDLHardwareInterface final : public GraphicsHardwareInterface {
 
   UniqueResource<Data, DataDestroyer> data;
 
-
 public:
 
   int scaleFactor = 9;

@@ -82,9 +82,9 @@ Result<PosixGraphicsInterface> PosixGraphicsInterface::create(PosixPlatform& pla
   });
 }
 
-PosixGraphicsInterface::PosixGraphicsInterface(PosixPlatform& platform, pallet::Pipe&& pipes) :
+PosixGraphicsInterface::PosixGraphicsInterface(PosixPlatform& platform, pallet::Pipe&& ipipes) :
   platform(&platform), pipeFdManager(platform),
-  operationsBuffer(new std::vector<Operation>), pipes(std::move(pipes))
+  operationsBuffer(new std::vector<Operation>), pipes(std::move(ipipes))
 
 {
   pipeFdManager.setFd(pipes.getReadFd());
