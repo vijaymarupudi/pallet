@@ -19,9 +19,7 @@ auto make_c_callback(auto& lambda) {
 
 
 void measureTiming(pallet::PosixPlatform& platform, pallet::Clock& clock) {
-
   auto intervalTime = pallet::timeInMs(100);
-
   auto meas = pallet::RunningMeanMeasurer<double, 32>();
 
   auto cb = [&](pallet::ClockEventInfo* info) {
@@ -62,7 +60,7 @@ int main() {
   // if (!(platformResult && clockResult && midiInterfaceResult && beatClockResult && graphicsInterfaceResult && oscInterfaceResult && gridInterfaceResult && luaInterfaceResult)) {
   //   return 1;
   // }
-  
+
 //   auto& luaInterface = *luaInterfaceResult;
 //   luaInterface.setBeatClock(*beatClockResult);
 //   luaInterface.setClock(*clockResult);

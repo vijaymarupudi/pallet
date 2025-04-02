@@ -37,22 +37,22 @@ add_compile_options(-Wall -Wextra -pedantic)
 
 
 set(CXX_FILES
-  src/LuaInterface.cpp
-  src/LuaInterface/LuaGraphicsInterface.cpp
-  src/LuaInterface/LuaGridInterface.cpp
-  src/LuaInterface/LuaClockInterface.cpp
-  src/LuaInterface/LuaBeatClockInterface.cpp
-  src/LuaInterface/LuaMidiInterface.cpp
-  src/PosixPlatform.cpp
-  src/LinuxPlatform.cpp
-  src/Clock.cpp
-  src/MidiInterface.cpp
-  src/BeatClockScheduler.cpp
-  src/GraphicsInterface.cpp
-  src/PosixGraphicsInterface.cpp
-  src/BeatClock.cpp
-  src/MonomeGridInterface.cpp
-  src/OscMonomeGridInterface.cpp
+  lib/LuaInterface.cpp
+  lib/LuaInterface/LuaGraphicsInterface.cpp
+  lib/LuaInterface/LuaGridInterface.cpp
+  lib/LuaInterface/LuaClockInterface.cpp
+  lib/LuaInterface/LuaBeatClockInterface.cpp
+  lib/LuaInterface/LuaMidiInterface.cpp
+  lib/PosixPlatform.cpp
+  lib/LinuxPlatform.cpp
+  lib/Clock.cpp
+  lib/MidiInterface.cpp
+  lib/BeatClockScheduler.cpp
+  lib/GraphicsInterface.cpp
+  lib/PosixGraphicsInterface.cpp
+  lib/BeatClock.cpp
+  lib/MonomeGridInterface.cpp
+  lib/OscMonomeGridInterface.cpp
   )
 
 add_library(pallet STATIC ${CXX_FILES})
