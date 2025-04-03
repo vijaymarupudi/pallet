@@ -88,13 +88,13 @@ public:
 
   LoOscInterface(PosixPlatform& platform) : platform(&platform) {}
 
-  virtual AddressIdType createAddress(int port) override {
+  virtual AddressId createAddress(int port) override {
     auto addr = detail::makeLoAddress(port);
     auto id = addressIdTable.push(std::move(addr));
     return id;
   }
 
-  virtual void freeAddress(AddressIdType id) override {
+  virtual void freeAddress(AddressId id) override {
     addressIdTable.free(id);
   }
 
@@ -124,7 +124,7 @@ private:
 
   PosixPlatform* platform;
   detail::LoServerType server;
-  pallet::containers::IdTable<detail::LoAddressType, std::vector, AddressIdType> addressIdTable;
+  pallet::containers::IdTable<detail::LoAddressType, std::vector, AddressId> addressIdTable;
   std::vector<OscItem> messageBuffer;
 
   void uponLoMessage(const char *path, const char *types,
@@ -153,7 +153,7 @@ private:
     buffer.clear();
   }
 
-  virtual void sendMessageImpl(const AddressIdType address, const char* path,
+  virtual void sendMessageImpl(const AddressId address, const char* path,
                                const OscItem* items, size_t n) override {
     auto message = oscMessageToLoMessage(items, n);
     lo_send_message(addressIdTable[address].get(), path, message);

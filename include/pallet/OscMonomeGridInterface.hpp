@@ -7,7 +7,7 @@ namespace pallet {
 
 class OscMonomeGridInterface final : public MonomeGridInterface {
 public:
-  using OscAddressIdType = OscInterface::AddressIdType;
+  using AddressId = OscInterface::AddressId;
   
   static Result<OscMonomeGridInterface> create(OscInterface& oscInterface);
   OscMonomeGridInterface(OscInterface& oscInterface);
@@ -17,8 +17,8 @@ public:
 
 private:
 
-  OscAddressIdType serialoscdAddr;
-  OscAddressIdType gridAddr;
+  AddressId serialoscdAddr;
+  AddressId gridAddr;
   OscInterface* oscInterface;
   std::string gridId;
   std::optional<MonomeGrid> grid;
