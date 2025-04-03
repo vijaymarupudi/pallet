@@ -164,7 +164,7 @@ private:
   static void loServerFdReadyCallback(int fd, short revents, void* userData) {
     (void)fd;
     (void)revents;
-    auto& server = ((LoOscInterface*)userData)->server;
+    auto& server = static_cast<LoOscInterface*>(userData)->server;
     lo_server_recv_noblock(server.get(), 0);
   }
 
@@ -172,9 +172,9 @@ private:
                                       lo_arg ** argv,
                                       int argc, lo_message data,
                                       void *user_data) {
-  ((LoOscInterface*)user_data)->uponLoMessage(path, types, argv, argc, data);
-  return 0;
-}
+    static_cast<LoOscInterface*>(user_data)->uponLoMessage(path, types, argv, argc, data);
+    return 0;
+  }
 };
 
 }

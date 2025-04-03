@@ -22,7 +22,7 @@ OscMonomeGridInterface::OscMonomeGridInterface(OscInterface& ioscInterface)
   serialoscdAddr = oscInterface->createAddress(12002);
   oscInterface->setOnMessage([](const char *path, const OscItem* items,
                                size_t n, void* ud){
-    ((OscMonomeGridInterface*)ud)->uponOscMessage(path, items, n);
+    static_cast<OscMonomeGridInterface*>(ud)->uponOscMessage(path, items, n);
   }, this);
   this->oscInterface->bind(gridOscServerPort);
   requestDeviceNotifications();
@@ -80,7 +80,7 @@ void OscMonomeGridInterface::uponOscMessage(const char *path, const OscItem* ite
 
     auto renderFunc = [](int offX, int offY, uint8_t* data, void* ud0, void* ud1) {
       (void)ud1;
-      auto thi = (OscMonomeGridInterface*)ud0;
+      auto thi = static_cast<OscMonomeGridInterface*>(ud0);
       thi->sendRawQuadMap(offX, offY, data);
     };
 

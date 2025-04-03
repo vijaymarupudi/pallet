@@ -22,7 +22,7 @@ BeatClock::BeatClock(Clock* clock, MidiInterface* midiInterface) {
 
   auto tickCallback = [](BeatClockInfo* info, void* ud) {
     (void)info;
-    auto bc = (BeatClock*)ud;
+    auto bc = static_cast<BeatClock*>(ud);
     bc->uponTick();
   };
 

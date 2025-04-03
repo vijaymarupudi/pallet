@@ -41,7 +41,7 @@ PosixMidiInterface::PosixMidiInterface(PosixPlatform& platform) : platform(platf
   platform.setFdNonBlocking(threadReadFd);
   platform.watchFdIn(threadReadFd, [](int fd, short revents, void* ud) {
     (void)revents;
-    auto mface = (PosixMidiInterface*)ud;
+    auto mface = static_cast<PosixMidiInterface*>(ud);
     LinuxMidiInterfaceMessage messages[16];
     ssize_t len = read(fd, &messages[0],
                        16 * sizeof(LinuxMidiInterfaceMessage)) /

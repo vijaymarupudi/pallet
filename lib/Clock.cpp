@@ -138,7 +138,7 @@ void Clock::process() {
 }
 
 static void clock_timer_callback(void* data) {
-  ((Clock*)data)->process();
+  static_cast<Clock*>(data)->process();
 }
 
 

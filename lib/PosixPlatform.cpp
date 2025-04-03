@@ -81,7 +81,7 @@ PosixPlatform::PosixPlatform() {
   auto timerCallback = [](int fd, short revents, void* data) {
     (void)fd;
     (void)revents;
-    auto platform = ((PosixPlatform*) data);
+    auto platform = static_cast<PosixPlatform*>(data);
     platform->uponTimer();
   };
   
@@ -297,7 +297,7 @@ FdManager::~FdManager() {
 
 void FdManager::platformCallback(int fd, short revents, void* ud) {
   (void)fd;
-  auto thi = (FdManager*)ud;
+  auto thi = static_cast<FdManager*>(ud);
   thi->uponReady(revents);
 }
 

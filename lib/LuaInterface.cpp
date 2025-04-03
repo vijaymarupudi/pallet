@@ -100,18 +100,18 @@ static const struct filesystem_entry* findFilesystemEntry(const struct filesyste
 }
 
 struct ReaderState {
-  const unsigned char* data;
+  const char* data;
   unsigned int size;
   bool state;
 };
 
 const char* luaLuaReader(lua_State* L, void* ud, size_t* size) {
   (void)L;
-  auto state = (ReaderState*)ud;
+  auto state = static_cast<ReaderState*>(ud);
   if (!state->state) {
     *size = state->size;
     state->state = true;
-    return (const char*)state->data;
+    return static_cast<const char*>(state->data);
   } else {
     return nullptr;
   }
@@ -130,7 +130,7 @@ static int luaOpenFunction(lua_State* L) {
     if (!entry) {
       lua_pushnil(L);
     } else {
-      ReaderState state { entry->contents, entry->size, false };
+      ReaderState state { reinterpret_cast<const char*>(entry->contents), entry->size, false };
       lua_load(L, luaLuaReader, &state, lname, NULL);
       lua_call(L, 0, 1);
     }

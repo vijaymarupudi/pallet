@@ -6,8 +6,8 @@ namespace pallet {
 static void beatClockSchedulerCallback(ClockEventInfo* info, void* ud) {
   (void)info;
   // This timer has expired
-  ((BeatClockScheduler*)ud)->clockTimeoutStatus = false;
-  ((BeatClockScheduler*)ud)->process();
+  static_cast<BeatClockScheduler*>(ud)->clockTimeoutStatus = false;
+  static_cast<BeatClockScheduler*>(ud)->process();
 }
 
 static double beatClockSchedulerNextSyncedBeat(double clockBeat, double sync, double offset) {

@@ -107,7 +107,7 @@ public:
       this->recording = true;
       this->recordingIntervalId = this->clock->setInterval(pallet::timeInMs(100), [](ClockEventInfo* info, void* ud) {
         (void)info;
-        auto iface = (LinuxAudioInterface*)ud;
+        auto iface = static_cast<LinuxAudioInterface*>(ud);
         if (!iface->recording) { return; }
         float* buf;
         ma_uint32 nFrames = 8192;
@@ -153,7 +153,7 @@ public:
 
 static void linuxAudioInterfaceCallback(ma_device* dev, void* inOut, const void* inIn, ma_uint32 nFrames) {
   (void)inIn;
-  ((LinuxAudioInterface*)dev->pUserData)->audioThreadFunc(inOut, nFrames);
+  static_cast<LinuxAudioInterface*>(dev)->pUserData->audioThreadFunc(inOut, nFrames);
 }
 
 }

@@ -164,7 +164,7 @@ public:
 private:
   void startTickInterval(pallet::Time startTime) {
     auto cb = [](ClockEventInfo* info, void* ud) {
-      auto bc = ((BeatClockInternalImplementation*)ud);
+      auto bc = static_cast<BeatClockInternalImplementation*>(ud);
       bc->uponTick(info->now, info->intended);
     };
     this->interval = clock->setIntervalAbsolute(startTime,
@@ -236,7 +236,7 @@ public:
   virtual void run(bool state) override {
     if (state) {
       auto cb = [](pallet::Time time, const unsigned char* buf, size_t len, void* ud) {
-        auto bc = (BeatClockMidiImplementation*)ud;
+        auto bc = static_cast<BeatClockMidiImplementation*>(ud);
         bc->uponMidiTick(time, buf, len);
       };
       this->midiInterface->setOnMidiClock(cb, this);
