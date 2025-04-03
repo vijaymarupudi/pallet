@@ -12,44 +12,15 @@
 #include "GraphicsInterface.hpp"
 #include "containers/ThreadSafeStack.hpp"
 #include "error.hpp"
-#include "memory.hpp"
 #include "PosixPlatform.hpp"
 #include "posix.hpp"
 
 namespace pallet {
 
 class SDLHardwareInterface final : public GraphicsHardwareInterface {
-
-  struct Data {
-    SDL_Window* window = nullptr;
-    SDL_Renderer* renderer = nullptr;
-    bool running = false;
-  };
-
-  struct DataDestroyer {
-    void operator() (Data& data) noexcept {
-      if (data.renderer) {
-          SDL_DestroyRenderer(data.renderer);
-          data.renderer = nullptr;
-      }
-      if (data.window) {
-        SDL_DestroyWindow(data.window);
-        data.window = nullptr;
-      }
-
-      if (data.running) {
-        data.running = false;
-        SDL_Quit();
-      }
-    }
-  };
-
-  UniqueResource<Data, DataDestroyer> data;
-
 public:
 
   int scaleFactor = 9;
-
   void(*onEventsCallback)(SDL_Event* events, size_t len, void* ud) = nullptr;
   void* onEventsUserData = nullptr;
   unsigned int userEventType;
@@ -65,6 +36,16 @@ public:
   void point(float x, float y, int c) override;
   void loop();
   void close();
+
+  SDLHardwareInterface() {};
+  SDLHardwareInterface(SDLHardwareInterface&& other);
+  ~SDLHardwareInterface() {this->cleanup();}
+
+private:
+  SDL_Window* window = nullptr;
+  SDL_Renderer* renderer = nullptr;
+  bool running = false;
+  void cleanup();
 };
 
 using namespace detail;
@@ -88,6 +69,7 @@ public:
                     GraphicsPosition align = GraphicsPosition::Default,
                     GraphicsPosition baseline = GraphicsPosition::Default) override;
   virtual GraphicsTextMeasurement measureText(std::string_view str) override;
+
 
 private:
 

@@ -19,21 +19,21 @@ enum class GraphicsUserEventType : int32_t {
 
 void SDLHardwareInterface::init()  {
   SDL_Init(SDL_INIT_VIDEO);
-  data->running = true;
-  data->window = SDL_CreateWindow("Testing", 128 * this->scaleFactor, 64 * this->scaleFactor, 0);
-  auto surface = SDL_GetWindowSurface(data->window);
-  data->renderer = SDL_CreateSoftwareRenderer(surface);
+  this->running = true;
+  this->window = SDL_CreateWindow("Testing", 128 * this->scaleFactor, 64 * this->scaleFactor, 0);
+  auto surface = SDL_GetWindowSurface(this->window);
+  this->renderer = SDL_CreateSoftwareRenderer(surface);
   this->userEventType = SDL_RegisterEvents(1);
 }
 
 void SDLHardwareInterface::clear() {
-  SDL_SetRenderDrawColor(data->renderer, 0, 0, 0, 255);
-  SDL_RenderClear(data->renderer);
+  SDL_SetRenderDrawColor(this->renderer, 0, 0, 0, 255);
+  SDL_RenderClear(this->renderer);
 }
 
 void SDLHardwareInterface::render() {
-  SDL_RenderPresent(data->renderer);
-  SDL_UpdateWindowSurface(data->window);
+  SDL_RenderPresent(this->renderer);
+  SDL_UpdateWindowSurface(this->window);
 }
 
 void SDLHardwareInterface::rect(float x, float y, float w, float h, int c) {
@@ -46,8 +46,8 @@ void SDLHardwareInterface::rect(float x, float y, float w, float h, int c) {
 
   // c will be between 0-15
   int v = (c << 4) | c;
-  SDL_SetRenderDrawColor(data->renderer, v, v, v, 255);
-  int ret = SDL_RenderFillRect(data->renderer, &rect);
+  SDL_SetRenderDrawColor(this->renderer, v, v, v, 255);
+  int ret = SDL_RenderFillRect(this->renderer, &rect);
   if (!ret) {
     printf("%s\n", SDL_GetError());
   }
@@ -59,7 +59,7 @@ void SDLHardwareInterface::point(float x, float y, int c) {
 
 void SDLHardwareInterface::loop() {
   SDL_Event events[MAX_BATCH_LEN];
-  while (data->running && SDL_WaitEvent(events)) {
+  while (this->running && SDL_WaitEvent(events)) {
     size_t len = 1;
     for (; len < MAX_BATCH_LEN; len++) {
       if (!SDL_PollEvent(&events[len])) {
@@ -73,7 +73,32 @@ void SDLHardwareInterface::loop() {
 }
 
 void SDLHardwareInterface::close() {
-  data.cleanup();
+  this->cleanup();
+}
+
+SDLHardwareInterface::SDLHardwareInterface(SDLHardwareInterface&& other)
+    : window(other.window),
+      renderer(other.renderer),
+      running(other.running) {
+    other.window = nullptr;
+    other.renderer = nullptr;
+    other.running = false;
+  }
+
+void SDLHardwareInterface::cleanup() {
+  if (renderer) {
+    SDL_DestroyRenderer(renderer);
+    renderer = nullptr;
+  }
+  if (window) {
+    SDL_DestroyWindow(window);
+    window = nullptr;
+  }
+
+  if (running) {
+    running = false;
+    SDL_Quit();
+  }
 }
 
 Result<PosixGraphicsInterface> PosixGraphicsInterface::create(PosixPlatform& platform) {
