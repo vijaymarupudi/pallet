@@ -90,13 +90,13 @@ PosixGraphicsInterface::PosixGraphicsInterface(PosixPlatform& platform, pallet::
   pipeFdManager.setFd(pipes.getReadFd());
   pipeFdManager.startReading([](int fd, void* data, size_t len, void* ud) {
     (void)fd;
-    reinterpret_cast<PosixGraphicsInterface*>(ud)->uponPipeIn(data, len);
+    static_cast<PosixGraphicsInterface*>(ud)->uponPipeIn(data, len);
   }, this);
 
   this->sdlHardwareInterface.onEventsUserData = this;
   this->sdlHardwareInterface.onEventsCallback = [](SDL_Event* e, size_t len,
                                                    void* u) {
-    reinterpret_cast<PosixGraphicsInterface*>(u)->uponEventsGThread(e, len);
+    static_cast<PosixGraphicsInterface*>(u)->uponEventsGThread(e, len);
   };
 
   std::atomic<bool> sdlInterfaceInited = false;
@@ -130,7 +130,7 @@ PosixGraphicsInterface::PosixGraphicsInterface(PosixGraphicsInterface&& iface)
 
 
 void PosixGraphicsInterface::uponPipeIn(void* datain, size_t len) {
-  unsigned char* data = reinterpret_cast<unsigned char*>(datain);
+  unsigned char* data = static_cast<unsigned char*>(datain);
   auto scaleFactor = this->sdlHardwareInterface.scaleFactor;
   for (size_t i = 0; i < len; i += sizeof(SDL_Event)) {
     std::optional<GraphicsEvent> event;
@@ -302,7 +302,7 @@ void PosixGraphicsInterface::uponUserEventGThread(SDL_Event* event) {
   switch (userEventType) {
   case GraphicsUserEventType::Render:
     {
-      auto data1 = reinterpret_cast<std::vector<Operation>*>(event->user.data1);
+      auto data1 = static_cast<std::vector<Operation>*>(event->user.data1);
       std::unique_ptr<std::vector<Operation>> operations (data1);
       this->renderOperations(*operations);
       operations->clear();

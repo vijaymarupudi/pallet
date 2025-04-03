@@ -20,7 +20,7 @@ static void midiInterfaceMidiInCallback(double ts,
                                         std::vector<unsigned char>* message,
                                         void* data) {
   (void)ts;
-  auto mface = reinterpret_cast<PosixMidiInterface*>(data);
+  auto mface = static_cast<PosixMidiInterface*>(data);
   if (message->size() <= 3) {
     LinuxMidiInterfaceMessage msg;
     for (size_t i = 0; i < message->size(); i++) {
