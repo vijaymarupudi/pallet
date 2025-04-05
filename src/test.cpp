@@ -1,21 +1,21 @@
 #include <cstdio>
-#include "pallet/containers/IdTable.hpp"
+#include "pallet/Event.hpp"
 
 
 int main()
 
 {
-  pallet::containers::IdTable<int> table;
+  pallet::Event<void, int> event;
 
-  table.push(1);
-  auto id = table.push(2);
-  table.push(3);
-  auto id2 = table.push(4);
-  table.push(5);
-  table.free(id);
-  table.free(id2);
-
-  for (const auto& v : table) {
-    printf("%d\n", v);
+  for (int i = 0; i < 20; i++) {
+    event.addEventListener([](int v, void* ud) {
+      printf("HERE! %d %ld\n", v, reinterpret_cast<intptr_t>(ud));
+      (void)ud;
+    }, reinterpret_cast<void*>((intptr_t)i));
   }
+
+  event.emit(3);
+  // auto vec = pallet::containers::FlexibleVector<int, 4>{};
+  // vec.emplace_back(2);
+  // return vec[0];
 }

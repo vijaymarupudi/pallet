@@ -53,5 +53,10 @@ const Type& get_unchecked(const Variant<Types...>& variant) {
   return *std::get_if<Type>(&variant);
 }
 
+template <class... Args>
+decltype(auto) visit(Args&&... args) {
+  return std::visit(std::forward<Args>(args)...);
+}
+
 
 }
