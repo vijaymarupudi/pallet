@@ -28,7 +28,7 @@ static inline lo_message oscMessageToLoMessage(const OscItem* items, size_t n) {
   };
 
   for (size_t i = 0; i < n; i++) {
-    std::visit(visitor, items[i]);
+    pallet::visit(visitor, items[i]);
   }
 
   return ret;

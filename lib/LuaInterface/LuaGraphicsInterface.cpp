@@ -94,7 +94,7 @@ static int luaGraphicsEventToTable(lua_State* L,
       
       }
     };
-  std::visit(visitor, event);
+  pallet::visit(visitor, event);
   return 1;
 }
 

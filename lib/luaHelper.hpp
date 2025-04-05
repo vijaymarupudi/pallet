@@ -46,7 +46,7 @@ inline void luaPush(lua_State* L, const FloatingPoint auto number) {
 }
 
 inline void luaPush(lua_State* L, const VariantConcept auto item) {
-  std::visit([&](auto&& x) {
+  pallet::visit([&](auto&& x) {
     luaPush(L, x);
   }, item);
 }
