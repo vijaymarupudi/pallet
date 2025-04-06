@@ -45,7 +45,7 @@ inline void luaPush(lua_State* L, const FloatingPoint auto number) {
   lua_pushnumber(L, static_cast<lua_Number>(number));
 }
 
-inline void luaPush(lua_State* L, const VariantConcept auto item) {
+inline void luaPush(lua_State* L, const concepts::Variant auto item) {
   pallet::visit([&](auto&& x) {
     luaPush(L, x);
   }, item);
@@ -105,7 +105,7 @@ struct LuaIsTypeVariant<Variant<Types...>> {
   }
 };
 
-template <VariantConcept T>
+template <concepts::Variant T>
 bool luaIsType(lua_State* L, int index) {
   return LuaIsTypeVariant<T>::apply(L, index);
 }
@@ -169,7 +169,7 @@ T luaPull(lua_State* L, int index) {
     }
   };
 
-template <VariantConcept T>
+template <concepts::Variant T>
 T luaPull(lua_State* L, int index) {
   return luaPullVariant<T>::apply(L, index);
 }

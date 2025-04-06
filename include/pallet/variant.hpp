@@ -14,8 +14,11 @@ using Variant = std::variant<Types...>;
   template <class... Types>
   struct isVariant<Variant<Types...>> : std::true_type {};
 
-  template <class T>
-  concept VariantConcept = isVariant<T>::value;
+  namespace concepts {
+    template <class T>
+    concept Variant = isVariant<T>::value;
+  }
+
 
 namespace detail {
 template <class V>
@@ -43,14 +46,14 @@ void variantForEach(auto&& lambda) {
 template<class... Ts>
 struct overloads : Ts... { using Ts::operator()...; };
 
-template <class Type, class... Types>
-Type& get_unchecked(Variant<Types...>& variant) {
-  return *std::get_if<Type>(variant);
+template <class Type>
+decltype(auto) get_unchecked(concepts::Variant auto& obj) {
+  return *std::get_if<Type>(&obj);
 }
 
-template <class Type, class... Types>
-const Type& get_unchecked(const Variant<Types...>& variant) {
-  return *std::get_if<Type>(&variant);
+template <class Type>
+decltype(auto) get_unchecked(const concepts::Variant auto& obj) {
+  return *std::get_if<Type>(&obj);
 }
 
 template <class... Args>
