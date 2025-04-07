@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "pallet/variant.hpp"
+#include "pallet/Event.hpp"
 
 
 namespace pallet {
@@ -11,14 +12,10 @@ namespace pallet {
 using OscItem = Variant<std::string_view, int32_t, float>;
 
 class OscInterface {
-
 public:
   using AddressId = size_t;
-  using OnMessageCallback = void(*)(const char* path, const OscItem*, size_t n, void*);
-
+  Event<const char*, const OscItem*, size_t> onMessage;
   int port = 0;
-
-  void setOnMessage(OnMessageCallback cb, void* userData);
   virtual AddressId createAddress(int port) = 0;
   virtual void freeAddress(AddressId) = 0;
   virtual void bind(int port);
@@ -32,8 +29,6 @@ protected:
   void uponMessage(const char* path, const OscItem* item, size_t n);
 
 private:
-  OnMessageCallback onMessageCb = nullptr;
-  void* onMessageUserData = nullptr;
   virtual void sendMessageImpl(const AddressId address,
                                const char* path,
                                const OscItem* items, size_t n) = 0;
@@ -44,11 +39,6 @@ private:
 /*
  * Private code
  */
-
-inline void OscInterface::setOnMessage(OnMessageCallback cb, void* userData) {
-  this->onMessageCb = cb;
-  this->onMessageUserData = userData;
-}
 
 inline void OscInterface::bind(int port) {
   this->port = port;
@@ -69,9 +59,7 @@ void OscInterface::send(const AddressId address, const char* path, Types&&... ar
 }
 
 inline void OscInterface::uponMessage(const char* path, const OscItem* item, size_t n) {
-  if (this->onMessageCb) {
-    this->onMessageCb(path, item, n, this->onMessageUserData);
-  }
+  this->onMessage.emit(path, item, n);
 }
 
 

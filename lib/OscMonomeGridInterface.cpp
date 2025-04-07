@@ -20,10 +20,13 @@ Result<OscMonomeGridInterface> OscMonomeGridInterface::create(OscInterface& oscI
 OscMonomeGridInterface::OscMonomeGridInterface(OscInterface& ioscInterface)
   : oscInterface(&ioscInterface) {
   serialoscdAddr = oscInterface->createAddress(12002);
-  oscInterface->setOnMessage([](const char *path, const OscItem* items,
-                               size_t n, void* ud){
-    static_cast<OscMonomeGridInterface*>(ud)->uponOscMessage(path, items, n);
-  }, this);
+  oscInterface->onMessage.listen({
+      [](const char *path, const OscItem* items,
+         size_t n, void* ud) {
+        static_cast<OscMonomeGridInterface*>(ud)->uponOscMessage(path, items, n);
+      },
+        this
+        });
   this->oscInterface->bind(gridOscServerPort);
   requestDeviceNotifications();
 }
