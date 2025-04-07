@@ -87,8 +87,6 @@ end)
 
   // measureTiming(platform, clock);
 
-  graphicsInterfaceResult->quit();
-
   return 0;
 }
 

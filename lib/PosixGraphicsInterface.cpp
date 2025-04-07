@@ -13,8 +13,7 @@ namespace pallet {
 static const size_t MAX_BATCH_LEN = 32;
 
 enum class GraphicsUserEventType : int32_t {
-    Render,
-    Quit
+    Render
 };
 
 void SDLHardwareInterface::init()  {
@@ -23,11 +22,12 @@ void SDLHardwareInterface::init()  {
   // SDL_SetHint(SDL_HINT_SHUTDOWN_DBUS_ON_QUIT, "1");
 
   SDL_Init(SDL_INIT_VIDEO);
-  this->hardwareInterfaceRunning = true;
+   this->sdlInited = true;
   this->window = SDL_CreateWindow("Testing", 128 * this->scaleFactor, 64 * this->scaleFactor, 0);
   auto surface = SDL_GetWindowSurface(this->window);
   this->renderer = SDL_CreateSoftwareRenderer(surface);
   this->userEventType = SDL_RegisterEvents(1);
+
 }
 
 void SDLHardwareInterface::clear() {
@@ -61,10 +61,16 @@ void SDLHardwareInterface::point(float x, float y, int c) {
   this->rect(x, y, 1, 1, c);
 }
 
+
+// thread safe
+void SDLHardwareInterface::stopLoop() {
+  *(this->shouldRunLoop) = false;
+}
+
 void SDLHardwareInterface::loop() {
   SDL_Event events[MAX_BATCH_LEN];
   memset(&events[0], 0, sizeof(SDL_Event) * MAX_BATCH_LEN);
-  while (this->hardwareInterfaceRunning && SDL_WaitEvent(events)) {
+  while (*(this->shouldRunLoop) && SDL_WaitEvent(events)) {
     size_t len = 1;
     for (; len < MAX_BATCH_LEN; len++) {
       if (!SDL_PollEvent(&events[len])) {
@@ -77,18 +83,14 @@ void SDLHardwareInterface::loop() {
   }
 }
 
-void SDLHardwareInterface::close() {
-  this->cleanup();
-}
-
-SDLHardwareInterface::SDLHardwareInterface(SDLHardwareInterface&& other)
-    : window(other.window),
-      renderer(other.renderer),
-      hardwareInterfaceRunning(other.hardwareInterfaceRunning) {
-    other.window = nullptr;
-    other.renderer = nullptr;
-    other.hardwareInterfaceRunning = false;
-  }
+// SDLHardwareInterface::SDLHardwareInterface(SDLHardwareInterface&& other)
+//   : sdlInited(other.sdlInited),
+//     window(other.window),
+//     renderer(other.renderer) {
+//   other.sdlInited = false;
+//   other.window = nullptr;
+//   other.renderer = nullptr;
+// }
 
 void SDLHardwareInterface::cleanup() {
   if (renderer) {
@@ -100,24 +102,25 @@ void SDLHardwareInterface::cleanup() {
     window = nullptr;
   }
 
-  if (hardwareInterfaceRunning) {
-    hardwareInterfaceRunning = false;
+  if (this->sdlInited) {
+    this->sdlInited = false;
     SDL_Quit();
   }
 }
 
 Result<PosixGraphicsInterface> PosixGraphicsInterface::create(PosixPlatform& platform) {
-  return pallet::Pipe::create().and_then([&](auto&& pipes) {
-    return Result<PosixGraphicsInterface>(std::in_place, platform, std::move(pipes));
+  return pallet::Pipe::create().and_then([&](auto&& pipe) {
+    return Result<PosixGraphicsInterface>(std::in_place, platform, std::move(pipe));
   });
 }
 
-PosixGraphicsInterface::PosixGraphicsInterface(PosixPlatform& platform, pallet::Pipe&& ipipes) :
+PosixGraphicsInterface::PosixGraphicsInterface(PosixPlatform& platform, pallet::Pipe&& ipipe) :
   platform(&platform), pipeFdManager(platform),
-  operationsBuffer(new std::vector<Operation>), pipes(std::move(ipipes))
+  sdlHardwareInterfaceStopper(&sdlHardwareInterface),
+  operationsBuffer(new std::vector<Operation>), pipe(std::move(ipipe))
 
 {
-  pipeFdManager.setFd(pipes.getReadFd());
+  pipeFdManager.setFd(this->pipe.getReadFd());
   pipeFdManager.startReading([](int fd, void* data, size_t len, void* ud) {
     (void)fd;
     static_cast<PosixGraphicsInterface*>(ud)->uponPipeIn(data, len);
@@ -136,6 +139,7 @@ PosixGraphicsInterface::PosixGraphicsInterface(PosixPlatform& platform, pallet::
     sdlInterfaceInited = true;
     sdlInterfaceInited.notify_one();
     this->sdlHardwareInterface.loop();
+    this->sdlHardwareInterface.cleanup();
   });
 
   bool old = sdlInterfaceInited.load();
@@ -153,7 +157,7 @@ PosixGraphicsInterface::PosixGraphicsInterface(PosixGraphicsInterface&& iface)
     thrd{std::move(iface.thrd)},
     operationsBuffer{std::move(iface.operationsBuffer)},
     operationVectorStack{std::move(iface.operationVectorStack)},
-    pipes{std::move(iface.pipes)}
+    pipe{std::move(iface.pipe)}
 {
   pipeFdManager.setReadWriteUserData(this, nullptr);
 }
@@ -230,20 +234,10 @@ void PosixGraphicsInterface::render() {
 }
 
 void PosixGraphicsInterface::quit() {
-  if (hardwareInterfaceRunning) {
-    SDL_Event event;
-    SDL_zero(event);
-    event.type = sdlHardwareInterface.userEventType;
-    event.user.code = static_cast<int32_t>(GraphicsUserEventType::Quit);
-    event.user.timestamp = SDL_GetTicks();
-    int ret = SDL_PushEvent(&event);
-    if (ret < 0) {
-      printf("%s\n", SDL_GetError());
-    } else {
-      this->hardwareInterfaceRunning = false;
-    }
+  if (this->hardwareInterfaceRunning) {
+    this->sdlHardwareInterface.stopLoop();
+    this->hardwareInterfaceRunning = false;
   }
-
 }
 
 void PosixGraphicsInterface::renderOperations(std::vector<Operation>& operations) {
@@ -326,7 +320,7 @@ void PosixGraphicsInterface::uponEventsGThread(SDL_Event* events, size_t len) {
     }
   }
   if (nEvents > 0) {
-    this->pipes.write(eventsToSend, sizeof(SDL_Event) * nEvents);
+    this->pipe.write(eventsToSend, sizeof(SDL_Event) * nEvents);
   }
 }
 
@@ -340,11 +334,6 @@ void PosixGraphicsInterface::uponUserEventGThread(SDL_Event* event) {
       this->renderOperations(*operations);
       operations->clear();
       this->operationVectorStack.push(std::move(operations));
-    }
-    break;
-  case GraphicsUserEventType::Quit:
-    {
-      this->sdlHardwareInterface.close();
     }
     break;
   }
@@ -379,7 +368,6 @@ void PosixGraphicsInterface::text(float x, float y, std::string_view str, int fc
 GraphicsTextMeasurement PosixGraphicsInterface::measureText(std::string_view str) {
   return this->sdlHardwareInterface.measureText(str.data(), str.size());
 }
-
 
 }
 

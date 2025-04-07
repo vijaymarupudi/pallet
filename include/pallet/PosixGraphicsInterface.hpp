@@ -6,24 +6,25 @@
 #include <thread>
 #include <vector>
 #include <array>
+#include <atomic>
 
 #include "SDL3/SDL.h"
 
-#include "GraphicsInterface.hpp"
-#include "containers/ThreadSafeStack.hpp"
-#include "error.hpp"
-#include "PosixPlatform.hpp"
-#include "posix.hpp"
+#include "pallet/GraphicsInterface.hpp"
+#include "pallet/containers/ThreadSafeStack.hpp"
+#include "pallet/error.hpp"
+#include "pallet/PosixPlatform.hpp"
+#include "pallet/posix.hpp"
 
 namespace pallet {
 
 class SDLHardwareInterface final : public GraphicsHardwareInterface {
 public:
 
-  int scaleFactor = 9;
   void(*onEventsCallback)(SDL_Event* events, size_t len, void* ud) = nullptr;
-  void* onEventsUserData = nullptr;
+  void* onEventsUserData;
   unsigned int userEventType;
+  int scaleFactor = 9;
 
   void config(int scaleFactor = 9) {
     this->scaleFactor = scaleFactor;
@@ -35,20 +36,39 @@ public:
   void rect(float x, float y, float w, float h, int c) override;
   void point(float x, float y, int c) override;
   void loop();
-  void close();
+  void stopLoop();
+  void cleanup();
 
-  SDLHardwareInterface() {};
-  SDLHardwareInterface(SDLHardwareInterface&& other);
-  ~SDLHardwareInterface() {this->cleanup();}
+  SDLHardwareInterface() :
+    shouldRunLoop(std::make_unique<std::atomic<bool>>(true)) {};
+  // SDLHardwareInterface(SDLHardwareInterface&& other);
 
 private:
+
+  bool sdlInited = false;
   SDL_Window* window = nullptr;
   SDL_Renderer* renderer = nullptr;
-  bool hardwareInterfaceRunning = false;
-  void cleanup();
+  std::unique_ptr<std::atomic<bool>> shouldRunLoop;
+
 };
 
 using namespace detail;
+
+
+
+namespace detail {
+
+// This is being done to avoid having to write move operators for
+// PosixGraphicsInterface. We just need to stop the loop for that the
+// jthread join works!
+struct SDLHardwareInterfaceStopperDeleter {
+  void operator()(SDLHardwareInterface* sdlHardwareInterface) {
+    sdlHardwareInterface->stopLoop();
+  }
+};
+
+using SDLHardwareInterfaceStopper = std::unique_ptr<SDLHardwareInterface, SDLHardwareInterfaceStopperDeleter>;
+}
 
 class PosixGraphicsInterface final : public GraphicsInterface {
 public:
@@ -76,9 +96,10 @@ private:
   FdManager pipeFdManager;
   SDLHardwareInterface sdlHardwareInterface;
   std::jthread thrd;
+  SDLHardwareInterfaceStopper sdlHardwareInterfaceStopper;
   std::unique_ptr<std::vector<Operation>> operationsBuffer;
   containers::ThreadSafeStack<std::unique_ptr<std::vector<Operation>>> operationVectorStack;
-  pallet::Pipe pipes;
+  pallet::Pipe pipe;
   bool hardwareInterfaceRunning = false;
 
   void uponPipeIn(void* datain, size_t len);
