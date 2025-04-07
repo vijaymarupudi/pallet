@@ -117,7 +117,7 @@ public:
 
   ~LoOscInterface() {
     int fd = lo_server_get_socket_fd(this->server.get());
-    this->platform->removeFd(fd);
+    this->platform->unwatchFdEvents(fd, PosixPlatform::Read);
   }
 
 private:

@@ -36,18 +36,20 @@ public:
 }
 
 #include "pallet/PosixPlatform.hpp"
+#include "pallet/posix.hpp"
 
 namespace pallet {
 
 class PosixMidiInterface final : public MidiInterface {
 public:
   bool status = false;
-  int threadReadFd;
-  int threadWriteFd;
   RtMidiIn midiIn;
   RtMidiOut midiOut;
   PosixPlatform& platform;
-  PosixMidiInterface(PosixPlatform& platform);
+  FdManager readManager;
+  Pipe pipe;
+
+  PosixMidiInterface(PosixPlatform& platform, Pipe&& ipipe);
   virtual void sendMidi(const unsigned char* buf,
                         size_t len) override;
   static Result<PosixMidiInterface> create(PosixPlatform& platform);

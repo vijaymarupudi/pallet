@@ -72,11 +72,10 @@ public:
 
 
 private:
-
   PosixPlatform* platform;
   FdManager pipeFdManager;
   SDLHardwareInterface sdlHardwareInterface;
-  std::thread thrd;
+  std::jthread thrd;
   std::unique_ptr<std::vector<Operation>> operationsBuffer;
   containers::ThreadSafeStack<std::unique_ptr<std::vector<Operation>>> operationVectorStack;
   pallet::Pipe pipes;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <map>
+#include <vector>
 
 #include <poll.h>
 #include <time.h>
@@ -39,13 +40,14 @@ public:
 private:
 
   struct FdPollState {
+    int fd;
     short events;
     FdCallback callback;
     void* ud;
   };
 
   struct timespec referenceTime;
-  struct pollfd pollFds[32];
+  std::vector<struct pollfd> pollFds;
   std::map<int, FdPollState> fdCallbacks;
   pallet::Time timerGoalTime = 0;
 

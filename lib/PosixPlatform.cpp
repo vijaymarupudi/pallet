@@ -9,6 +9,7 @@
 #include <utility>
 #include <cstdio>
 #include <cstring>
+#include <cassert>
 
 #include <poll.h>
 #include <unistd.h>
@@ -89,6 +90,7 @@ PosixPlatform::PosixPlatform() {
 }
 
 PosixPlatform::~PosixPlatform() {
+  this->unwatchFdEvents(timerfd, POLLIN);
   close(this->timerfd);
 }
 
@@ -128,13 +130,14 @@ void PosixPlatform::uponTimer() {
 PosixPlatform::FdPollState& PosixPlatform::findOrCreateFdPollState(int fd) {
   auto it = this->fdCallbacks.find(fd);
   if (it == this->fdCallbacks.end()) {
-    return (this->fdCallbacks[fd] = FdPollState({0, nullptr, nullptr}));
+    return (this->fdCallbacks[fd] = FdPollState({fd, 0, nullptr, nullptr}));
   } else {
     return std::get<1>(*it);
   }
 }
 
 void PosixPlatform::watchFdEvents(int fd, short events, FdCallback callback, void* userData) {
+  printf("watching %d\n", fd);
   auto& state = this->findOrCreateFdPollState(fd);
   state.events |= events;
   state.callback = callback;
@@ -157,6 +160,7 @@ void PosixPlatform::unwatchFdOut(int fd) {
 }
 
 void PosixPlatform::unwatchFdEvents(int fd, short events) {
+  printf("unwatching %d\n", fd);
   auto it = this->fdCallbacks.find(fd);
   if (it != this->fdCallbacks.end()) {
     auto& [fd, state] = *it;
@@ -171,17 +175,18 @@ void PosixPlatform::removeFd(int fd) {
   this->fdCallbacks.erase(fd);
 }
 void PosixPlatform::loopIter() {
-  int i = 0;
+  this->pollFds.clear();
   for (const auto& [fd, state] : this->fdCallbacks) {
-    this->pollFds[i].fd = fd;
-    this->pollFds[i].events = state.events;
-    i++;
+    struct pollfd item = {};
+    item.fd = fd;
+    item.events = state.events;
+    this->pollFds.push_back(std::move(item));
   }
-  int len = i;
-  poll(this->pollFds, len, -1);
-  for (i = 0; i < len; i++) {
+  poll(this->pollFds.data(), this->pollFds.size(), -1);
+  for (size_t i = 0; i < this->pollFds.size(); i++) {
     if (this->pollFds[i].revents) {
       int fd = this->pollFds[i].fd;
+      assert(this->fdCallbacks.find(fd) != this->fdCallbacks.end());
       auto& state = this->fdCallbacks[fd];
       state.callback(fd, this->pollFds[i].revents, state.ud);
     }

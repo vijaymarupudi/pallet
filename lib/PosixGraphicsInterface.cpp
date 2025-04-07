@@ -18,6 +18,7 @@ enum class GraphicsUserEventType : int32_t {
 };
 
 void SDLHardwareInterface::init()  {
+  SDL_SetHint(SDL_HINT_SHUTDOWN_DBUS_ON_QUIT, "1");
   SDL_Init(SDL_INIT_VIDEO);
   this->running = true;
   this->window = SDL_CreateWindow("Testing", 128 * this->scaleFactor, 64 * this->scaleFactor, 0);
@@ -59,6 +60,7 @@ void SDLHardwareInterface::point(float x, float y, int c) {
 
 void SDLHardwareInterface::loop() {
   SDL_Event events[MAX_BATCH_LEN];
+  memset(&events[0], 0, sizeof(SDL_Event) * MAX_BATCH_LEN);
   while (this->running && SDL_WaitEvent(events)) {
     size_t len = 1;
     for (; len < MAX_BATCH_LEN; len++) {
@@ -126,7 +128,7 @@ PosixGraphicsInterface::PosixGraphicsInterface(PosixPlatform& platform, pallet::
 
   std::atomic<bool> sdlInterfaceInited = false;
 
-  this->thrd = std::thread([this, &sdlInterfaceInited](){
+  this->thrd = std::jthread([this, &sdlInterfaceInited](){
     this->sdlHardwareInterface.init();
     sdlInterfaceInited = true;
     sdlInterfaceInited.notify_one();

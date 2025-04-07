@@ -12,7 +12,7 @@ int main()
   // callable(3);
 
   int x = 3;
-  auto test = [&](int y) {
+  auto test = [&](auto y) {
     printf("%d, %d\n", y, x);
   };
 

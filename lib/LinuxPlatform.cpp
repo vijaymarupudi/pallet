@@ -50,7 +50,6 @@ LinuxPlatform::~LinuxPlatform() {
   if (this->cpu_dma_latency_fd >= 0) {
     close(this->cpu_dma_latency_fd);
   }
-  PosixPlatform::~PosixPlatform();
 }
 
 }

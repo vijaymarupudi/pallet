@@ -28,29 +28,25 @@ static void midiInterfaceMidiInCallback(double ts,
     }
     msg.time = mface->platform.currentTime();
     msg.len = message->size();
-    write(mface->threadWriteFd, &msg, sizeof(msg));
+    mface->pipe.write(&msg, sizeof(msg));
   }
 }
 
-PosixMidiInterface::PosixMidiInterface(PosixPlatform& platform) : platform(platform) {
+  PosixMidiInterface::PosixMidiInterface(PosixPlatform& platform, Pipe&& ipipe) : platform(platform), readManager(platform), pipe(std::move(ipipe)) {
   status = true;
-  int fds[2];
-  pipe(fds);
-  threadReadFd = fds[0];
-  threadWriteFd = fds[1];
-  platform.setFdNonBlocking(threadReadFd);
-  platform.watchFdIn(threadReadFd, [](int fd, short revents, void* ud) {
-    (void)revents;
+  platform.setFdNonBlocking(pipe.getReadFd());
+  readManager.setFd(pipe.getReadFd());
+  readManager.startReading([](int fd, void* data, size_t dlen, void* ud) {
+    (void)fd;
     auto mface = static_cast<PosixMidiInterface*>(ud);
-    LinuxMidiInterfaceMessage messages[16];
-    ssize_t len = read(fd, &messages[0],
-                       16 * sizeof(LinuxMidiInterfaceMessage)) /
-      sizeof(LinuxMidiInterfaceMessage);
-    for (ssize_t i = 0; i < len; i += 1) {
+    size_t len = dlen / sizeof(LinuxMidiInterfaceMessage);
+    auto messages = static_cast<LinuxMidiInterfaceMessage*>(data);
+    for (size_t i = 0; i < len; i++) {
       auto& msg = messages[i];
       mface->internalOnMidi(msg.time, msg.buf, msg.len);
     }
   }, this);
+
   midiIn.setCallback(midiInterfaceMidiInCallback, this);
   midiOut.openVirtualPort("pallet");
   midiIn.ignoreTypes(false, false, false);
@@ -76,7 +72,9 @@ void MidiInterface::internalOnMidi(uint64_t time, const unsigned char* buf, size
 }
 
 Result<PosixMidiInterface> PosixMidiInterface::create(PosixPlatform& platform) {
-  return Result<PosixMidiInterface>(std::in_place_t{}, platform);
+  return pallet::Pipe::create().and_then([&](auto&& pipe) {
+    return Result<PosixMidiInterface>(std::in_place_t{}, platform, std::move(pipe));
+  });
 }
 
 }

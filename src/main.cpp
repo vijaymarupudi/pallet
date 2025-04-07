@@ -78,15 +78,16 @@ end)
 
 )====");
 
-  while (1) {
-    (*platformResult).loopIter();
-  }
+  // while (1) {
+  //   (*platformResult).loopIter();
+  // }
 
   // auto& platform = *platformResult;
   // auto& clock = *clockResult;
 
   // measureTiming(platform, clock);
 
+  graphicsInterfaceResult->quit();
 
   return 0;
 
