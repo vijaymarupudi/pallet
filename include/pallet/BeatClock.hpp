@@ -169,8 +169,7 @@ private:
     };
     this->interval = clock->setIntervalAbsolute(startTime,
                                                 this->ppqnPeriod,
-                                                cb,
-                                                this);
+                                                {cb, this});
   }
 
 public:
@@ -287,6 +286,7 @@ public:
 class BeatClock {
 public:
   using Id = BeatClockScheduler::Id;
+  using Callback = BeatClockScheduler::Callback;
 
   Clock* clock;
   MidiInterface* midiInterface;
@@ -312,16 +312,12 @@ public:
   void uponTick();
   void sendMidiClock(bool state);
   Id setBeatSyncTimeout(double sync,
-                             double offset,
-                             BeatClockCbT callback,
-                             void* callbackUserData);
-
+                        double offset,
+                        Callback callback);
   Id setBeatSyncInterval(double sync,
-                              double offset,
-                              double period,
-                              BeatClockCbT callback,
-                              void* callbackUserData);
-
+                         double offset,
+                         double period,
+                         Callback callback);
   void clearBeatSyncTimeout(Id id);
   void clearBeatSyncInterval(Id id);
   void setBPM(double bpm);

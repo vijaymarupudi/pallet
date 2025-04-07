@@ -22,9 +22,7 @@ void measureTiming(pallet::PosixPlatform& platform, pallet::Clock& clock) {
        (static_cast<decltype(&cb)>(ud))->operator()(info);
   };
 
-  clock.setInterval(intervalTime,
-                    simpleForwardingCallback,
-                    &cb);
+  clock.setInterval(intervalTime, {simpleForwardingCallback, &cb});
 
   while (1) {
     platform.loopIter();

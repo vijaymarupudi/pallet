@@ -19,7 +19,7 @@ static void luaBeatClockStateCleanup(LuaInterface::BeatClockCallbackStateEntry& 
   luaInterface.beatClockCallbackState.free(id);
 }
 
-static void luaBeatClockSetTimeoutIntervalCb(BeatClockEventInfo* info,
+static void luaBeatClockSetTimeoutIntervalCb(const BeatClockEventInfo& info,
                                              void* data) {
   (void)info;
   auto& state = *static_cast<LuaInterface::BeatClockCallbackStateEntry*>(data);
@@ -55,11 +55,11 @@ static int _luaBeatClockSyncTimeout(lua_State* L, bool interval) {
   BeatClock::Id cid;
   if (interval) {
     cid = beatClock.setBeatSyncInterval(sync, offset, period,
-                                        luaBeatClockSetTimeoutIntervalCb,
-                                        &state);
+                                        {luaBeatClockSetTimeoutIntervalCb,
+                                         &state});
   }
   else {
-    cid = beatClock.setBeatSyncTimeout(sync, offset, luaBeatClockSetTimeoutIntervalCb, &state);
+    cid = beatClock.setBeatSyncTimeout(sync, offset, {luaBeatClockSetTimeoutIntervalCb, &state});
   }
   state.interval = interval;
   state.id = id;

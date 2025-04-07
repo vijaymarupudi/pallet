@@ -29,17 +29,15 @@ public:
   virtual int getCurrentPPQN() = 0;
 };
 
-using BeatClockCbT = void(*)(BeatClockEventInfo*, void*);
-
 class BeatClockScheduler {
 public:
   using Id = BeatClockSchedulerIdT;
+  using Callback = pallet::Callable<void, const BeatClockEventInfo&>;
 private:
   struct BeatClockEvent {
     double prev;
     double period;
-    BeatClockCbT callback;
-    void* callbackUserData;
+    Callback callback;
     bool deleted;
     bool isInterval() { return period != 0; }
   };
@@ -59,29 +57,23 @@ public:
   void init(Clock* clock, BeatClockSchedulerInformationInterface* beatInfo);
   void setBeatInfo(BeatClockSchedulerInformationInterface* beatInfo) { this->beatInfo = beatInfo; }
   Id setBeatTimeout(double duration,
-                         BeatClockCbT callback,
-                         void* callbackUserData);
+                    Callback callback);
   Id setBeatSyncTimeout(double sync,
-                             double offset,
-                             BeatClockCbT callback,
-                             void* callbackUserData);
+                        double offset,
+                        Callback callback);
   Id setBeatTimeoutAbsolute(double goal,
-                                 BeatClockCbT callback,
-                                 void* callbackUserData);
+                            Callback callback);
   Id setBeatInterval(double period,
-                          BeatClockCbT callback,
-                          void* callbackUserData);
+                     Callback callback);
+  
   Id setBeatSyncInterval(double sync,
-                              double offset,
-                              double period,
-                              BeatClockCbT callback,
-                              void* callbackUserData); 
+                         double offset,
+                         double period,
+                         Callback callback); 
   Id setBeatIntervalAbsolute(double goal,
-                                  double period,
-                                  BeatClockCbT callback,
-                                  void* callbackUserData);
+                             double period,
+                             Callback callback);
   void clearBeatTimeout(Id id);
-  void* getBeatTimeoutUserData(Id id);
   void clearBeatSyncTimeout(Id id);
   void clearBeatInterval(Id id);
   double getCurrentBeat() {

@@ -39,7 +39,7 @@ void BeatClockScheduler::timer(pallet::Time time, bool off) {
   }
 
   // others, absolute timeout
-  clockTimeoutId = clock->setTimeoutAbsolute(time, beatClockSchedulerCallback, this);
+  clockTimeoutId = clock->setTimeoutAbsolute(time, {beatClockSchedulerCallback, this});
   clockTimeoutStatus = true;
 }
 
@@ -49,23 +49,21 @@ void BeatClockScheduler::processSoon() {
     clockTimeoutStatus = false;
   }
 
-  clockTimeoutId = clock->setTimeoutAbsolute(0, beatClockSchedulerCallback, this);
+  clockTimeoutId = clock->setTimeoutAbsolute(0, {beatClockSchedulerCallback, this});
   clockTimeoutStatus = true;
 }
 
 BeatClockScheduler::Id BeatClockScheduler::setBeatTimeout(double duration,
-                                                               BeatClockCbT callback,
-                                                               void* callbackUserData) {
+                                                               Callback callback) {
   auto now = this->beatInfo->getCurrentBeat();
   auto goal = now + duration;
-  return setBeatTimeoutAbsolute(goal, callback, callbackUserData);
+  return setBeatTimeoutAbsolute(goal, std::move(callback));
 }
 
 BeatClockScheduler::Id BeatClockScheduler::setBeatTimeoutAbsolute(double goal,
-                                             BeatClockCbT callback,
-                                             void* callbackUserData) {
+                                                                  Callback callback) {
   auto id = idTable.push(BeatClockEvent {
-      0, 0, callback, callbackUserData, false
+      0, 0, std::move(callback), false
     });
   queue.push(goal, id);
   this->updateWaitingTime();
@@ -73,27 +71,24 @@ BeatClockScheduler::Id BeatClockScheduler::setBeatTimeoutAbsolute(double goal,
 }
 
 BeatClockScheduler::Id BeatClockScheduler::setBeatSyncTimeout(double sync,
-                                                                   double offset,
-                                                                   BeatClockCbT callback,
-                                                                   void* callbackUserData){
+                                                              double offset,
+                                                              Callback callback) {
   auto now = this->beatInfo->getCurrentBeat();
   auto goal = beatClockSchedulerNextSyncedBeat(now, sync, offset);
-  return setBeatTimeoutAbsolute(goal, callback, callbackUserData);
+  return setBeatTimeoutAbsolute(goal, std::move(callback));
 }
 
 BeatClockScheduler::Id BeatClockScheduler::setBeatInterval(double period,
-                                      BeatClockCbT callback,
-                                      void* callbackUserData){
+                                                           Callback callback){
   auto now = this->beatInfo->getCurrentBeat();
-  return setBeatIntervalAbsolute(now + period, period, callback, callbackUserData);
+  return setBeatIntervalAbsolute(now + period, period, std::move(callback));
 }
 
 BeatClockScheduler::Id BeatClockScheduler::setBeatIntervalAbsolute(double goal,
                                               double period,
-                                              BeatClockCbT callback,
-                                              void* callbackUserData){
+                                              Callback callback) {
   auto id = idTable.push(BeatClockEvent {
-      goal - period, period, callback, callbackUserData, false
+      goal - period, period, std::move(callback), false
     });
   queue.push(goal, id);
   this->updateWaitingTime();
@@ -101,21 +96,16 @@ BeatClockScheduler::Id BeatClockScheduler::setBeatIntervalAbsolute(double goal,
 }
 
 BeatClockScheduler::Id BeatClockScheduler::setBeatSyncInterval(double sync,
-                                                                    double offset,
-                                                                    double period,
-                                                                    BeatClockCbT callback,
-                                                                    void* callbackUserData){
+                                                               double offset,
+                                                               double period,
+                                                               Callback callback){
   auto now = this->beatInfo->getCurrentBeat();
   auto goal = beatClockSchedulerNextSyncedBeat(now, sync, offset);
-  return setBeatIntervalAbsolute(goal, period, callback, callbackUserData);
+  return setBeatIntervalAbsolute(goal, period, std::move(callback));
 }
 
 void BeatClockScheduler::clearBeatTimeout(BeatClockScheduler::Id id) {
   idTable[id].deleted = true;
-}
-
-void* BeatClockScheduler::getBeatTimeoutUserData(BeatClockScheduler::Id id) {
-  return idTable[id].callbackUserData;
 }
 
 void BeatClockScheduler::clearBeatInterval(BeatClockScheduler::Id id) {
@@ -134,7 +124,7 @@ void BeatClockScheduler::processEvent(BeatClockScheduler::Id id, double now, dou
 
   if (!event->deleted) {
     BeatClockEventInfo info {id, now, goal, event->period};
-    event->callback(&info, event->callbackUserData);
+    event->callback(info);
   }
 
   // This is necessary, as idTable might have reallocated in the

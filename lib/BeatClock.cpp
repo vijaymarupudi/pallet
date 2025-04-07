@@ -81,19 +81,17 @@ void BeatClock::sendMidiClock(bool state) {
 
 BeatClock::Id BeatClock::setBeatSyncTimeout(double sync,
                            double offset,
-                           BeatClockCbT callback,
-                           void* callbackUserData){
+                           Callback callback){
   return scheduler.
-    setBeatSyncTimeout(sync, offset, callback, callbackUserData);
+    setBeatSyncTimeout(sync, offset, std::move(callback));
 }
 
 BeatClock::Id BeatClock::setBeatSyncInterval(double sync,
                             double offset,
                             double period,
-                            BeatClockCbT callback,
-                            void* callbackUserData)  {
+                            Callback callback)  {
   return scheduler.
-    setBeatSyncInterval(sync, offset, period, callback, callbackUserData);
+    setBeatSyncInterval(sync, offset, period, std::move(callback));
 }
 
 void BeatClock::clearBeatSyncTimeout(BeatClock::Id id) {

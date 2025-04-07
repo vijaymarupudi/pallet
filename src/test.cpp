@@ -5,7 +5,6 @@
 int main()
 
 {
-
   auto event = pallet::Event<int>{};
 
   event.listen({+[](int x, void*) {

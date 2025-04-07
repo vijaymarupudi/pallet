@@ -14,18 +14,16 @@ pallet::Time Clock::currentTime() {
 }
 
 Clock::Id Clock::setTimeout(pallet::Time duration,
-                                 ClockCbT callback,
-                                 void* callbackUserData) {
+                            Callback callback) {
   auto now = this->currentTime();
   auto goal = now + duration;
-  return setTimeoutAbsolute(goal, callback, callbackUserData);
+  return setTimeoutAbsolute(goal, std::move(callback));
 }
 
 Clock::Id Clock::setTimeoutAbsolute(pallet::Time goal,
-                                         ClockCbT callback,
-                                         void* callbackUserData) {
+                                    Callback callback) {
   auto id = idTable.push(ClockEvent {
-      0, 0, {callback, callbackUserData}, false
+      0, 0, std::move(callback), false
     });
   queue.push(goal, id);
   this->updateWaitingTime();
@@ -33,18 +31,16 @@ Clock::Id Clock::setTimeoutAbsolute(pallet::Time goal,
 }
 
 Clock::Id Clock::setInterval(pallet::Time period,
-                                  ClockCbT callback,
-                                  void* callbackUserData){
+                             Callback callback) {
   auto now = this->currentTime();
-  return setIntervalAbsolute(now + period, period, callback, callbackUserData);
+  return setIntervalAbsolute(now + period, period, std::move(callback));
 }
 
 Clock::Id Clock::setIntervalAbsolute(pallet::Time goal,
-                                          pallet::Time period,
-                                          ClockCbT callback,
-                                          void* callbackUserData){
+                                     pallet::Time period,
+                                     Callback callback){
   auto id = idTable.push(ClockEvent {
-      goal - period, period, {callback, callbackUserData}, false
+      goal - period, period, std::move(callback), false
     });
   queue.push(goal, id);
   this->updateWaitingTime();

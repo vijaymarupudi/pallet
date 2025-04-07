@@ -61,9 +61,9 @@ static int _luaClockSetTimeout(lua_State* L, bool interval) {
   Clock::Id cid;
 
   if (interval) {
-    cid = luaInterface.clock->setInterval(time, luaClockSetTimeoutIntervalCb, &state);
+    cid = luaInterface.clock->setInterval(time, {luaClockSetTimeoutIntervalCb, &state});
   } else {
-    cid = luaInterface.clock->setTimeout(time, luaClockSetTimeoutIntervalCb, &state);
+    cid = luaInterface.clock->setTimeout(time, {luaClockSetTimeoutIntervalCb, &state});
   }
   state.interval = interval;
   state.id = id;

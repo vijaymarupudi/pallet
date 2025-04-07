@@ -68,11 +68,12 @@ using ClockCbT = void(*)(const ClockEventInfo&, void*);
 class Clock {
 public:
   using Id = ClockIdT;
+  using Callback = Callable<void, const ClockEventInfo&>;
 private:
   struct ClockEvent {
     pallet::Time prev;
     pallet::Time period;
-    Callable<void, const ClockEventInfo&> callback;
+    Callback callback;
     bool deleted;
     bool isInterval() { return period != 0; }
   };
@@ -93,18 +94,14 @@ public:
   Clock(Platform& platform);
   pallet::Time currentTime();
   Id setTimeout(pallet::Time duration,
-                     ClockCbT callback,
-                     void* callbackUserData);
+                Callback callback);
   Id setTimeoutAbsolute(pallet::Time goal,
-                             ClockCbT callback,
-                             void* callbackUserData);
+                        Callback callback);
   Id setInterval(pallet::Time period,
-                      ClockCbT callback,
-                      void* callbackUserData);
+                 Callback callback);
   Id setIntervalAbsolute(pallet::Time goal,
-                              pallet::Time period,
-                              ClockCbT callback,
-                              void* callbackUserData);
+                         pallet::Time period,
+                         Callback callback);
   void clearTimeout(Id id);
   void clearInterval(Id id);
   void processEvent(Clock::Id id, pallet::Time goal);
