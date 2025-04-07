@@ -111,11 +111,10 @@ public:
   virtual void point(float, float, int) = 0;
   // fc = foreground color
   // bc = background color
-
   virtual void renderCompressedBitmap(float x, float y, int w, int h, uint8_t* data, int fc, int bc = 0);
+  
   void text(float x, float y, const char* str, size_t strLen, int fc, int bc, const GFXfont* font = &CG_pixel_3x52);
   GraphicsTextMeasurement measureText(const char* str, size_t strLen, const GFXfont* font = &CG_pixel_3x52);
-  
 };
 
 class GraphicsInterface {
