@@ -296,7 +296,7 @@ void FdManager::stopWriting() {
 
 FdManager::~FdManager() {
   if (fd >= 0) {
-    this->platform->unwatchFdEvents(this->fd, PosixPlatform::Read | PosixPlatform::Write);
+    this->platform->unwatchFdEvents(this->fd, this->revents);
   }
 }
 

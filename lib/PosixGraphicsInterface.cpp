@@ -18,9 +18,12 @@ enum class GraphicsUserEventType : int32_t {
 };
 
 void SDLHardwareInterface::init()  {
-  SDL_SetHint(SDL_HINT_SHUTDOWN_DBUS_ON_QUIT, "1");
+
+  // Can't do this, dbus_shutdown() will call _exit();
+  // SDL_SetHint(SDL_HINT_SHUTDOWN_DBUS_ON_QUIT, "1");
+
   SDL_Init(SDL_INIT_VIDEO);
-  this->running = true;
+  this->hardwareInterfaceRunning = true;
   this->window = SDL_CreateWindow("Testing", 128 * this->scaleFactor, 64 * this->scaleFactor, 0);
   auto surface = SDL_GetWindowSurface(this->window);
   this->renderer = SDL_CreateSoftwareRenderer(surface);
@@ -61,7 +64,7 @@ void SDLHardwareInterface::point(float x, float y, int c) {
 void SDLHardwareInterface::loop() {
   SDL_Event events[MAX_BATCH_LEN];
   memset(&events[0], 0, sizeof(SDL_Event) * MAX_BATCH_LEN);
-  while (this->running && SDL_WaitEvent(events)) {
+  while (this->hardwareInterfaceRunning && SDL_WaitEvent(events)) {
     size_t len = 1;
     for (; len < MAX_BATCH_LEN; len++) {
       if (!SDL_PollEvent(&events[len])) {
@@ -81,10 +84,10 @@ void SDLHardwareInterface::close() {
 SDLHardwareInterface::SDLHardwareInterface(SDLHardwareInterface&& other)
     : window(other.window),
       renderer(other.renderer),
-      running(other.running) {
+      hardwareInterfaceRunning(other.hardwareInterfaceRunning) {
     other.window = nullptr;
     other.renderer = nullptr;
-    other.running = false;
+    other.hardwareInterfaceRunning = false;
   }
 
 void SDLHardwareInterface::cleanup() {
@@ -97,8 +100,8 @@ void SDLHardwareInterface::cleanup() {
     window = nullptr;
   }
 
-  if (running) {
-    running = false;
+  if (hardwareInterfaceRunning) {
+    hardwareInterfaceRunning = false;
     SDL_Quit();
   }
 }
@@ -140,7 +143,7 @@ PosixGraphicsInterface::PosixGraphicsInterface(PosixPlatform& platform, pallet::
     sdlInterfaceInited.wait(old);
   }
 
-  this->running = true;
+  this->hardwareInterfaceRunning = true;
 }
 
 PosixGraphicsInterface::PosixGraphicsInterface(PosixGraphicsInterface&& iface)
@@ -200,8 +203,8 @@ void PosixGraphicsInterface::uponPipeIn(void* datain, size_t len) {
 
 void PosixGraphicsInterface::render() {
 
-  if (!this->running) {
-    // It's a no-op if the graphics aren't running!
+  if (!this->hardwareInterfaceRunning) {
+    // It's a no-op if the graphics aren't hardwareInterfaceRunning!
     this->operationsBuffer->clear();
     return;
   }
@@ -227,17 +230,20 @@ void PosixGraphicsInterface::render() {
 }
 
 void PosixGraphicsInterface::quit() {
-  SDL_Event event;
-  SDL_zero(event);
-  event.type = sdlHardwareInterface.userEventType;
-  event.user.code = static_cast<int32_t>(GraphicsUserEventType::Quit);
-  event.user.timestamp = SDL_GetTicks();
-  int ret = SDL_PushEvent(&event);
-  if (ret < 0) {
-    printf("%s\n", SDL_GetError());
-  } else {
-    this->running = false;
+  if (hardwareInterfaceRunning) {
+    SDL_Event event;
+    SDL_zero(event);
+    event.type = sdlHardwareInterface.userEventType;
+    event.user.code = static_cast<int32_t>(GraphicsUserEventType::Quit);
+    event.user.timestamp = SDL_GetTicks();
+    int ret = SDL_PushEvent(&event);
+    if (ret < 0) {
+      printf("%s\n", SDL_GetError());
+    } else {
+      this->hardwareInterfaceRunning = false;
+    }
   }
+
 }
 
 void PosixGraphicsInterface::renderOperations(std::vector<Operation>& operations) {

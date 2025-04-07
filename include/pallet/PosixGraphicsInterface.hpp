@@ -44,7 +44,7 @@ public:
 private:
   SDL_Window* window = nullptr;
   SDL_Renderer* renderer = nullptr;
-  bool running = false;
+  bool hardwareInterfaceRunning = false;
   void cleanup();
 };
 
@@ -72,14 +72,14 @@ public:
 
 
 private:
-  PosixPlatform* platform;
+  PosixPlatform* platform {};
   FdManager pipeFdManager;
   SDLHardwareInterface sdlHardwareInterface;
   std::jthread thrd;
   std::unique_ptr<std::vector<Operation>> operationsBuffer;
   containers::ThreadSafeStack<std::unique_ptr<std::vector<Operation>>> operationVectorStack;
   pallet::Pipe pipes;
-  bool running = false;
+  bool hardwareInterfaceRunning = false;
 
   void uponPipeIn(void* datain, size_t len);
   void renderOperations(std::vector<Operation>& operations);

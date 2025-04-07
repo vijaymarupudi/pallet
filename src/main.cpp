@@ -9,7 +9,7 @@
 #include "pallet/LoOscInterface.hpp"
 #include "pallet/measurement.hpp"
 
-int main() {
+int actualMain() {
   auto platformResult = pallet::LinuxPlatform::create();
   if (!platformResult) return 1;
   auto clockResult = pallet::Clock::create(*platformResult);
@@ -90,6 +90,8 @@ end)
   graphicsInterfaceResult->quit();
 
   return 0;
+}
 
-
+int main() {
+  actualMain();
 }
