@@ -33,14 +33,31 @@ namespace pallet {
 
   public:
     Callable(FuncPtrType ptr, void* ud) : data{std::in_place_type_t<FuncPtr>{}, ptr, ud} {}
+
+    template <class F>
+    requires (
+      std::invocable<F, A...> &&
+      sizeof(F) <= sizeof(void*) &&
+      alignof(F) <= alignof(void*) &&
+      std::is_trivially_destructible_v<F> &&
+      std::is_trivially_move_constructible_v<F>
+      )
+    Callable(F&& obj) {
+      FuncPtr& pair = pallet::get_unchecked<FuncPtr>(data);
+      void*& ud = std::get<1>(pair);
+      new (&ud) F (std::forward<F>(obj));
+      std::get<0>(pair) = +[](A... args, void* ud) {
+        return reinterpret_cast<F*>(&ud)->operator()(args...);
+      };
+    }
+
+
     template <class F>
     requires (std::invocable<F, A...>)
-    Callable(F&& obj) : data{
-        std::make_unique<detail::Invokable<F, R, A...>>(std::forward<F>(obj))
-      } {}
+    Callable(F&& obj) : data{std::make_unique<detail::Invokable<F, R, A...>>(std::forward<F>(obj))} {}
     
     R operator()(A... args) {
-      return visit(overloads {
+      return pallet::visit(pallet::overloads {
           [&](FuncPtr& funcPtr) -> R {
             auto& [cb, ud] = funcPtr;
             return cb(args..., ud);
