@@ -25,7 +25,7 @@ Clock::Id Clock::setTimeoutAbsolute(pallet::Time goal,
                                          ClockCbT callback,
                                          void* callbackUserData) {
   auto id = idTable.push(ClockEvent {
-      0, 0, callback, callbackUserData, false
+      0, 0, {callback, callbackUserData}, false
     });
   queue.push(goal, id);
   this->updateWaitingTime();
@@ -44,7 +44,7 @@ Clock::Id Clock::setIntervalAbsolute(pallet::Time goal,
                                           ClockCbT callback,
                                           void* callbackUserData){
   auto id = idTable.push(ClockEvent {
-      goal - period, period, callback, callbackUserData, false
+      goal - period, period, {callback, callbackUserData}, false
     });
   queue.push(goal, id);
   this->updateWaitingTime();
@@ -53,10 +53,6 @@ Clock::Id Clock::setIntervalAbsolute(pallet::Time goal,
 
 void Clock::clearTimeout(Clock::Id id) {
   idTable[id].deleted = true;
-}
-
-void* Clock::getTimeoutUserData(Clock::Id id) {
-  return idTable[id].callbackUserData;
 }
 
 void Clock::clearInterval(Clock::Id id) {
@@ -83,7 +79,8 @@ void Clock::processEvent(Clock::Id id, pallet::Time goal) {
     });
 
     ClockEventInfo info {id, now, goal, event->period, overhead};
-    event->callback(&info, event->callbackUserData);
+    event->callback(info);
+      // event->callback(&info, event->callbackUserData);
   }
 
   // This is necessary, as idTable might have reallocated in the

@@ -163,9 +163,9 @@ public:
 
 private:
   void startTickInterval(pallet::Time startTime) {
-    auto cb = [](ClockEventInfo* info, void* ud) {
+    auto cb = [](const ClockEventInfo& info, void* ud) {
       auto bc = static_cast<BeatClockInternalImplementation*>(ud);
-      bc->uponTick(info->now, info->intended);
+      bc->uponTick(info.now, info.intended);
     };
     this->interval = clock->setIntervalAbsolute(startTime,
                                                 this->ppqnPeriod,

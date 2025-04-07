@@ -86,7 +86,7 @@ static void output_hex(const char* name, std::string& out,
     const auto& [modName, bytecode] = pairs[index];
     snprintf(buf, 8192, "const unsigned char %s_%llu_data[] = {", name, index);
     out.append(buf);
-    const unsigned char* data = static_cast<const unsigned char*>(bytecode.data());
+    auto data = reinterpret_cast<const unsigned char*>(bytecode.data());
     for (size_t i = 0; i < bytecode.size(); i++) {
       unsigned char d = data[i];
       snprintf(buf, 8192, "%02X", d);
@@ -107,7 +107,7 @@ static void output_hex(const char* name, std::string& out,
     const auto& [modName, bytecode] = pairs[index];
     snprintf(buf, 8192, "  { \"%s\", %llu, &%s_%llu_data[0] },\n", modName.c_str(), bytecode.size(), name, index);
     out.append(buf);
-    const unsigned char* data = static_cast<const unsigned char*>(bytecode.data());
+    // const unsigned char* data = static_cast<const unsigned char*>(bytecode.data());
 
 
 

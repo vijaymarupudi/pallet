@@ -11,6 +11,7 @@
 #include "pallet/constants.hpp"
 #include "pallet/time.hpp"
 #include "pallet/error.hpp"
+#include "pallet/functional.hpp"
 
 namespace pallet {
 
@@ -62,7 +63,7 @@ struct ClockEventInfo {
   size_t overhead;
 };
 
-using ClockCbT = void(*)(ClockEventInfo*, void*);
+using ClockCbT = void(*)(const ClockEventInfo&, void*);
 
 class Clock {
 public:
@@ -71,8 +72,7 @@ private:
   struct ClockEvent {
     pallet::Time prev;
     pallet::Time period;
-    ClockCbT callback;
-    void* callbackUserData;
+    Callable<void, const ClockEventInfo&> callback;
     bool deleted;
     bool isInterval() { return period != 0; }
   };
@@ -106,7 +106,6 @@ public:
                               ClockCbT callback,
                               void* callbackUserData);
   void clearTimeout(Id id);
-  void* getTimeoutUserData(Id id);
   void clearInterval(Id id);
   void processEvent(Clock::Id id, pallet::Time goal);
   void updateWaitingTime();

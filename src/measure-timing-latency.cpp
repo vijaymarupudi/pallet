@@ -8,17 +8,17 @@ void measureTiming(pallet::PosixPlatform& platform, pallet::Clock& clock) {
   auto intervalTime = pallet::timeInMs(100);
   auto meas = pallet::RunningMeanMeasurer<double, 32>();
 
-  auto cb = [&](pallet::ClockEventInfo* info) {
+  auto cb = [&](const pallet::ClockEventInfo& info) {
     auto now = clock.currentTime();
-    auto diff = now - info->intended;
+    auto diff = now - info.intended;
     meas.addSample(diff);
     std::println("clock: {}, main: {}, main avg: {}",
-                 info->now - info->intended,
+                 info.now - info.intended,
                  diff,
                  meas.mean());
   };
 
-  auto simpleForwardingCallback = [](pallet::ClockEventInfo* info, void* ud) {
+  auto simpleForwardingCallback = [](const pallet::ClockEventInfo& info, void* ud) {
        (static_cast<decltype(&cb)>(ud))->operator()(info);
   };
 

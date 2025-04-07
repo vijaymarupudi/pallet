@@ -215,7 +215,7 @@ void PosixGraphicsInterface::render() {
   SDL_Event event;
   SDL_zero(event);
   event.type = sdlHardwareInterface.userEventType;
-  event.user.code = (int32_t)GraphicsUserEventType::Render;
+  event.user.code = static_cast<int32_t>(GraphicsUserEventType::Render);
   event.user.data1 = old.release();
   event.user.timestamp = SDL_GetTicks();
   int ret = SDL_PushEvent(&event);
@@ -228,7 +228,7 @@ void PosixGraphicsInterface::quit() {
   SDL_Event event;
   SDL_zero(event);
   event.type = sdlHardwareInterface.userEventType;
-  event.user.code = (int32_t)GraphicsUserEventType::Quit;
+  event.user.code = static_cast<int32_t>(GraphicsUserEventType::Quit);
   event.user.timestamp = SDL_GetTicks();
   int ret = SDL_PushEvent(&event);
   if (ret < 0) {

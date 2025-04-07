@@ -5,7 +5,7 @@ namespace pallet {
 
 using namespace pallet::luaHelper;
 
-  static void luaClockSetTimeoutIntervalCb(ClockEventInfo* info, void* data);
+static void luaClockSetTimeoutIntervalCb(const ClockEventInfo& info, void* data);
 static int luaClockSetTimeout(lua_State* L);
 static int luaClockSetInterval(lua_State* L);
 static int luaClockCurrentTime(lua_State* L);
@@ -96,7 +96,7 @@ static void luaClockStateCleanup(LuaInterface::ClockCallbackStateEntry& entry, b
   luaInterface.clockCallbackState.free(id);
 }
 
-static void luaClockSetTimeoutIntervalCb(ClockEventInfo* info, void* data) {
+static void luaClockSetTimeoutIntervalCb(const ClockEventInfo& info, void* data) {
   (void)info;
   auto& state = *static_cast<LuaInterface::ClockCallbackStateEntry*>(data);
   auto& luaInterface = state.luaInterface;

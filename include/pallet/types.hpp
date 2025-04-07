@@ -1,5 +1,5 @@
 #pragma once
 
 namespace pallet {
-    struct Blank {};
+  struct Blank {};
 }
