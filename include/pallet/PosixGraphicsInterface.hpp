@@ -41,6 +41,13 @@ public:
 
   SDLHardwareInterface() :
     shouldRunLoop(std::make_unique<std::atomic<bool>>(true)) {};
+
+  SDLHardwareInterface(const SDLHardwareInterface& other) = delete;
+  SDLHardwareInterface& operator=(const SDLHardwareInterface& other) = delete;
+  SDLHardwareInterface(SDLHardwareInterface&& other) = default;
+  SDLHardwareInterface& operator=(SDLHardwareInterface&& other) = default;
+  
+  
   // SDLHardwareInterface(SDLHardwareInterface&& other);
 
 private:
