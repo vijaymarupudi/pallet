@@ -56,6 +56,7 @@ set(CXX_FILES
   lib/BeatClock.cpp
   lib/MonomeGridInterface.cpp
   lib/OscMonomeGridInterface.cpp
+  lib/io.cpp
   )
 
 add_library(pallet STATIC ${CXX_FILES})

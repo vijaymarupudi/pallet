@@ -1,25 +1,18 @@
 #include <cstdio>
 #include <type_traits>
 #include <utility>
-#include "pallet/functional.hpp"
+#include <print>
+#include "pallet/io.hpp"
 
 int main()
-
 {
-  // record t ([](int){ return 0; });
-  // int x = t;
+  auto res = pallet::readFile("src/test.cpp").transform([&](auto&& items) {
+    std::println("{}", items);
+  });
 
-  pallet::Callable<int, int> callable ([](int) { return 0; });
-
-  callable(3);
-  //  int t = a;
-  // auto callable = pallet::Callable<void, int>([] (int x) {
-  //   printf("%d\n", x);
-  // });
-
-  // callable(3);
-
+  if (!res) {
+    std::println("{}", res.error().message());
+  }
   
-
 }
     

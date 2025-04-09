@@ -22,4 +22,13 @@ struct CStyleCallback {
   }
 };
 
+template <class T>
+class Defer : T {
+public:
+  Defer(T&& lambda) : T(std::move(lambda)) {}
+  ~Defer() {
+    T::operator()();
+  }
+};
+
 }

@@ -37,7 +37,7 @@ namespace pallet {
     template <class F>
     requires (
       std::invocable<F, A...> &&
-      std::same_as<decltype(std::declval<F>()(std::declval<A>()...)), R> &&
+      std::same_as<std::invoke_result_t<F, A...>, R> &&
       sizeof(F) <= sizeof(void*) &&
       alignof(F) <= alignof(void*) &&
       std::is_trivially_destructible_v<F> &&
@@ -56,7 +56,7 @@ namespace pallet {
     template <class F>
     requires (
       std::invocable<F, A...> &&
-      std::same_as<decltype(std::declval<F>()(std::declval<A>()...)), R>
+      std::same_as<std::invoke_result_t<F, A...>, R>
       )
     Callable(F&& obj) : data{std::make_unique<detail::Invokable<F, R, A...>>(std::forward<F>(obj))} {}
     
