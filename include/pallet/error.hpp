@@ -1,8 +1,10 @@
 #pragma once
 #include <system_error>
 #include <expected>
+#include <source_location>
 #include <cstdlib>
 #include <cstdio>
+
 
 namespace pallet {
 template <class T>
@@ -13,27 +15,18 @@ static inline std::unexpected<std::error_condition> error (std::error_condition 
 }
 
 template <class T>
-static inline T unwrap(Result<T>&& in) {
+static inline T unwrap(Result<T>&& in, std::source_location location = std::source_location::current()) {
   if (in) {
     return *std::move(in);
   } else {
     auto& error = in.error();
-    printf("panic(%d): %s\n", error.value(),
-           error.message().c_str());
-    abort();
-  }
-}
-
-template <class T>
-static inline T unwrap(Result<T>&& in, const char* msg) {
-  if (in) {
-    return *std::move(in);
-  } else {
-    auto& error = in.error();
-    printf("panic(%d): %s | %s\n",
+    printf("panic(%d): %s | %d:%d:%s:%s\n",
            error.value(),
-           msg,
-           error.message().c_str());
+           error.message().c_str(),
+           location.line(),
+           location.column(),
+           location.function_name(),
+           location.file_name());
     abort();
   }
 }

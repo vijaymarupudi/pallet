@@ -6,8 +6,8 @@
 
 int main()
 {
-  std::string out = pallet::unwrap(pallet::readFile("src/test.cpp"),
-                                   "Cannot find file!");
+  using namespace pallet;
+  std::string out = unwrap(readFile("src/test.cpp"));
   std::print("{}", out);
 }
     
