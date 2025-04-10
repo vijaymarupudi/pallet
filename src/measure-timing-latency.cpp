@@ -24,9 +24,7 @@ void measureTiming(pallet::PosixPlatform& platform, pallet::Clock& clock) {
 
   clock.setInterval(intervalTime, {simpleForwardingCallback, &cb});
 
-  while (1) {
-    platform.loopIter();
-  }
+  platform.loop();
 }
 
 int main() {

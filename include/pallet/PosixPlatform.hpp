@@ -30,13 +30,14 @@ public:
   void unwatchFdOut(int fd);
   void unwatchFdEvents(int fd, short events);
   void removeFd(int fd);
-  void loopIter();
+  void loop();
   void cleanup();
   void setFdNonBlocking(int fd);
 
   virtual pallet::Time currentTime() override;
   virtual void timer(pallet::Time time, bool off = false) override;
   virtual void pause() override;
+  virtual void quit() override;
 private:
 
   struct FdPollState {
@@ -57,7 +58,8 @@ private:
 
   void uponTimer();
   FdPollState& findOrCreateFdPollState(int fd);
-
+  void loopIter();
+  bool mRunning = true;
 };
 
 class FdManager {

@@ -188,4 +188,21 @@ LuaInterface::~LuaInterface() {
   lua_close(this->L);
 }
 
+
+static void luaBindPlatform(lua_State* L) {
+  getPalletCTable(L);
+  auto palletCTableIndex = lua_gettop(L);
+  luaRawSetTable(L, palletCTableIndex, "quit",
+                 +[](lua_State* L) {
+                   auto& luaInterface = getLuaInterfaceObject(L);
+                   luaInterface.platform->quit();
+                   return 0;
+                 });
+}
+
+void LuaInterface::setPlatform(Platform& platform) {
+  this->platform = &platform;
+  luaBindPlatform(this->L);
+}
+
 }

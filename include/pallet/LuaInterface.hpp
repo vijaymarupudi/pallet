@@ -8,6 +8,7 @@
 #include "pallet/containers/IdTable.hpp"
 #include "pallet/containers/StaticVector.hpp"
 
+#include "pallet/Platform.hpp"
 #include "pallet/Clock.hpp"
 #include "pallet/MonomeGridInterface.hpp"
 #include "pallet/BeatClock.hpp"
@@ -34,6 +35,12 @@ public:
                                               std::deque<T>>;
 
   lua_State* L;
+
+  /*
+   * Platform binding state
+   */
+
+  Platform* platform = nullptr;
 
   /*
    * Clock binding state
@@ -97,6 +104,7 @@ public:
   LuaInterface();
   ~LuaInterface();
   int dostring(const char* str);
+  void setPlatform(Platform& platform);
   void setClock(Clock& clock);
   void setMonomeGridInterface(MonomeGridInterface& gridInterface);
   void setBeatClock(BeatClock& beatClock);

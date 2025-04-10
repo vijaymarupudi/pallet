@@ -137,7 +137,6 @@ PosixPlatform::FdPollState& PosixPlatform::findOrCreateFdPollState(int fd) {
 }
 
 void PosixPlatform::watchFdEvents(int fd, short events, FdCallback callback, void* userData) {
-  printf("watching %d\n", fd);
   auto& state = this->findOrCreateFdPollState(fd);
   state.events |= events;
   state.callback = callback;
@@ -160,7 +159,6 @@ void PosixPlatform::unwatchFdOut(int fd) {
 }
 
 void PosixPlatform::unwatchFdEvents(int fd, short events) {
-  printf("unwatching %d\n", fd);
   auto it = this->fdCallbacks.find(fd);
   if (it != this->fdCallbacks.end()) {
     auto& [fd, state] = *it;
@@ -191,6 +189,16 @@ void PosixPlatform::loopIter() {
       state.callback(fd, this->pollFds[i].revents, state.ud);
     }
   }
+}
+
+void PosixPlatform::loop() {
+  while (this->mRunning) {
+    this->loopIter();
+  }
+}
+
+void PosixPlatform::quit() {
+  this->mRunning = false;
 }
 
 void PosixPlatform::setFdNonBlocking(int fd) {

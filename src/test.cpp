@@ -1,13 +1,12 @@
 #include <cstdio>
 #include <type_traits>
 #include <utility>
-#include <print>
 #include "pallet/io.hpp"
 
 int main()
 {
   using namespace pallet;
-  std::string out = unwrap(readFile("src/test.cpp"));
-  std::print("{}", out);
+  std::string out = pallet::unwrap(readFile("src/test.cpp"));
+  printf("%s\n", out.c_str());
 }
     

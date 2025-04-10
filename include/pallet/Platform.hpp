@@ -23,6 +23,7 @@ class Platform {
   virtual pallet::Time currentTime() = 0;
   virtual void timer(pallet::Time time, bool off = false) = 0;
   virtual void pause() = 0;
+  virtual void quit() = 0;
 
 protected:
   
