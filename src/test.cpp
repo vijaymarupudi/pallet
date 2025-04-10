@@ -6,13 +6,8 @@
 
 int main()
 {
-  auto res = pallet::readFile("src/test.cpp").transform([&](auto&& items) {
-    std::println("{}", items);
-  });
-
-  if (!res) {
-    std::println("{}", res.error().message());
-  }
-  
+  std::string out = pallet::unwrap(pallet::readFile("src/test.cpp"),
+                                   "Cannot find file!");
+  std::print("{}", out);
 }
     

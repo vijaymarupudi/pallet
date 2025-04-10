@@ -17,19 +17,18 @@ Result<std::string> readFile(const char* name) {
   });
 
   std::string ret;
+  size_t amtRead;
   char buf[8192];
-
-  while (true) {
-    auto amtRead = fread(buf, 1, sizeof(buf), f);
+  do {
+    amtRead = fread(buf, 1, sizeof(buf), f);
     ret.append(buf, amtRead);
-    if (amtRead != sizeof(buf)) {
-      if (ferror(f)) {
-        return pallet::error(std::system_category().default_error_condition(errno));
-      } else {
-        // eof here
-        return ret;
-      }
-    }
+  } while (amtRead == sizeof(buf));
+
+  if (ferror(f)) {
+    return pallet::error(std::system_category().default_error_condition(errno));
+  } else {
+    // eof here
+    return ret;
   }
 }
 
