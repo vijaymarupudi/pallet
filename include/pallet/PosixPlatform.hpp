@@ -22,7 +22,7 @@ public:
 
   static Result<PosixPlatform> create();
   PosixPlatform();
-  ~PosixPlatform();
+  ~PosixPlatform() override;
   void watchFdIn(int fd, FdCallback callback, void* userData);
   void watchFdOut(int fd, FdCallback callback, void* userData);
   void watchFdEvents(int fd, short events, FdCallback callback, void* userData);

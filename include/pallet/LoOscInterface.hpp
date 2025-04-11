@@ -98,7 +98,7 @@ public:
     addressIdTable.free(id);
   }
 
-  void bind(int port) {
+  virtual void bind(int port) override {
     this->server = detail::makeLoServer(port);
     this->port = port;
     lo_server_add_method(this->server.get(), NULL, NULL, LoOscInterface::loUponOscMessageCallback, this);

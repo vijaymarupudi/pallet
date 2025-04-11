@@ -68,7 +68,7 @@ using ClockCbT = void(*)(const ClockEventInfo&, void*);
 class Clock {
 public:
   using Id = ClockIdT;
-  using Callback = Callable<void, const ClockEventInfo&>;
+  using Callback = Callable<void(const ClockEventInfo&)>;
 private:
   struct ClockEvent {
     pallet::Time prev;

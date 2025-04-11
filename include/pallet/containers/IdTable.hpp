@@ -50,7 +50,7 @@ void recapContainer(Container& existing, size_t newCapacity) {
 
 
 template <class IdTableType>
-class IdTableIterator;
+struct IdTableIterator;
 
 template <class EntryType,
           template<class> class Container = std::vector,
@@ -59,7 +59,7 @@ requires detail::IdTableContainerRequirements<Container<IdType>, IdType> &&
   detail::IdTableContainerRequirements<Container<EntryType>, EntryType> &&
   std::unsigned_integral<IdType>
 class IdTable {
-  friend class IdTableIterator<IdTable>;
+  friend struct IdTableIterator<IdTable>;
   using value_type = EntryType;
   using Id = IdType;
 public:
@@ -193,7 +193,9 @@ struct IdTableIterator {
   IdTableType* table;
   std::size_t idTableStorageIndex;
   std::ptrdiff_t freeVectorIndex;
-  
+
+public:
+
   IdTableType::value_type& operator*() {
     return (*table)[idTableStorageIndex];
   }

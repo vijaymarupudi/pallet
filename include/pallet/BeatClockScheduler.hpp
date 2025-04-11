@@ -32,7 +32,7 @@ public:
 class BeatClockScheduler {
 public:
   using Id = BeatClockSchedulerIdT;
-  using Callback = pallet::Callable<void, const BeatClockEventInfo&>;
+  using Callback = pallet::Callable<void(const BeatClockEventInfo&)>;
 private:
   struct BeatClockEvent {
     double prev;

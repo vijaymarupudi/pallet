@@ -24,6 +24,7 @@ class Platform {
   virtual void timer(pallet::Time time, bool off = false) = 0;
   virtual void pause() = 0;
   virtual void quit() = 0;
+  virtual ~Platform() {};
 
 protected:
   

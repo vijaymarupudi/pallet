@@ -1,7 +1,7 @@
 #include "PosixPlatform.hpp"
 
 namespace pallet {
-  class LinuxPlatform : public PosixPlatform {
+  class LinuxPlatform final : public PosixPlatform {
   public:
     static Result<LinuxPlatform> create();
     LinuxPlatform();

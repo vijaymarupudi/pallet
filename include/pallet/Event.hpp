@@ -10,7 +10,7 @@ template <class... A>
 class Event {
 public:
   using ReturnType = void;
-  using Callback = pallet::Callable<ReturnType, A...>;
+  using Callback = pallet::Callable<ReturnType(A...)>;
 
   uint32_t listen(Callback cb);
   void unlisten(uint32_t id);

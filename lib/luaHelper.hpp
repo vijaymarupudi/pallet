@@ -60,6 +60,8 @@ namespace detail {
 
 template <class T>
 bool luaIsType(lua_State* L, int index) {
+  (void)L;
+  (void)index;
   static_assert(false, "Don't know how to check this lua type");
   return false;
 }
