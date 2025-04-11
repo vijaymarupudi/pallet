@@ -3,6 +3,7 @@
 #include <concepts>
 #include <type_traits>
 #include <utility>
+#include <cstddef>
 
 namespace pallet {
 
@@ -107,7 +108,6 @@ public:
     std::is_trivially_destructible_v<F> &&
     std::is_trivially_move_constructible_v<F>
     )
-
   Callable(F&& obj) : type(StorageType::FuncPtrUdPair), funcPtrUdPair{nullptr, nullptr} {
     void*& ud = std::get<1>(funcPtrUdPair);
     new (&ud) F (std::forward<F>(obj));
@@ -115,6 +115,17 @@ public:
       return reinterpret_cast<F*>(&ud)->operator()(args...);
     };
   }
+
+    template <class F>
+  requires (
+    std::invocable<F, A...> &&
+    std::same_as<std::invoke_result_t<F, A...>, R>
+    )
+  Callable(F&& obj) : type(StorageType::CallablePtr),
+                      callablePtr{std::make_unique<detail::Invokable<F, R(A...)>>(std::forward<F>(obj))} {}
+
+  Callable(std::nullptr_t) : type(StorageType::FuncPtrUdPair),
+                             funcPtrUdPair(nullptr, nullptr) {}
 
   Callable(Callable&& other) {
     moveConstructFromOther(other);
@@ -160,13 +171,13 @@ public:
     return *this;
   }
 
-  template <class F>
-  requires (
-    std::invocable<F, A...> &&
-    std::same_as<std::invoke_result_t<F, A...>, R>
-    )
-  Callable(F&& obj) : type(StorageType::CallablePtr),
-                      callablePtr{std::make_unique<detail::Invokable<F, R(A...)>>(std::forward<F>(obj))} {}
+  operator bool () {
+    if (type == StorageType::FuncPtrUdPair && std::get<0>(funcPtrUdPair) == nullptr) {
+      return false;
+    } else {
+      return true;
+    }
+  }
 
   R operator()(A... args) {
     switch (type) {

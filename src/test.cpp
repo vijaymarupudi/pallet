@@ -24,4 +24,12 @@ int main()
   }};
 
   item(10);
+
+
+  pallet::Callable<void(int)> twonother (nullptr);
+
+  if (twonother) {
+    twonother(3);
+  }
+  
 }
