@@ -2,6 +2,7 @@
 
 #include <variant>
 #include <type_traits>
+#include "pallet/overloads.hpp"
 
 namespace pallet {
 
@@ -42,9 +43,6 @@ template <class V>
 void variantForEach(auto&& lambda) {
   detail::VariantForEach<V>::apply(std::forward<decltype(lambda)>(lambda));
 }
-
-template<class... Ts>
-struct overloads : Ts... { using Ts::operator()...; };
 
 template <class Type>
 decltype(auto) get_unchecked(concepts::Variant auto& obj) {
