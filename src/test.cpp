@@ -1,12 +1,21 @@
 #include <cstdio>
 #include <type_traits>
 #include <utility>
-#include "pallet/io.hpp"
+#include <memory>
+#include "pallet/functional.hpp"
 
 int main()
 {
-  using namespace pallet;
-  std::string out = pallet::unwrap(readFile("src/test.cpp"));
-  printf("%s\n", out.c_str());
+  int x = 10;
+  pallet::Callable<void, int> callable ([&](int){
+    printf("here! %d\n", x);
+  });
+
+  pallet::Callable<void, int> other ([&](int){
+    printf("here 1! %d\n", x);
+  });
+  
+  other = std::move(callable);
+  other(3);
 }
     
