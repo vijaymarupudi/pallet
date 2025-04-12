@@ -1,19 +1,27 @@
 #include <cstdio>
-#include "pallet/Either.hpp"
+#include "pallet/MyVariant.hpp"
+#include <memory>
+#include <string>
 
-struct Other {
-  int x;
-  int y;
-  int z;
-};
+struct T1 {};
+struct T2 {};
+struct T3 {};
 
 int main()
 {
-  pallet::Either<int, Other> item (3, 2, 3);
+  using Var = pallet::MyVariant<int, double, std::string>;
+  Var v (3.0);
 
-  item.visit(pallet::overloads {[&](int) {
-    printf("Integer!\n");
-  }, [&](Other) {
-    printf("Other\n");
-  }});
+  v = Var(1);
+  v.visit(pallet::overloads {
+      [&](int&) {
+        printf("int\n");
+      },
+        [&](double&) {
+          printf("double\n");
+        },
+        [&](std::string&) {
+          printf("string\n");
+        }
+        });
 }
