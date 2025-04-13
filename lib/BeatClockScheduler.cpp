@@ -3,7 +3,7 @@
 
 namespace pallet {
 
-static void beatClockSchedulerCallback(const ClockEventInfo& info, void* ud) {
+static void beatClockSchedulerCallback(const ClockInterface::EventInfo& info, void* ud) {
   (void)info;
   // This timer has expired
   static_cast<BeatClockScheduler*>(ud)->clockTimeoutStatus = false;

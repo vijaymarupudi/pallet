@@ -8,7 +8,7 @@ void measureTiming(pallet::PosixPlatform& platform, pallet::Clock& clock) {
   auto intervalTime = pallet::timeInMs(100);
   auto meas = pallet::RunningMeanMeasurer<double, 32>();
 
-  auto cb = [&](const pallet::ClockEventInfo& info) {
+  auto cb = [&](auto&& info) {
     auto now = clock.currentTime();
     auto diff = now - info.intended;
     meas.addSample(diff);
@@ -18,7 +18,7 @@ void measureTiming(pallet::PosixPlatform& platform, pallet::Clock& clock) {
                  meas.mean());
   };
 
-  auto simpleForwardingCallback = [](const pallet::ClockEventInfo& info, void* ud) {
+  auto simpleForwardingCallback = [](const pallet::ClockInterface::EventInfo& info, void* ud) {
        (static_cast<decltype(&cb)>(ud))->operator()(info);
   };
 

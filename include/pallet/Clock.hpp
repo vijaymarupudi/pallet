@@ -1,17 +1,16 @@
 #pragma once
-#include <cstdint>
+
 #include <type_traits>
 #include <vector>
 
+#include "pallet/ClockInterface.hpp"
 #include "pallet/Platform.hpp"
 #include "pallet/containers/KeyedPriorityQueue.hpp"
 #include "pallet/containers/StaticVector.hpp"
 #include "pallet/containers/IdTable.hpp"
 #include "pallet/measurement.hpp"
 #include "pallet/constants.hpp"
-#include "pallet/time.hpp"
 #include "pallet/error.hpp"
-#include "pallet/functional.hpp"
 
 namespace pallet {
 
@@ -52,23 +51,7 @@ struct ClockPrecisionTimingManager {
 };
 }
 
-using ClockIdT = std::conditional_t<pallet::constants::isEmbeddedDevice,
-                              uint8_t, uint32_t>;
-
-struct ClockEventInfo {
-  ClockIdT id;
-  pallet::Time now;
-  pallet::Time intended;
-  pallet::Time period;
-  size_t overhead;
-};
-
-using ClockCbT = void(*)(const ClockEventInfo&, void*);
-
-class Clock {
-public:
-  using Id = ClockIdT;
-  using Callback = Callable<void(const ClockEventInfo&)>;
+class Clock final : public ClockInterface {
 private:
   struct ClockEvent {
     pallet::Time prev;
@@ -92,18 +75,20 @@ private:
 public:
   static Result<Clock> create(Platform& platform);
   Clock(Platform& platform);
-  pallet::Time currentTime();
-  Id setTimeout(pallet::Time duration,
-                Callback callback);
-  Id setTimeoutAbsolute(pallet::Time goal,
-                        Callback callback);
-  Id setInterval(pallet::Time period,
-                 Callback callback);
-  Id setIntervalAbsolute(pallet::Time goal,
+  virtual pallet::Time currentTime() override;
+  virtual Id setTimeout(pallet::Time duration,
+                Callback callback) override;
+  virtual Id setTimeoutAbsolute(pallet::Time goal,
+                        Callback callback) override;
+  virtual Id setInterval(pallet::Time period,
+                 Callback callback) override;
+  virtual Id setIntervalAbsolute(pallet::Time goal,
                          pallet::Time period,
-                         Callback callback);
-  void clearTimeout(Id id);
-  void clearInterval(Id id);
+                         Callback callback) override;
+  virtual void clearTimeout(Id id) override;
+  virtual void clearInterval(Id id) override;
+
+
   void processEvent(Clock::Id id, pallet::Time goal);
   void updateWaitingTime();
   void process();

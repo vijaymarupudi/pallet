@@ -74,7 +74,7 @@ void Clock::processEvent(Clock::Id id, pallet::Time goal) {
       return now > goal;
     });
 
-    ClockEventInfo info {id, now, goal, event->period, overhead};
+    ClockInterface::EventInfo info {id, now, goal, event->period, overhead};
     event->callback(info);
       // event->callback(&info, event->callbackUserData);
   }

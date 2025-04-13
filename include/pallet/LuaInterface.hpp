@@ -9,7 +9,7 @@
 #include "pallet/containers/StaticVector.hpp"
 
 #include "pallet/Platform.hpp"
-#include "pallet/Clock.hpp"
+#include "pallet/ClockInterface.hpp"
 #include "pallet/MonomeGridInterface.hpp"
 #include "pallet/BeatClock.hpp"
 #include "pallet/GraphicsInterface.hpp"
@@ -49,12 +49,12 @@ public:
   struct ClockCallbackStateEntry {
     LuaInterface& luaInterface;
     Id id;
-    Clock::Id clockId;
+    ClockInterface::Id clockId;
     bool interval;
     int luaFunctionRef = -1;
   };
 
-  Clock* clock = nullptr;
+  ClockInterface* clockInterface = nullptr;
   containers::IdTable<ClockCallbackStateEntry,
                       IdTableContainer,
                       Id> clockCallbackState;
@@ -105,7 +105,7 @@ public:
   ~LuaInterface();
   int dostring(const char* str);
   void setPlatform(Platform& platform);
-  void setClock(Clock& clock);
+  void setClockInterface(ClockInterface& clock);
   void setMonomeGridInterface(MonomeGridInterface& gridInterface);
   void setBeatClock(BeatClock& beatClock);
   void setGraphicsInterface(GraphicsInterface& graphicsInterface);

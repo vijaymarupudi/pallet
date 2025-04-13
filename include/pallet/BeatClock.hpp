@@ -163,7 +163,7 @@ public:
 
 private:
   void startTickInterval(pallet::Time startTime) {
-    auto cb = [](const ClockEventInfo& info, void* ud) {
+    auto cb = [](const ClockInterface::EventInfo& info, void* ud) {
       auto bc = static_cast<BeatClockInternalImplementation*>(ud);
       bc->uponTick(info.now, info.intended);
     };

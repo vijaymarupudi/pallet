@@ -26,7 +26,7 @@ int actualMain() {
   }
 
   auto& luaInterface = *luaInterfaceResult;
-  luaInterface.setClock(*clockResult);
+  luaInterface.setClockInterface(*clockResult);
   luaInterface.setBeatClock(*beatClockResult);
   luaInterface.setGraphicsInterface(*graphicsInterfaceResult);
   luaInterface.setMidiInterface(*midiInterfaceResult);

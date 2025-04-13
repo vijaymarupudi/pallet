@@ -5,7 +5,7 @@ namespace pallet {
 
 using namespace pallet::luaHelper;
 
-static void luaClockSetTimeoutIntervalCb(const ClockEventInfo& info, void* data);
+static void luaClockSetTimeoutIntervalCb(const ClockInterface::EventInfo& info, void* data);
 static int luaClockSetTimeout(lua_State* L);
 static int luaClockSetInterval(lua_State* L);
 static int luaClockCurrentTime(lua_State* L);
@@ -30,8 +30,8 @@ static void bindClock(lua_State* L) {
   lua_settop(L, start);
 }
 
-void LuaInterface::setClock(Clock& clock) {
-  this->clock = &clock;
+void LuaInterface::setClockInterface(ClockInterface& clockInterface) {
+  this->clockInterface = &clockInterface;
   bindClock(this->L);
 }
 
@@ -61,9 +61,9 @@ static int _luaClockSetTimeout(lua_State* L, bool interval) {
   Clock::Id cid;
 
   if (interval) {
-    cid = luaInterface.clock->setInterval(time, {luaClockSetTimeoutIntervalCb, &state});
+    cid = luaInterface.clockInterface->setInterval(time, {luaClockSetTimeoutIntervalCb, &state});
   } else {
-    cid = luaInterface.clock->setTimeout(time, {luaClockSetTimeoutIntervalCb, &state});
+    cid = luaInterface.clockInterface->setTimeout(time, {luaClockSetTimeoutIntervalCb, &state});
   }
   state.interval = interval;
   state.id = id;
@@ -89,14 +89,14 @@ static void luaClockStateCleanup(LuaInterface::ClockCallbackStateEntry& entry, b
   auto ref = entry.luaFunctionRef;
 
   if (cancel) {
-    luaInterface.clock->clearTimeout(clockId);
+    luaInterface.clockInterface->clearTimeout(clockId);
   }
 
   luaL_unref(L, LUA_REGISTRYINDEX, ref);
   luaInterface.clockCallbackState.free(id);
 }
 
-static void luaClockSetTimeoutIntervalCb(const ClockEventInfo& info, void* data) {
+static void luaClockSetTimeoutIntervalCb(const ClockInterface::EventInfo& info, void* data) {
   (void)info;
   auto& state = *static_cast<LuaInterface::ClockCallbackStateEntry*>(data);
   auto& luaInterface = state.luaInterface;
@@ -119,7 +119,7 @@ static int luaClockClearTimeout(lua_State* L) {
 
 static int luaClockCurrentTime(lua_State* L) {
   auto& luaInterface = getLuaInterfaceObject(L);
-  auto time = luaInterface.clock->currentTime();
+  auto time = luaInterface.clockInterface->currentTime();
   luaPush(L, time);
   return 1;
 }
