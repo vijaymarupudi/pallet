@@ -8,6 +8,8 @@
 
 namespace pallet {
 
+namespace detail {
+
 template <class... Types>
 void variadicForEach(auto&& lambda) {
   auto mainLambda = [&]<size_t... i>(std::index_sequence<i...>) {
@@ -59,7 +61,7 @@ struct VariantStorage<Type> {
   union {
     Type var;
   };
-  
+
   constexpr inline VariantStorage() {}
   constexpr inline ~VariantStorage() {}
 };
@@ -92,51 +94,57 @@ constexpr decltype(auto) get_ref_to_storage_index(const VariantStorage<Types...>
   return *get_pointer_to_storage_index<i>(arg);
 }
 
+}
+
+using namespace detail;
+
 template <class... Types>
-struct MyVariant {
+class LightVariant {
+
   VariantStorage<Types...> storage;
   unsigned char type;
 
-// public:
+public:
 
   template <class Type, class... Args>
   requires std::disjunction_v<std::is_same<Type, Types>...>
-  constexpr MyVariant(std::in_place_type_t<Type>, Args&&... args) {
+  constexpr LightVariant(std::in_place_type_t<Type>, Args&&... args) {
     constexpr const size_t typeIndex = pallet::IndexOfTypeInVariadic<Type, Types...>;
     type = typeIndex;
-    
+
     new (get_pointer_to_storage_index<typeIndex>(storage)) Type (std::forward<Args>(args)...);
   }
 
   template <class T>
   requires std::disjunction_v<std::is_same<T, Types>...>
-  constexpr MyVariant(T&& arg) {
+  constexpr LightVariant(T&& arg) {
     constexpr const size_t typeIndex = pallet::IndexOfTypeInVariadic<T, Types...>;
     type = typeIndex;
     new (get_pointer_to_storage_index<typeIndex>(storage)) T (std::forward<T>(arg));
   }
 
 
-  constexpr MyVariant(MyVariant&& other) : type(other.type) {
+  constexpr LightVariant(LightVariant&& other) : type(other.type) {
     takeActionRuntimeIdx<Types...>(this->type, [&]<class Type, size_t i>() {
         new (get_pointer_to_storage_index<i>(storage)) Type (std::move(get_ref_to_storage_index<i>(other.storage)));
       });
   }
 
-  constexpr MyVariant(const MyVariant& other) : type(other.type) {
+  constexpr LightVariant(const LightVariant& other) : type(other.type) {
     takeActionRuntimeIdx<Types...>(this->type, [&]<class Type, size_t i>() {
         new (get_pointer_to_storage_index<i>(storage)) Type (get_ref_to_storage_index<i>(other.storage));
       });
   }
 
-  constexpr MyVariant(MyVariant& other) : type(other.type) {
+  constexpr LightVariant(LightVariant& other) : type(other.type) {
     takeActionRuntimeIdx<Types...>(this->type, [&]<class Type, size_t i>() {
         new (get_pointer_to_storage_index<i>(storage)) Type (get_ref_to_storage_index<i>(other.storage));
       });
   }
 
   template <class... Args>
-  constexpr MyVariant(Args&&... args) {
+  constexpr LightVariant(Args&&... args) {
+
     // Only one unique constructor?
     variadicTypeMap<Types...>([&]<class Type, size_t i>() constexpr {
         if constexpr (std::is_constructible_v<Type, Args...>)
@@ -155,7 +163,7 @@ struct MyVariant {
       });
   }
 
-  constexpr MyVariant& operator=(const MyVariant& other) {
+  constexpr LightVariant& operator=(const LightVariant& other) {
     if (type == other.type) {
       takeActionRuntimeIdx<Types...>(type, [&]<class Type, size_t i>() {
           get_ref_to_storage_index<i>(storage) = get_ref_to_storage_index<i>(other.storage);
@@ -172,7 +180,7 @@ struct MyVariant {
     return *this;
   }
 
-  constexpr MyVariant& operator=(MyVariant&& other) {
+  constexpr LightVariant& operator=(LightVariant&& other) {
     if (type == other.type) {
       takeActionRuntimeIdx<Types...>(type, [&]<class Type, size_t i>() {
           std::swap(get_ref_to_storage_index<i>(storage), get_ref_to_storage_index<i>(other.storage));
@@ -185,7 +193,7 @@ struct MyVariant {
               auto&& otherTypeStorage = get_ref_to_storage_index<otherI>(other.storage);
               auto val = std::move(otherTypeStorage);
               auto otherType = other.type;
-              
+
               // destroy the shell of other
               otherTypeStorage.~OtherType();
 
@@ -222,7 +230,22 @@ struct MyVariant {
       });
   }
 
-  constexpr ~MyVariant() {
+  template <class T>
+  constexpr auto get_if(this auto&& self) {
+    constexpr size_t i = pallet::IndexOfTypeInVariadic<T, Types...>;
+    using ReturnType = decltype(get_pointer_to_storage_index<i>(self.storage));
+    if (self.type == i) { return get_pointer_to_storage_index<i>(self.storage); }
+    else { return ReturnType{nullptr}; }
+  }
+
+  template <size_t i>
+  constexpr auto get_if(this auto&& self) {
+    using ReturnType = decltype(get_pointer_to_storage_index<i>(self.storage));
+    if (self.type == i) { return get_pointer_to_storage_index<i>(self.storage); }
+    else { return ReturnType{nullptr}; }
+  }
+
+  constexpr ~LightVariant() {
     takeActionRuntimeIdx<Types...>(type, [&]<class Type, size_t i>() -> decltype(auto) {
         auto&& ref = get_ref_to_storage_index<i>(this->storage);
         ref.~Type();
