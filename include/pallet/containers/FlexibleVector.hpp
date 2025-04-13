@@ -1,14 +1,20 @@
-#include "pallet/variant.hpp"
+#include "pallet/LightVariant.hpp"
 #include "pallet/containers/StaticVector.hpp"
 
 namespace pallet::containers {
 
 template <class T, size_t N>
 class FlexibleVector {
-  Variant<StaticVector<T, N>,
-          std::vector<T>> vec;
+  LightVariant<StaticVector<T, N>,
+               std::vector<T>> vec;
+
+  // static decltype(auto) visit(auto&& visitor, auto&& var) {
+  //   return pallet::visit(std::forward<decltype(visitor)>(visitor), std::forward<decltype(var)>(var));
+  // }
 
 public:
+
+  FlexibleVector() : vec(std::in_place_index_t<0>{}) {}
 
   void pop_back() {
     return pallet::visit([&](auto&& vec) {

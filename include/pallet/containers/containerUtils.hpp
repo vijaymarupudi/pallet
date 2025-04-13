@@ -1,6 +1,6 @@
 #pragma once
 
-#include <new>
+// #include <new>
 
 namespace pallet::containers {
 
@@ -8,10 +8,10 @@ namespace pallet::containers {
   struct Space {
     alignas(ItemType) std::byte bytes[sizeof(ItemType)];
     ItemType* ptr() {
-      return std::launder(reinterpret_cast<ItemType*>(&bytes[0]));
+      return (reinterpret_cast<ItemType*>(&bytes[0]));
     }
     const ItemType* ptr() const {
-      return std::launder(reinterpret_cast<const ItemType*>(&bytes[0]));
+      return (reinterpret_cast<const ItemType*>(&bytes[0]));
     }
     template<class... Args>
     void construct(Args ...args) {

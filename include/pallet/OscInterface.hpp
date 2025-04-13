@@ -3,13 +3,13 @@
 #include <string_view>
 #include <cstdint>
 
-#include "pallet/variant.hpp"
+#include "pallet/LightVariant.hpp"
 #include "pallet/Event.hpp"
 
 
 namespace pallet {
 
-using OscItem = Variant<std::string_view, int32_t, float>;
+using OscItem = LightVariant<std::string_view, int32_t, float>;
 
 class OscInterface {
 public:

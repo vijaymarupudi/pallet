@@ -21,7 +21,7 @@ public:
   StaticVector(StaticVector&& other) {
     this->top = other.top;
     for (SizeType i = 0; i < other.size(); i++) {
-      this->storage.construct(std::move(other.storage[i].ref()));
+      this->storage[i].construct(std::move(other.storage[i].ref()));
     }
     other.top = 0;
   }
@@ -55,6 +55,7 @@ public:
     }
 
     std::swap(less->top, more->top);
+    return *this;
   }
 
   StaticVector(const StaticVector& other) {

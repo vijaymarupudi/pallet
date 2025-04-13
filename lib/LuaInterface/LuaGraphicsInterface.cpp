@@ -1,5 +1,4 @@
 #include "pallet/LuaInterface.hpp"
-#include "pallet/variant.hpp"
 #include "../LuaInterfaceImpl.hpp"
 
 
@@ -94,7 +93,7 @@ static int luaGraphicsEventToTable(lua_State* L,
       
       }
     };
-  pallet::visit(visitor, event);
+  pallet::visit(std::move(visitor), event);
   return 1;
 }
 
@@ -142,7 +141,7 @@ static void bindGraphicsInterface(lua_State* L) {
 
   // intern and store graphics event strings
 
-  variantForEach<pallet::GraphicsEvent>([&]<class EventType, size_t i>() {
+  lightVariantForEach<pallet::GraphicsEvent>([&]<class EventType, size_t i>() {
       auto str = getGraphicsEventName<EventType>();
       lua_pushstring(L, str);
       int ref = luaL_ref(L, LUA_REGISTRYINDEX);

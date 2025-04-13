@@ -2,8 +2,6 @@
 #include <string_view>
 #include <tuple>
 
-#include "pallet/variant.hpp"
-
 #include "pallet/MonomeGridInterface.hpp"
 
 

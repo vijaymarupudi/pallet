@@ -106,37 +106,46 @@ class LightVariant {
 
 public:
 
+  static const size_t nTypes = sizeof...(Types);
+
   template <class Type, class... Args>
   requires std::disjunction_v<std::is_same<Type, Types>...>
   constexpr LightVariant(std::in_place_type_t<Type>, Args&&... args) {
     constexpr const size_t typeIndex = pallet::IndexOfTypeInVariadic<Type, Types...>;
     type = typeIndex;
+    new (get_pointer_to_storage_index<typeIndex>(storage)) Type (std::forward<Args>(args)...);
+  }
 
+  template <size_t typeIndex, class... Args>
+  requires (typeIndex < sizeof...(Types))
+  constexpr LightVariant(std::in_place_index_t<typeIndex>, Args&&... args) {
+    using Type = pallet::IndexVariadic<typeIndex, Types...>;
+    type = typeIndex;
     new (get_pointer_to_storage_index<typeIndex>(storage)) Type (std::forward<Args>(args)...);
   }
 
   template <class T>
-  requires std::disjunction_v<std::is_same<T, Types>...>
+  requires std::disjunction_v<std::is_same<std::remove_reference_t<T>, Types>...>
   constexpr LightVariant(T&& arg) {
-    constexpr const size_t typeIndex = pallet::IndexOfTypeInVariadic<T, Types...>;
+    constexpr const size_t typeIndex = pallet::IndexOfTypeInVariadic<std::remove_reference_t<T>, Types...>;
     type = typeIndex;
-    new (get_pointer_to_storage_index<typeIndex>(storage)) T (std::forward<T>(arg));
+    new (get_pointer_to_storage_index<typeIndex>(storage)) std::remove_reference_t<T> (std::forward<T>(arg));
   }
 
 
-  constexpr LightVariant(LightVariant&& other) : type(other.type) {
+  constexpr LightVariant(LightVariant&& other) noexcept(std::conjunction_v<std::is_nothrow_move_constructible<Types>...>) : type(other.type) {
     takeActionRuntimeIdx<Types...>(this->type, [&]<class Type, size_t i>() {
         new (get_pointer_to_storage_index<i>(storage)) Type (std::move(get_ref_to_storage_index<i>(other.storage)));
       });
   }
 
-  constexpr LightVariant(const LightVariant& other) : type(other.type) {
+  constexpr LightVariant(const LightVariant& other) noexcept(std::conjunction_v<std::is_nothrow_copy_constructible<Types>...>) : type(other.type) {
     takeActionRuntimeIdx<Types...>(this->type, [&]<class Type, size_t i>() {
         new (get_pointer_to_storage_index<i>(storage)) Type (get_ref_to_storage_index<i>(other.storage));
       });
   }
 
-  constexpr LightVariant(LightVariant& other) : type(other.type) {
+  constexpr LightVariant(LightVariant& other) noexcept(std::conjunction_v<std::is_nothrow_copy_constructible<Types>...>) : type(other.type) {
     takeActionRuntimeIdx<Types...>(this->type, [&]<class Type, size_t i>() {
         new (get_pointer_to_storage_index<i>(storage)) Type (get_ref_to_storage_index<i>(other.storage));
       });
@@ -163,7 +172,8 @@ public:
       });
   }
 
-  constexpr LightVariant& operator=(const LightVariant& other) {
+  constexpr LightVariant& operator=(const LightVariant& other)
+    noexcept(std::conjunction_v<std::conjunction<std::is_nothrow_copy_constructible<Types>, std::is_nothrow_copy_assignable<Types>>...>) {
     if (type == other.type) {
       takeActionRuntimeIdx<Types...>(type, [&]<class Type, size_t i>() {
           get_ref_to_storage_index<i>(storage) = get_ref_to_storage_index<i>(other.storage);
@@ -180,7 +190,8 @@ public:
     return *this;
   }
 
-  constexpr LightVariant& operator=(LightVariant&& other) {
+  constexpr LightVariant& operator=(LightVariant&& other)
+    noexcept(std::conjunction_v<std::conjunction<std::is_nothrow_move_constructible<Types>, std::is_nothrow_move_assignable<Types>>...>) {
     if (type == other.type) {
       takeActionRuntimeIdx<Types...>(type, [&]<class Type, size_t i>() {
           std::swap(get_ref_to_storage_index<i>(storage), get_ref_to_storage_index<i>(other.storage));
@@ -245,6 +256,12 @@ public:
     else { return ReturnType{nullptr}; }
   }
 
+
+  template <class T>
+  constexpr decltype(auto) get_unchecked(this auto&& self) {
+    return *self.template get_if<T>();
+  }
+
   constexpr ~LightVariant() {
     takeActionRuntimeIdx<Types...>(type, [&]<class Type, size_t i>() -> decltype(auto) {
         auto&& ref = get_ref_to_storage_index<i>(this->storage);
@@ -252,4 +269,53 @@ public:
       });
   }
 };
+
+
+/*
+ * LightVariant concept
+ */
+namespace detail {
+template <class T>
+struct IsLightVariant : std::false_type {};
+
+template <class... Args>
+struct IsLightVariant<LightVariant<Args...>> : std::true_type {};
+
+}
+
+namespace concepts {
+template <class T>
+concept LightVariant = detail::IsLightVariant<T>::value;
+}
+
+namespace detail {
+template <class V>
+struct LightVariantForEach {};
+
+template <class... Types, size_t... indicies>
+void lightVariantForEachApplication(auto&& lambda, std::index_sequence<indicies...>) {
+  (lambda.template operator()<Types, indicies>(), ...);
+}
+
+template <class... Types>
+struct LightVariantForEach<LightVariant<Types...>> {
+  static void apply(auto&& lambda) {
+    lightVariantForEachApplication<Types...>(std::forward<decltype(lambda)>(lambda),
+                                 std::index_sequence_for<Types...>{});
+  }
+};
+}
+
+template <class V>
+requires concepts::LightVariant<V>
+void lightVariantForEach(auto&& lambda) {
+  detail::LightVariantForEach<V>::apply(std::forward<decltype(lambda)>(lambda));
+}
+
+
+template <class T>
+decltype(auto) visit(auto&& visitor, T&& variant) requires concepts::LightVariant<std::remove_cvref_t<T>>{
+  return std::forward<T>(variant).visit(std::forward<decltype(visitor)>(visitor));
+}
+
 }

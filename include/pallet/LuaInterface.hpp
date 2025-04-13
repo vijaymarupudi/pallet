@@ -90,7 +90,7 @@ public:
 
   GraphicsInterface* graphicsInterface = nullptr;
   int screenOnEventRef = -1;
-  std::array<int, std::variant_size_v<pallet::GraphicsEvent>> graphicsEventStringsRef;
+  std::array<int, pallet::GraphicsEvent::nTypes> graphicsEventStringsRef;
 
   /*
    * Midi binding state

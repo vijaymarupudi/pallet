@@ -2,7 +2,6 @@
 #include "pallet/LightVariant.hpp"
 #include <string>
 
-
 struct T1 {};
 struct T2 {};
 struct T3 {};
@@ -17,7 +16,7 @@ int main()
   auto res = v.get_if<int>();
   printf("val: %d\n", *res);
 
-  v.visit(pallet::overloads {
+  pallet::visit(pallet::overloads {
       [&](int&) {
         printf("int\n");
       },
@@ -27,5 +26,5 @@ int main()
         // [&](std::string&) {
         //   printf("string\n");
         // }
-        });
+        }, v);
 }

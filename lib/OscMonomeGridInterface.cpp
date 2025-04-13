@@ -4,6 +4,11 @@ namespace pallet {
 
 static const int gridOscServerPort = 7072;
 
+template <class Type>
+static decltype(auto) get_unchecked(auto&& variant) {
+  return variant.template get_unchecked<Type>();
+}
+
   template <class... Types>
   std::tuple<Types...> extractOscValues(const OscItem* items) {
     auto tmp = ([&]<class... T, size_t... index>(std::index_sequence<index...>) {

@@ -301,7 +301,7 @@ void PosixGraphicsInterface::renderOperations(std::vector<Operation>& operations
   auto actions = OperationActions{this->sdlHardwareInterface};
 
   for (auto& op : operations) {
-    pallet::visit(actions, op);
+    op.visit(actions);
   }
 
   this->sdlHardwareInterface.render();
