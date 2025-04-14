@@ -147,7 +147,7 @@ static int luaRequire(lua_State* L) {
 
 void LuaInterface::setupRequire() {
   auto L = this->L;
-  luaPush(L, luaRequire);
+  push(L, luaRequire);
   lua_setglobal(L, "require");
 }
 
@@ -164,7 +164,7 @@ LuaInterface::LuaInterface() {
   luaOpenIo(this->L);
 
   // Setting up lightuserdata for the LuaInterface object
-  luaPush(this->L, this);
+  push(this->L, this);
   lua_rawsetp(this->L, LUA_REGISTRYINDEX, &_luaInterfaceRegistryIndex);
 
   // Setting up __pallet table

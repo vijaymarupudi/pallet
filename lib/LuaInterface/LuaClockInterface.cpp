@@ -45,7 +45,7 @@ static uint64_t luaClockGetTimeArgument(lua_State* L, int index) {
 
 static int luaClockTimeInMs(lua_State* L) {
   auto time = luaClockGetTimeArgument(L, 1);
-  luaPush(L, pallet::timeInMs(time));
+  push(L, pallet::timeInMs(time));
   return 1;
 }
 
@@ -69,7 +69,7 @@ static int _luaClockSetTimeout(lua_State* L, bool interval) {
   state.id = id;
   state.clockId = cid;
   state.luaFunctionRef = functionRef;
-  luaPush(L, id);
+  push(L, id);
   return 1;
 }
 
@@ -120,7 +120,7 @@ static int luaClockClearTimeout(lua_State* L) {
 static int luaClockCurrentTime(lua_State* L) {
   auto& luaInterface = getLuaInterfaceObject(L);
   auto time = luaInterface.clockInterface->currentTime();
-  luaPush(L, time);
+  push(L, time);
   return 1;
 }
 

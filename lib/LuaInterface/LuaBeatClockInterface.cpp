@@ -65,7 +65,7 @@ static int _luaBeatClockSyncTimeout(lua_State* L, bool interval) {
   state.id = id;
   state.beatClockId = cid;
   state.luaFunctionRef = functionRef;
-  luaPush(L, id);
+  push(L, id);
   return 1;
 }
 
@@ -95,7 +95,7 @@ static int luaBeatClockSetBPM(lua_State* L) {
 static int luaBeatClockCurrentBeat(lua_State* L) {
   auto& luaInterface = getLuaInterfaceObject(L);
   auto b = luaInterface.beatClock->currentBeat();
-  luaPush(L, b);
+  push(L, b);
   return 1;
 }
 

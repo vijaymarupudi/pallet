@@ -4,6 +4,7 @@
 #include <tuple>
 #include <cstdlib>
 #include <utility>
+#include <concepts>
 
 #include "lua.hpp"
 
@@ -25,161 +26,140 @@ concept FloatingPoint = std::is_floating_point_v<T>;
 
 using namespace detail;
 
-inline void luaPush(lua_State* L, const std::string_view str) {
-  lua_pushlstring(L, str.data(), str.size());
-}
+template <class ValueType>
+struct LuaTraits;
 
-inline void luaPush(lua_State* L, void* ptr) {
-  lua_pushlightuserdata(L, ptr);
-}
-
-inline void luaPush(lua_State* L, const lua_CFunction func) {
-  lua_pushcfunction(L, func);
-}
-
-inline void luaPush(lua_State* L, const Integer auto integer) {
-  lua_pushinteger(L, static_cast<lua_Integer>(integer));
-}
-
-inline void luaPush(lua_State* L, const FloatingPoint auto number) {
-  lua_pushnumber(L, static_cast<lua_Number>(number));
-}
-
-inline void luaPush(lua_State* L, const concepts::Variant auto item) {
-  pallet::visit([&](auto&& x) {
-    luaPush(L, x);
-  }, item);
-}
-
-namespace detail {
-  template <class T>
-  concept enumeration = std::is_enum_v<T>;
-  template <class T>
-  concept pointer = std::is_pointer_v<T>;
+static inline void push(lua_State* L, auto&& value) {
+  LuaTraits<std::remove_cvref_t<decltype(value)>>::push(L, std::forward<decltype(value)>(value));
 }
 
 template <class T>
-bool luaIsType(lua_State* L, int index) {
-  (void)L;
-  (void)index;
-  static_assert(false, "Don't know how to check this lua type");
-  return false;
-}
-
-template <>
-inline bool luaIsType<bool>(lua_State* L, int index) {
-  return lua_isboolean(L, index);
-}
-
-template <std::integral T>
-bool luaIsType(lua_State* L, int index) {
-  return lua_isinteger(L, index);
-}
-
-template <enumeration T>
-bool luaIsType(lua_State* L, int index) {
-  return lua_isinteger(L, index);
-}
-
-template <std::floating_point T>
-bool luaIsType(lua_State* L, int index) {
-  return lua_isnumber(L, index);
-}
-
-
-template <detail::pointer T>
-bool luaIsType(lua_State* L, int index) {
-  return lua_islightuserdata(L, index);
-}
-
-template <>
-inline bool luaIsType<std::string_view>(lua_State* L, int index) {
-  return lua_isstring(L, index);
+static inline bool luaIsType(lua_State* L, int index) {
+  return LuaTraits<T>::check(L, index);
 }
 
 template <class T>
-struct LuaIsTypeVariant;
+static inline T pull(lua_State* L, int index) {
+  return LuaTraits<T>::pull(L, index);
+}
 
-template <class... Types>
-struct LuaIsTypeVariant<Variant<Types...>> {
-  static bool apply(lua_State* L, int index) {
-    return (luaIsType<Types>(L, index) || ...);
+template <>
+struct LuaTraits<bool> {
+  static inline bool check(lua_State* L, int index) {
+    return lua_isboolean(L, index);
+  }
+
+  static inline void push(lua_State* L, bool val) {
+    lua_pushboolean(L, val);
+  }
+
+  static inline bool pull(lua_State* L, int index) {
+    return lua_toboolean(L, index);
   }
 };
 
-template <concepts::Variant T>
-bool luaIsType(lua_State* L, int index) {
-  return LuaIsTypeVariant<T>::apply(L, index);
-}
+template <class T>
+requires (std::integral<T> || std::is_enum_v<T>)
+struct LuaTraits<T> {
+  static inline bool check(lua_State* L, int index) {
+    return lua_isinteger(L, index);
+  }
+
+  static inline void push(lua_State* L, T val) {
+    lua_pushinteger(L, static_cast<lua_Integer>(val));
+  }
+
+  static inline T pull(lua_State* L, int index) {
+    auto ret = lua_tointeger(L, index);
+    return static_cast<T>(ret);
+  }
+};
 
 template <class T>
-T luaPull(lua_State* L, int index);
+requires (std::is_convertible_v<T, std::string_view>)
+struct LuaTraits<T> {
+  static inline bool check(lua_State* L, int index) {
+    return lua_isstring(L, index);
+  }
 
-template <>
-inline bool luaPull<bool>(lua_State* L, int index) {
-  return lua_toboolean(L, index);
-}
+  static inline void push(lua_State* L, std::string_view str) {
+    lua_pushlstring(L, str.data(), str.size());
+  }
 
-template <>
-inline std::string_view luaPull<std::string_view>(lua_State* L, int index) {
-  size_t len = 0;
-  auto str = lua_tolstring(L, index, &len);
-  return std::string_view(str, len);
-}
+  static inline std::string_view pull(lua_State* L, int index) {
+    size_t len = 0;
+    auto str = lua_tolstring(L, index, &len);
+    return std::string_view(str, len);
+  }
+};
 
-template <class T>
-T luaPull(lua_State* L, int index) requires (std::integral<T> || detail::enumeration<T>) {
-  auto ret = lua_tointeger(L, index);
-  return static_cast<T>(ret);
-}
 
 template <std::floating_point T>
-T luaPull(lua_State* L, int index) {
+struct LuaTraits<T> {
+  static inline bool check(lua_State* L, int index) {
+    return lua_isnumber(L, index);
+  }
+
+  static inline void push(lua_State* L, T val) {
+    lua_pushnumber(L, static_cast<lua_Number>(val));
+  }
+
+  static inline T pull(lua_State* L, int index) {
     auto ret = lua_tonumber(L, index);
     return static_cast<T>(ret);
-}
+  }
+};
+  
+template <>
+struct LuaTraits<lua_CFunction> {
+private:
+  using T = lua_CFunction;
+  public:
+  static inline bool check(lua_State* L, int index) {
+    return lua_iscfunction(L, index);
+  }
 
-template <detail::pointer T>
-T luaPull(lua_State* L, int index) {
-  auto ret = lua_touserdata(L, index);
-  return static_cast<T>(ret);
-}
+  static inline void push(lua_State* L, T val) {
+    lua_pushcfunction(L, val);
+  }
+};
 
-  template <class T>
-  struct luaPullVariant;
+template <std::convertible_to<lua_CFunction> T>
+struct LuaTraits<T> {
+private:
+  // using T = lua_CFunction;
+  public:
+  static inline bool check(lua_State* L, int index) {
+    return lua_iscfunction(L, index);
+  }
 
-  template <class... Types>
-  struct luaPullVariant<Variant<Types...>> {
-    using variant_type = Variant<Types...>;
+  static inline void push(lua_State* L, T val) {
+    lua_pushcfunction(L, val);
+  }
+};
 
-    template <class First, class... ArgTypes>
-    static variant_type recursive_apply_many(lua_State* L, int index) {
-      if (luaIsType<First>(L, index)) {
-          return luaPull<First>(L, index);
-      } else {
-        if constexpr (sizeof...(ArgTypes) == 0) {
-          luaL_argerror(L, index, "wrong argument");
-          std::unreachable();
-        } else {
-          return recursive_apply_many<ArgTypes...>(L, index);
-        }
-      }
-    }
-    
-    static variant_type apply(lua_State* L, int index) {
-      return recursive_apply_many<Types...>(L, index);
-    }
-  };
+template <class T>
+requires std::is_pointer_v<T>
+struct LuaTraits<T> {
+  static inline bool check(lua_State* L, int index) {
+    return lua_islightuserdata(L, index);
+  }
 
-template <concepts::Variant T>
-T luaPull(lua_State* L, int index) {
-  return luaPullVariant<T>::apply(L, index);
-}
+  static inline void push(lua_State* L, T val) {
+    lua_pushlightuserdata(L, val);
+  }
+
+  static inline T pull(lua_State* L, int index) {
+    return static_cast<T>(lua_touserdata(L, index));
+  }
+};
+
+
 
 template <class T>
 T luaCheckedPull(lua_State* L, int index) {
   if (luaIsType<T>(L, index)) [[likely]] {
-    return luaPull<T>(L, index);
+    return pull<T>(L, index);
   } else {
     luaL_argerror(L, index, "wrong argument");
     std::unreachable();
@@ -205,8 +185,8 @@ luaCheckedPullMultiple(lua_State* L, int baseIndex = 1) {
 
 
 void luaRawSetTable(lua_State* L, int tableIndex, const auto& key, const auto& value) {
-  luaPush(L, key);
-  luaPush(L, value);
+  push(L, key);
+  push(L, value);
   lua_rawset(L, tableIndex);
 }
 

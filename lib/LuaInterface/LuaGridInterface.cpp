@@ -47,9 +47,9 @@ static int luaGridAll(lua_State* L) {
     grid->setOnKey([](int x, int y, int z, void* ud) {
       auto& luaInterface = *static_cast<LuaInterface*>(ud);
       lua_rawgeti(luaInterface.L, LUA_REGISTRYINDEX, luaInterface.gridKeyFunction);
-      luaPush(luaInterface.L, x + 1);
-      luaPush(luaInterface.L, y + 1);
-      luaPush(luaInterface.L, z);
+      push(luaInterface.L, x + 1);
+      push(luaInterface.L, y + 1);
+      push(luaInterface.L, z);
       lua_call(luaInterface.L, 3, 0);
     }, &iface);
     return 0;
@@ -68,7 +68,7 @@ static int luaGridAll(lua_State* L) {
       (void)state;
       auto& luaInterface = *static_cast<LuaInterface*>(ud);
       lua_rawgeti(luaInterface.L, LUA_REGISTRYINDEX, luaInterface.gridOnConnectFunction);
-      luaPush(luaInterface.L, grid);
+      push(luaInterface.L, grid);
       lua_call(luaInterface.L, 1, 0);
     }, &iface);
     iface.gridInterface->connect(id);

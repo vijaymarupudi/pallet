@@ -20,7 +20,7 @@ static inline int getPalletCTable(lua_State* L) {
 
 static inline LuaInterface& getLuaInterfaceObject(lua_State* L) {
   getRegistryEntry(L, &_luaInterfaceRegistryIndex);
-  auto ret = luaHelper::luaPull<LuaInterface*>(L, -1);
+  auto ret = luaHelper::pull<LuaInterface*>(L, -1);
   lua_pop(L, 1);
   return *ret;
 } 

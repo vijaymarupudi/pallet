@@ -74,6 +74,8 @@ target_include_directories(main PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(test src/test.cpp)
 target_link_libraries(test pallet)
+target_include_directories(test PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+# set_property(TARGET test PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 set_property(TARGET test PROPERTY CXX_STANDARD 23)
 
 add_executable(measure-timing-latency
