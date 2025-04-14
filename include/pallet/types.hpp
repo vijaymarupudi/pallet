@@ -20,18 +20,4 @@ struct IndexOfTypeInVariadicStruct<T, U, Ts...> : std::integral_constant<std::si
 template <class T, class... Types>
 constexpr size_t IndexOfTypeInVariadic = IndexOfTypeInVariadicStruct<T, Types...>::value;
 
-
-namespace types::detail {
-constexpr size_t max(size_t x, size_t y) {
-  if (x > y) return x;
-  return y;
-}
-}
-
-constexpr size_t maxOfSizeTs(auto&&... vals) {
-  size_t maxSize = 0;
-  ((maxSize = types::detail::max(maxSize, vals)), ...);
-  return maxSize;
-}
-
 }

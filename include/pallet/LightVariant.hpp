@@ -128,26 +128,33 @@ public:
   }
 
 
-  constexpr LightVariant(LightVariant&& other) noexcept(std::conjunction_v<std::is_nothrow_move_constructible<Types>...>) : type(other.type) {
+  // move constructor
+  constexpr LightVariant(LightVariant&& other)
+    noexcept(std::conjunction_v<std::is_nothrow_move_constructible<Types>...>)
+    requires (std::conjunction_v<std::is_move_constructible<Types>...>)
+  : type(other.type) {
     takeActionRuntimeIdx<Types...>(this->type, [&]<class Type, size_t i>() {
         new (get_pointer_to_union_index<i>(storage)) Type (std::move(get_ref_to_union_index<i>(other.storage)));
       });
   }
 
-  constexpr LightVariant(const LightVariant& other) noexcept(std::conjunction_v<std::is_nothrow_copy_constructible<Types>...>) : type(other.type) {
-    takeActionRuntimeIdx<Types...>(this->type, [&]<class Type, size_t i>() {
-        new (get_pointer_to_union_index<i>(storage)) Type (get_ref_to_union_index<i>(other.storage));
-      });
-  }
-
-  constexpr LightVariant(LightVariant& other) noexcept(std::conjunction_v<std::is_nothrow_copy_constructible<Types>...>) : type(other.type) {
+  // copy constructor
+  constexpr LightVariant(const LightVariant& other)
+    noexcept(std::conjunction_v<std::is_nothrow_copy_constructible<Types>...>)
+    requires (std::conjunction_v<std::is_copy_constructible<Types>...>)
+  : type(other.type) {
     takeActionRuntimeIdx<Types...>(this->type, [&]<class Type, size_t i>() {
         new (get_pointer_to_union_index<i>(storage)) Type (get_ref_to_union_index<i>(other.storage));
       });
   }
 
   template <class... Args>
-  constexpr LightVariant(Args&&... args) {
+  constexpr LightVariant(Args&&... args)
+  // don't use this for the copy constructor with a non-const argument
+    requires (!(sizeof...(args) == 1 &&
+                std::is_same_v<std::remove_cvref_t<Args>...,
+                LightVariant>))
+  {
 
     // Only one unique constructor?
     variadicTypeMap<Types...>([&]<class Type, size_t i>() constexpr {
@@ -168,7 +175,9 @@ public:
   }
 
   constexpr LightVariant& operator=(const LightVariant& other)
-    noexcept(std::conjunction_v<std::conjunction<std::is_nothrow_copy_constructible<Types>, std::is_nothrow_copy_assignable<Types>>...>) {
+    noexcept(std::conjunction_v<std::conjunction<std::is_nothrow_copy_constructible<Types>, std::is_nothrow_copy_assignable<Types>>...>)
+    requires (std::conjunction_v<std::conjunction<std::is_copy_constructible<Types>, std::is_copy_assignable<Types>>...>)
+  {
     if (type == other.type) {
       takeActionRuntimeIdx<Types...>(type, [&]<class Type, size_t i>() {
           get_ref_to_union_index<i>(storage) = get_ref_to_union_index<i>(other.storage);
@@ -186,7 +195,9 @@ public:
   }
 
   constexpr LightVariant& operator=(LightVariant&& other)
-    noexcept(std::conjunction_v<std::conjunction<std::is_nothrow_move_constructible<Types>, std::is_nothrow_move_assignable<Types>>...>) {
+    noexcept(std::conjunction_v<std::conjunction<std::is_nothrow_move_constructible<Types>, std::is_nothrow_move_assignable<Types>>...>)
+    requires (std::conjunction_v<std::conjunction<std::is_move_constructible<Types>, std::is_move_assignable<Types>>...>)
+  {
     if (type == other.type) {
       takeActionRuntimeIdx<Types...>(type, [&]<class Type, size_t i>() {
           std::swap(get_ref_to_union_index<i>(storage), get_ref_to_union_index<i>(other.storage));

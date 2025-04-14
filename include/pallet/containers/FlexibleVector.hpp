@@ -8,10 +8,6 @@ class FlexibleVector {
   LightVariant<StaticVector<T, N>,
                std::vector<T>> vec;
 
-  // static decltype(auto) visit(auto&& visitor, auto&& var) {
-  //   return pallet::visit(std::forward<decltype(visitor)>(visitor), std::forward<decltype(var)>(var));
-  // }
-
 public:
 
   FlexibleVector() : vec(std::in_place_index_t<0>{}) {}
