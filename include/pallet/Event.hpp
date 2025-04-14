@@ -6,44 +6,49 @@
 #include "pallet/functional.hpp"
 
 namespace pallet {
-template <class... A>
-class Event {
+
+template <class FunctionType, class IdType = uint32_t, size_t staticLength = 4>
+class Event;
+
+template <class R, class... A, class IdType, size_t staticLength>
+class Event<R(A...), IdType, staticLength> {
 public:
   using ReturnType = void;
   using Callback = pallet::Callable<ReturnType(A...)>;
+  using Id = IdType;
 
-  uint32_t listen(Callback cb);
-  void unlisten(uint32_t id);
+  Id listen(Callback cb);
+  void unlisten(Id id);
   template <class... Args>
   void emit(Args&&... args);
 
 private:
 
   template <class T>
-  using Storage = containers::FlexibleVector<T, 4>;
-  containers::IdTable<Callback, Storage, uint32_t> items;
+  using Storage = containers::FlexibleVector<T, staticLength>;
+  containers::IdTable<Callback, Storage, Id> items;
 };
 
-  template <class... A>
-  uint32_t Event<A...>::listen(Callback cb) {
-    return items.emplace(std::move(cb));
+template <class R, class... A, class IdType, size_t staticLength>
+IdType Event<R(A...), IdType, staticLength>::listen(Callback cb) {
+  return items.emplace(std::move(cb));
+}
+
+
+template <class R, class... A, class IdType, size_t staticLength>
+void Event<R(A...), IdType, staticLength>::unlisten(Id id) {
+  items.free(id);
+}
+
+template <class R, class... A, class IdType, size_t staticLength>
+template <class... Args>
+void Event<R(A...), IdType, staticLength>::emit(Args&&... args) {
+  for (auto& callback : items) {
+    callback(args...);
   }
 
-
-  template <class... A>
-  void Event<A...>::unlisten(uint32_t id) {
-    items.free(id);
-  }
-
-  template <class... A>
-  template <class... Args>
-  void Event<A...>::emit(Args&&... args) {
-    for (auto& callback : items) {
-      callback(args...);
-    }
-
-    // if some of the arguments were moved, they will be destroyed here
-  }
+  // if some of the arguments were moved, they will be destroyed here
+}
 
 
 

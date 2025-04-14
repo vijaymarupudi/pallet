@@ -13,20 +13,24 @@ using OscItem = LightVariant<std::string_view, int32_t, float>;
 
 class OscInterface {
 public:
+  using MessageEvent = Event<void(const char*, const OscItem*, size_t)>;
+
   using AddressId = size_t;
-  Event<const char*, const OscItem*, size_t> onMessage;
-  int port = 0;
+  using ServerId = size_t;
+
   virtual AddressId createAddress(int port) = 0;
   virtual void freeAddress(AddressId) = 0;
-  virtual void bind(int port);
+
+  virtual ServerId createServer(int port) = 0;
+  virtual void freeServer(ServerId) = 0;
+
+  virtual MessageEvent::Id listen(ServerId, MessageEvent::Callback) = 0;
+  virtual void unlisten(ServerId, MessageEvent::Id) = 0;
 
   void sendMessage(const AddressId address, const char* path, const OscItem* items, size_t n);
 
   template <class... Types>
   void send(const AddressId address, const char* path, Types&&... args);
-
-protected:
-  void uponMessage(const char* path, const OscItem* item, size_t n);
 
 private:
   virtual void sendMessageImpl(const AddressId address,
@@ -40,10 +44,6 @@ private:
  * Private code
  */
 
-inline void OscInterface::bind(int port) {
-  this->port = port;
-};
-
 inline void OscInterface::sendMessage(const AddressId address, const char* path, const OscItem* items, size_t n) {
   sendMessageImpl(address, path, items, n);
 }
@@ -56,10 +56,6 @@ void OscInterface::send(const AddressId address, const char* path, Types&&... ar
   } else {
     this->sendMessage(address, path, nullptr, 0);
   }
-}
-
-inline void OscInterface::uponMessage(const char* path, const OscItem* item, size_t n) {
-  this->onMessage.emit(path, item, n);
 }
 
 

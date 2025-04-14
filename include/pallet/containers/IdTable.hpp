@@ -101,7 +101,7 @@ public:
   void free(Id index) {
     Space<EntryType>& space = storage[index];
     space.destroy();
-    freeVector.push_back(index);
+    freeVector.emplace_back(index);
   }
 
   EntryType& operator[](Id index) {
@@ -124,7 +124,7 @@ public:
 
       if (other.freeVector.size() != 0 && other.freeVector.back() == idTableStorageIndex) {
         // empty
-        this->freeVector.push_back(idTableStorageIndex);
+        this->freeVector.emplace_back(idTableStorageIndex);
         other.freeVector.pop_back();
       } else {
         // not empty
@@ -141,6 +141,7 @@ public:
   IdTable& operator=(IdTable&& other) {
     std::swap(storage, other.storage);
     std::swap(freeVector, other.freeVector);
+    return *this;
   }
 
   ~IdTable() {

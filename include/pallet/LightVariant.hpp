@@ -125,11 +125,11 @@ public:
   }
 
   template <class T>
-  requires std::disjunction_v<std::is_same<std::remove_reference_t<T>, Types>...>
+  requires std::disjunction_v<std::is_same<std::remove_cvref_t<T>, Types>...>
   constexpr LightVariant(T&& arg) {
-    constexpr const size_t typeIndex = pallet::IndexOfTypeInVariadic<std::remove_reference_t<T>, Types...>;
+    constexpr const size_t typeIndex = pallet::IndexOfTypeInVariadic<std::remove_cvref_t<T>, Types...>;
     type = typeIndex;
-    new (get_pointer_to_storage_index<typeIndex>(storage)) std::remove_reference_t<T> (std::forward<T>(arg));
+    new (get_pointer_to_storage_index<typeIndex>(storage)) std::remove_cvref_t<T> (std::forward<T>(arg));
   }
 
 

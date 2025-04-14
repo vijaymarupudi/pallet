@@ -54,6 +54,7 @@ public:
     }, vec);
   };
 
+
   T& back() {
     return pallet::visit([&](auto&& vec) -> T& {
       return vec.back();

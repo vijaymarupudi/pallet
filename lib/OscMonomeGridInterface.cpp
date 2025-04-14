@@ -25,11 +25,11 @@ Result<OscMonomeGridInterface> OscMonomeGridInterface::create(OscInterface& oscI
 OscMonomeGridInterface::OscMonomeGridInterface(OscInterface& ioscInterface)
   : oscInterface(&ioscInterface) {
   serialoscdAddr = oscInterface->createAddress(12002);
-  oscInterface->onMessage.listen([&](const char *path, const OscItem* items,
-                                     size_t n) {
-                                   this->uponOscMessage(path, items, n);
-                                 });
-  this->oscInterface->bind(gridOscServerPort);
+  oscServerId = oscInterface->createServer(gridOscServerPort);
+  oscInterface->listen(oscServerId, [&](const char *path, const OscItem* items,
+                                       size_t n) {
+    this->uponOscMessage(path, items, n);
+  });
   requestDeviceNotifications();
 }
 
@@ -47,7 +47,7 @@ void OscMonomeGridInterface::sendRawQuadMap(int offX, int offY, MonomeGrid::Quad
 void OscMonomeGridInterface::connect(int id) {
   (void)id;
   this->oscInterface->send(this->serialoscdAddr, "/serialosc/list",
-                          "localhost", this->oscInterface->port);
+                           "localhost", gridOscServerPort);
 }
 
 void OscMonomeGridInterface::uponOscMessage(const char *path, const OscItem* items,
@@ -76,7 +76,7 @@ void OscMonomeGridInterface::uponOscMessage(const char *path, const OscItem* ite
 
     // set port, set prefix, ask for information
 
-    this->oscInterface->send(this->gridAddr, "/sys/port", this->oscInterface->port);
+    this->oscInterface->send(this->gridAddr, "/sys/port", gridOscServerPort);
     this->oscInterface->send(this->gridAddr, "/sys/prefix", "/monome");
     this->oscInterface->send(this->gridAddr, "/sys/info");
 
@@ -119,7 +119,7 @@ void OscMonomeGridInterface::uponDeviceChange(const char* cStrId, bool addition)
 
 void OscMonomeGridInterface::requestDeviceNotifications() {
   this->oscInterface->send(this->serialoscdAddr, "/serialosc/notify",
-                          "localhost", this->oscInterface->port);
+                           "localhost", gridOscServerPort);
 
 }
 
