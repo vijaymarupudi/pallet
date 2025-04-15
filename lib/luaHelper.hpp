@@ -109,7 +109,7 @@ struct LuaTraits<T> {
     return static_cast<T>(ret);
   }
 };
-  
+
 template <>
 struct LuaTraits<lua_CFunction> {
 private:
@@ -184,7 +184,7 @@ luaCheckedPullMultiple(lua_State* L, int baseIndex = 1) {
 }
 
 
-void luaRawSetTable(lua_State* L, int tableIndex, const auto& key, const auto& value) {
+static inline void luaRawSetTable(lua_State* L, int tableIndex, const auto& key, const auto& value) {
   push(L, key);
   push(L, value);
   lua_rawset(L, tableIndex);
