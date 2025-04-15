@@ -324,4 +324,14 @@ decltype(auto) visit(auto&& visitor, T&& variant) requires concepts::LightVarian
   return std::forward<T>(variant).visit(std::forward<decltype(visitor)>(visitor));
 }
 
+template <size_t i>
+decltype(auto) get(auto&& item) {
+  return *std::forward<decltype(item)>(item).template get_if<i>();
+}
+
+template <size_t i>
+auto get_if(auto&& item) {
+  return item.template get_if<i>();
+}
+
 }

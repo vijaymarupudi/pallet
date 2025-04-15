@@ -4,6 +4,7 @@
 #include <type_traits>
 #include <utility>
 #include <cstddef>
+#include "pallet/LightVariant.hpp"
 
 namespace pallet {
 
@@ -71,33 +72,10 @@ class Callable<R(A...)> {
   using FuncPtrUdPair = std::pair<FuncPtrType, void*>;
   using AbsCallablePtr = std::unique_ptr<detail::AbstractCallable<R(A...)>>;
 
-  enum class StorageType : unsigned char {
-    FuncPtrUdPair,
-    CallablePtr
-  };
-
-  StorageType type;
+  pallet::LightVariant<FuncPtrUdPair, AbsCallablePtr> mfunc;
   
-  union {
-    FuncPtrUdPair funcPtrUdPair;
-    AbsCallablePtr callablePtr;
-  };
-
-  void moveConstructFromOther(Callable& other) {
-    this->type = other.type;
-    switch (type) {
-    case StorageType::FuncPtrUdPair:
-      new (&this->funcPtrUdPair) FuncPtrUdPair {std::move(other.funcPtrUdPair)};
-      break;
-    case StorageType::CallablePtr:
-      new (&this->callablePtr) AbsCallablePtr {std::move(other.callablePtr)};
-      break;
-    }
-  }
-
 public:
-  Callable(FuncPtrType funcPtr, void* ud) : type(StorageType::FuncPtrUdPair),
-                                            funcPtrUdPair{funcPtr, ud} {}
+  Callable(FuncPtrType funcPtr, void* ud) : mfunc{FuncPtrUdPair{funcPtr, ud}} {}
 
   template <class F>
   requires (
@@ -108,7 +86,9 @@ public:
     std::is_trivially_destructible_v<F> &&
     std::is_trivially_move_constructible_v<F>
     )
-  Callable(F&& obj) : type(StorageType::FuncPtrUdPair), funcPtrUdPair{nullptr, nullptr} {
+  
+  Callable(F&& obj) : mfunc{FuncPtrUdPair{nullptr, nullptr}} {
+    auto& funcPtrUdPair = *pallet::get_if<0>(mfunc);
     void*& ud = std::get<1>(funcPtrUdPair);
     new (&ud) F (std::forward<F>(obj));
     std::get<0>(funcPtrUdPair) = +[](A... args, void* ud) {
@@ -116,63 +96,19 @@ public:
     };
   }
 
-    template <class F>
+  template <class F>
   requires (
     std::invocable<F, A...> &&
     std::same_as<std::invoke_result_t<F, A...>, R>
     )
-  Callable(F&& obj) : type(StorageType::CallablePtr),
-                      callablePtr{std::make_unique<detail::Invokable<F, R(A...)>>(std::forward<F>(obj))} {}
+  Callable(F&& obj) :
+    mfunc{AbsCallablePtr{std::make_unique<detail::Invokable<F, R(A...)>>(std::forward<F>(obj))}} {}
 
-  Callable(std::nullptr_t) : type(StorageType::FuncPtrUdPair),
-                             funcPtrUdPair(nullptr, nullptr) {}
-
-  Callable(Callable&& other) {
-    moveConstructFromOther(other);
-  }
-
-  Callable& operator=(Callable&& other) {
-    if (other.type == this->type) {
-      switch (type) {
-      case StorageType::FuncPtrUdPair:
-        std::swap(this->funcPtrUdPair, other.funcPtrUdPair);
-        break;
-      case StorageType::CallablePtr:
-        std::swap(this->callablePtr, other.callablePtr);
-        break;
-      }
-    } else {
-      switch (other.type) {
-      case StorageType::FuncPtrUdPair:
-        {
-          auto tmp = std::move(other.funcPtrUdPair);
-          auto otherType = other.type;
-          other.~Callable();
-          other.moveConstructFromOther(*this);
-          this->~Callable();
-          this->type = otherType;
-          new (&this->funcPtrUdPair) FuncPtrUdPair(std::move(tmp));
-        }
-
-        break;
-      case StorageType::CallablePtr:
-        {
-          auto tmp = std::move(other.callablePtr);
-          auto otherType = other.type;
-          other.~Callable();
-          other.moveConstructFromOther(*this);
-          this->~Callable();
-          this->type = otherType;
-          new (&this->callablePtr) AbsCallablePtr(std::move(tmp));
-        }
-        break;
-      }
-    }
-    return *this;
-  }
+  Callable(std::nullptr_t) :
+    mfunc{FuncPtrUdPair(nullptr, nullptr)} {}
 
   operator bool () {
-    if (type == StorageType::FuncPtrUdPair && std::get<0>(funcPtrUdPair) == nullptr) {
+    if (mfunc.index() == 0 && std::get<0>(pallet::get<0>(mfunc)) == nullptr) {
       return false;
     } else {
       return true;
@@ -180,29 +116,15 @@ public:
   }
 
   R operator()(A... args) {
-    switch (type) {
-    case StorageType::FuncPtrUdPair:
-      {
-        auto& [cb, ub] = this->funcPtrUdPair;
-        return cb(args..., ub);
-      }
-      break;
-    case StorageType::CallablePtr:
-      return (*callablePtr)(args...);
-    }
-
-    std::unreachable();
-  }
-
-  ~Callable() {
-    switch (type) {
-    case StorageType::FuncPtrUdPair:
-      funcPtrUdPair.~FuncPtrUdPair();
-      break;
-    case StorageType::CallablePtr:
-      callablePtr.~AbsCallablePtr();
-      break;
-    }
+    return pallet::visit(pallet::overloads {
+        [&](FuncPtrUdPair& item) {
+          auto& [cb, ub] = item;
+          return cb(args..., ub);
+        },
+          [&](AbsCallablePtr& item) {
+            return (*item)(args...);
+          }
+          }, mfunc);
   }
 };
 
