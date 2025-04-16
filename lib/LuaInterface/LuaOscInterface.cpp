@@ -38,28 +38,24 @@ static void bindOscInterface(lua_State* L) {
     return iface.freeAddress(addressId);
   });
 
-  rawSetTable(L, oscTableIndex, "send", [](OscInterface& iface, OscInterface::AddressId address,
-                                           std::string_view path, std::vector<OscItem> items) {
-    iface.sendMessage(address, path.data(), items.data(), items.size());
-  });
-
+  using OscListenFunction = luaHelper::LuaFunction<void(std::string_view, const std::vector<OscItem>)>;
   rawSetTable(L, oscTableIndex, "listen", [](OscInterface& iface, OscInterface::ServerId server,
-                                             luaHelper::LuaFunction<void(std::string_view, const std::vector<OscItem>)> func) {
+                                             OscListenFunction func) {
     return iface.listen(server, [func = std::move(func)](const char* path, const OscItem* items, size_t n) {
-      func(path, std::vector(items, items + n));
-      
+      return func(path, std::vector(items, items + n));
     });
   });
 
-  rawSetTable(L, oscTableIndex, "unlisten", [](OscInterface& iface, OscInterface::ServerId server, OscInterface::MessageEvent::Id listener) {
-    iface.unlisten(server, listener);
+  rawSetTable(L, oscTableIndex, "unlisten", [](OscInterface& iface, OscInterface::ServerId server,
+                                               OscInterface::MessageEvent::Id listener) {
+    return iface.unlisten(server, listener);
   });
 
-  // rawSetTable(L, oscTableIndex, "setInterval", luaClockSetInterval);
-  // rawSetTable(L, oscTableIndex, "currentTime", luaClockCurrentTime);
-  // rawSetTable(L, oscTableIndex, "clearTimeout", luaClockClearTimeout);
-  // rawSetTable(L, oscTableIndex, "clearInterval", luaClockClearTimeout);
-  // rawSetTable(L, oscTableIndex, "timeInMs", luaClockTimeInMs);
+  rawSetTable(L, oscTableIndex, "send", [](OscInterface& iface, OscInterface::AddressId address,
+                                           const std::string_view path, const std::vector<OscItem> items) {
+    return iface.sendMessage(address, path.data(), items.data(), items.size());
+  });
+
   lua_pushliteral(L, "osc");
   lua_pushvalue(L, oscTableIndex);
   lua_rawset(L, palletCTableIndex);

@@ -79,9 +79,7 @@ end)
 
 )====");
 
-  // while (1) {
-  //   (*platformResult).loopIter();
-  // }
+  (*platformResult).loop();
 
   // auto& platform = *platformResult;
   // auto& clock = *clockResult;

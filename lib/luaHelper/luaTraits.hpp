@@ -6,8 +6,10 @@
 #include "pallet/functional.hpp"
 
 namespace pallet::luaHelper {
-template <class ValueType>
-struct LuaTraits;
+
+/*
+ * Forward declarations begin
+ */
 
 static inline void push(lua_State* L, auto&& value);
 
@@ -20,6 +22,13 @@ static inline decltype(auto) pull(lua_State* L, int index);
 template <class... Types>
 std::tuple<Types...>
 checkedPullMultiple(lua_State* L, int baseIndex = 1);
+
+/*
+ * Forward declarations end
+ */
+
+template <class ValueType>
+struct LuaTraits;
 
 template <>
 struct LuaTraits<bool> {
@@ -185,11 +194,11 @@ struct CppFunctionToLuaCFunction<R(T, A...)>  {
     lua_CFunction func = +[](lua_State* L) -> int {
 
       
-      auto l = [&](A... args) {
+      auto l = [&](auto&&... args) {
         // This is fine, it is stateless
         auto&& context = LuaRetrieveContext<T>::retrieve(L);
         auto lambdaPtr = reinterpret_cast<std::remove_reference_t<FunctionType>*>((void*)0);
-        return lambdaPtr->operator()(std::forward<decltype(context)>(context), std::move(args)...);
+        return lambdaPtr->operator()(std::forward<decltype(context)>(context), std::forward<decltype(args)>(args)...);
       };
 
       auto&& argsTuple = checkedPullMultiple<A...>(L);
@@ -197,7 +206,7 @@ struct CppFunctionToLuaCFunction<R(T, A...)>  {
         std::apply(l, std::move(argsTuple));
         return 0;
       } else {
-        push(L, std::apply(l, std::move(argsTuple)));
+        luaHelper::push(L, std::apply(l, std::move(argsTuple)));
         return 1;
       }
     
@@ -220,10 +229,10 @@ struct CppFunctionToLuaCFunction<R(A...)>  {
   
     lua_CFunction func = +[](lua_State* L) -> int {
 
-      auto l = [&](A... args) {
+      auto l = [&](auto&&... args) {
         // This is fine, it is stateless
         auto lambdaPtr = reinterpret_cast<std::remove_reference_t<FunctionType>*>((void*)0);
-        return lambdaPtr->operator()(std::move(args)...);
+        return lambdaPtr->operator()(std::forward<decltype(args)>(args)...);
       };
 
       auto&& argsTuple = checkedPullMultiple<A...>(L);
@@ -231,7 +240,7 @@ struct CppFunctionToLuaCFunction<R(A...)>  {
         std::apply(l, std::move(argsTuple));
         return 0;
       } else {
-        push(L, std::apply(l, std::move(argsTuple)));
+        luaHelper::push(L, std::apply(l, std::move(argsTuple)));
         return 1;
       }
     

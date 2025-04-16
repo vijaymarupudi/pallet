@@ -6,7 +6,7 @@ static const int gridOscServerPort = 7072;
 
 template <class Type>
 static decltype(auto) get_unchecked(auto&& variant) {
-  return variant.template get_unchecked<Type>();
+  return std::forward<decltype(variant)>(variant).template get_unchecked<Type>();
 }
 
   template <class... Types>
