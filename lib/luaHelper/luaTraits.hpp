@@ -15,7 +15,7 @@ template <class T>
 static inline bool isType(lua_State* L, int index);
 
 template <class T>
-static inline T pull(lua_State* L, int index);
+static inline decltype(auto) pull(lua_State* L, int index);
 
 template <class... Types>
 std::tuple<Types...>
@@ -60,7 +60,7 @@ struct LuaTraits<T> {
     return lua_isstring(L, index);
   }
 
-  static inline void push(lua_State* L, std::string_view str) {
+  static inline void push(lua_State* L, const std::string_view& str) {
     lua_pushlstring(L, str.data(), str.size());
   }
 
@@ -184,11 +184,12 @@ struct CppFunctionToLuaCFunction<R(T, A...)>  {
   
     lua_CFunction func = +[](lua_State* L) -> int {
 
+      
       auto l = [&](A... args) {
         // This is fine, it is stateless
         auto&& context = LuaRetrieveContext<T>::retrieve(L);
         auto lambdaPtr = reinterpret_cast<std::remove_reference_t<FunctionType>*>((void*)0);
-        return lambdaPtr->operator()(std::forward<decltype(context)>(context), args...);
+        return lambdaPtr->operator()(std::forward<decltype(context)>(context), std::move(args)...);
       };
 
       auto&& argsTuple = checkedPullMultiple<A...>(L);
@@ -222,7 +223,7 @@ struct CppFunctionToLuaCFunction<R(A...)>  {
       auto l = [&](A... args) {
         // This is fine, it is stateless
         auto lambdaPtr = reinterpret_cast<std::remove_reference_t<FunctionType>*>((void*)0);
-        return lambdaPtr->operator()(args...);
+        return lambdaPtr->operator()(std::move(args)...);
       };
 
       auto&& argsTuple = checkedPullMultiple<A...>(L);

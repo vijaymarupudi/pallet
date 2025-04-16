@@ -28,16 +28,22 @@ static inline void push(lua_State* L, auto&& value) {
 
 template <class T>
 static inline bool isType(lua_State* L, int index) {
-  return LuaTraits<T>::check(L, index);
+  return LuaTraits<std::remove_reference_t<T>>::check(L, index);
 }
 
 template <class T>
-static inline T pull(lua_State* L, int index) {
-  return LuaTraits<T>::pull(L, index);
+static inline decltype(auto) pull(lua_State* L, int index) {
+  if constexpr (std::is_lvalue_reference_v<T>) {
+    return LuaTraits<T>::pull(L, index);
+  } else {
+    // rvalue or value type
+    return LuaTraits<std::remove_reference_t<T>>::pull(L, index);
+  }
+  
 }
 
 template <class T>
-T checkedPull(lua_State* L, int index) {
+decltype(auto) checkedPull(lua_State* L, int index) {
   if (isType<T>(L, index)) [[likely]] {
     return pull<T>(L, index);
   } else {

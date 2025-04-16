@@ -15,7 +15,7 @@ struct LuaTraits<std::vector<Type>> {
     auto tableIndex = lua_gettop(L);
     size_t i = 0;
     for (auto&& item : val) {
-      push(L, std::forward<decltype(item)>(item));
+      luaHelper::push(L, std::forward<decltype(item)>(item));
       lua_rawseti(L, tableIndex, i);
       i++;
     }

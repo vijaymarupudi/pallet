@@ -16,7 +16,7 @@ namespace pallet::luaHelper {
       template <class First, class... ArgTypes>
       static inline VariantType recursiveApplyMany(lua_State* L, int index) {
         if (isType<First>(L, index)) {
-          return pull<First>(L, index);
+          return luaHelper::pull<First>(L, index);
         } else if constexpr (sizeof...(ArgTypes) == 0) {
             luaL_argerror(L, index, "wrong argument");
             std::unreachable();
@@ -37,10 +37,10 @@ struct LuaTraits<LightVariant<Types...>> {
     return (isType<Types>(L, index) || ...);
   }
 
-  static inline void push(lua_State* L, auto&& val) {
+  static inline void push(lua_State* L, const auto& variant) {
     pallet::visit([&](auto&& item) {
-      push(L, std::forward<decltype(val)>(val));
-    }, std::forward<decltype(val)>(val));
+      luaHelper::push(L, std::forward<decltype(item)>(item));
+    }, std::forward<decltype(variant)>(variant));
   }
 
   static inline LightVariant<Types...> pull(lua_State* L, int index) {

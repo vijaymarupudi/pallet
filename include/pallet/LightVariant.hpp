@@ -282,16 +282,16 @@ public:
  */
 namespace detail {
 template <class T>
-struct IsLightVariant : std::false_type {};
+struct IsLightVariantStruct : std::false_type {};
 
 template <class... Args>
-struct IsLightVariant<LightVariant<Args...>> : std::true_type {};
+struct IsLightVariantStruct<LightVariant<Args...>> : std::true_type {};
 
 }
 
 namespace concepts {
 template <class T>
-concept LightVariant = detail::IsLightVariant<T>::value;
+concept LightVariant = detail::IsLightVariantStruct<T>::value;
 }
 
 namespace detail {
