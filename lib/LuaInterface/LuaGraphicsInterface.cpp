@@ -27,7 +27,7 @@ static int luaScreenClear(lua_State* L) {
 static int luaScreenRect(lua_State* L) {
   auto& luaInterface = getLuaInterfaceObject(L);
   auto [x, y, w, h, c] =
-    luaCheckedPullMultiple<float, float, float, float, int>(L, 1);
+    checkedPullMultiple<float, float, float, float, int>(L, 1);
 
   luaInterface.graphicsInterface->rect(x - 1, y - 1, w, h, c);
   return 0;
@@ -36,7 +36,7 @@ static int luaScreenRect(lua_State* L) {
 static int luaScreenStrokeRect(lua_State* L) {
   auto& luaInterface = getLuaInterfaceObject(L);
   auto [x, y, w, h, c] =
-    luaCheckedPullMultiple<float, float, float, float, int>(L, 1);
+    checkedPullMultiple<float, float, float, float, int>(L, 1);
 
   luaInterface.graphicsInterface->strokeRect(x - 1, y - 1, w, h, c);
   return 0;
@@ -45,7 +45,7 @@ static int luaScreenStrokeRect(lua_State* L) {
 static int luaScreenPoint(lua_State* L) {
   auto& luaInterface = getLuaInterfaceObject(L);
   auto [x, y, c] =
-    luaCheckedPullMultiple<float, float, int>(L, 1);
+    checkedPullMultiple<float, float, int>(L, 1);
   luaInterface.graphicsInterface->point(x - 1, y - 1, c);
   return 0;
 }
@@ -53,7 +53,7 @@ static int luaScreenPoint(lua_State* L) {
 static int luaScreenText(lua_State* L) {
   auto& luaInterface = getLuaInterfaceObject(L);
   auto [x, y, str, fc, bc, align, baseline] =
-    luaCheckedPullMultiple<float, float, std::string_view,
+    checkedPullMultiple<float, float, std::string_view,
                            int, int, pallet::GraphicsPosition,
                            pallet::GraphicsPosition>(L, 1);
   luaInterface.graphicsInterface->text(x - 1, y - 1, str, fc, bc, align, baseline);
@@ -73,21 +73,21 @@ static int luaGraphicsEventToTable(lua_State* L,
   auto visitor = overloads
     {
       [&](const pallet::GraphicsEventMouseButton& e) {
-        luaRawSetTable(L, tableIndex, "x", e.x + 1);
-        luaRawSetTable(L, tableIndex, "y", e.y + 1);
-        luaRawSetTable(L, tableIndex, "state", e.state);
-        luaRawSetTable(L, tableIndex, "button", e.button);
+        rawSetTable(L, tableIndex, "x", e.x + 1);
+        rawSetTable(L, tableIndex, "y", e.y + 1);
+        rawSetTable(L, tableIndex, "state", e.state);
+        rawSetTable(L, tableIndex, "button", e.button);
       },
       [&](const pallet::GraphicsEventMouseMove& e) {
-        luaRawSetTable(L, tableIndex, "x", e.x + 1);
-        luaRawSetTable(L, tableIndex, "y", e.y + 1);
+        rawSetTable(L, tableIndex, "x", e.x + 1);
+        rawSetTable(L, tableIndex, "y", e.y + 1);
       },
       [&](const pallet::GraphicsEventKey& e) {
-        luaRawSetTable(L, tableIndex, "repeat", e.repeat);
-        luaRawSetTable(L, tableIndex, "state", e.state);
-        luaRawSetTable(L, tableIndex, "keycode", e.keycode);
-        luaRawSetTable(L, tableIndex, "scancode", e.scancode);
-        luaRawSetTable(L, tableIndex, "mod", e.mod);
+        rawSetTable(L, tableIndex, "repeat", e.repeat);
+        rawSetTable(L, tableIndex, "state", e.state);
+        rawSetTable(L, tableIndex, "keycode", e.keycode);
+        rawSetTable(L, tableIndex, "scancode", e.scancode);
+        rawSetTable(L, tableIndex, "mod", e.mod);
       },
       [&](const pallet::GraphicsEventQuit&) {
       
@@ -122,21 +122,21 @@ static void bindGraphicsInterface(lua_State* L) {
 
   auto& luaInterface = getLuaInterfaceObject(L);
 
-  luaRawSetTable(L, screenTableIndex, "render", luaScreenRender);
-  luaRawSetTable(L, screenTableIndex, "quit", luaScreenQuit);
-  luaRawSetTable(L, screenTableIndex, "clear", luaScreenClear);
-  luaRawSetTable(L, screenTableIndex, "rect", luaScreenRect);
-  luaRawSetTable(L, screenTableIndex, "strokeRect", luaScreenStrokeRect);
-  luaRawSetTable(L, screenTableIndex, "point", luaScreenPoint);
-  luaRawSetTable(L, screenTableIndex, "text", luaScreenText);
-  luaRawSetTable(L, screenTableIndex, "setOnEvent", luaScreenSetOnEvent);
+  rawSetTable(L, screenTableIndex, "render", luaScreenRender);
+  rawSetTable(L, screenTableIndex, "quit", luaScreenQuit);
+  rawSetTable(L, screenTableIndex, "clear", luaScreenClear);
+  rawSetTable(L, screenTableIndex, "rect", luaScreenRect);
+  rawSetTable(L, screenTableIndex, "strokeRect", luaScreenStrokeRect);
+  rawSetTable(L, screenTableIndex, "point", luaScreenPoint);
+  rawSetTable(L, screenTableIndex, "text", luaScreenText);
+  rawSetTable(L, screenTableIndex, "setOnEvent", luaScreenSetOnEvent);
 
   // enums
-  luaRawSetTable(L, screenTableIndex, "Default",
+  rawSetTable(L, screenTableIndex, "Default",
                  static_cast<int>(pallet::GraphicsPosition::Default));
-  luaRawSetTable(L, screenTableIndex, "Center",
+  rawSetTable(L, screenTableIndex, "Center",
                  static_cast<int>(pallet::GraphicsPosition::Center));
-  luaRawSetTable(L, screenTableIndex, "Bottom",
+  rawSetTable(L, screenTableIndex, "Bottom",
                  static_cast<int>(pallet::GraphicsPosition::Bottom));
 
   // intern and store graphics event strings
@@ -146,7 +146,7 @@ static void bindGraphicsInterface(lua_State* L) {
       lua_pushstring(L, str);
       int ref = luaL_ref(L, LUA_REGISTRYINDEX);
       luaInterface.graphicsEventStringsRef[i] = ref;
-      // luaRawSetTable(L, screenTableIndex, pallet::getGraphicsEventName<EventType>(), i);
+      // rawSetTable(L, screenTableIndex, pallet::getGraphicsEventName<EventType>(), i);
     });
 
 

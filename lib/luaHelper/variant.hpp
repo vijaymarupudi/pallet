@@ -15,7 +15,7 @@ namespace pallet::luaHelper {
 
       template <class First, class... ArgTypes>
       static inline VariantType recursiveApplyMany(lua_State* L, int index) {
-        if (luaIsType<First>(L, index)) {
+        if (isType<First>(L, index)) {
           return pull<First>(L, index);
         } else if constexpr (sizeof...(ArgTypes) == 0) {
             luaL_argerror(L, index, "wrong argument");
@@ -34,7 +34,7 @@ namespace pallet::luaHelper {
 template <class... Types>
 struct LuaTraits<Variant<Types...>> {
   static inline bool check(lua_State* L, int index) {
-    return (luaIsType<Types>(L, index) || ...);
+    return (isType<Types>(L, index) || ...);
   }
 
   static inline void push(lua_State* L, auto&& val) {

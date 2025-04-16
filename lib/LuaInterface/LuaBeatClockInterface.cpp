@@ -35,12 +35,12 @@ static void luaBeatClockSetTimeoutIntervalCb(const BeatClockEventInfo& info,
 static int _luaBeatClockSyncTimeout(lua_State* L, bool interval) {
   double sync = 0, offset = 0, period = 0;
   if (interval) {
-    auto [_sync, _offset, _period] = luaCheckedPullMultiple<double, double, double>(L, 1);
+    auto [_sync, _offset, _period] = checkedPullMultiple<double, double, double>(L, 1);
     sync = _sync;
     offset = _offset;
     period = _period;
   } else {
-    auto [_sync, _offset] = luaCheckedPullMultiple<double, double>(L, 1);
+    auto [_sync, _offset] = checkedPullMultiple<double, double>(L, 1);
     sync = _sync;
     offset = _offset;
   }
@@ -78,7 +78,7 @@ static int luaBeatClockSyncInterval(lua_State* L) {
 }
 
 static int luaBeatClockClearBeatSyncTimeout(lua_State* L) {
-  int id = luaCheckedPull<int>(L, 1);
+  int id = checkedPull<int>(L, 1);
   auto& luaInterface = getLuaInterfaceObject(L);
   auto& state = luaInterface.beatClockCallbackState[id];
   luaBeatClockStateCleanup(state, true);
@@ -86,7 +86,7 @@ static int luaBeatClockClearBeatSyncTimeout(lua_State* L) {
 }
 
 static int luaBeatClockSetBPM(lua_State* L) {
-  auto bpm = luaCheckedPull<double>(L, 1);
+  auto bpm = checkedPull<double>(L, 1);
   auto& luaInterface = getLuaInterfaceObject(L);
   luaInterface.beatClock->setBPM(bpm);
   return 0;
@@ -103,12 +103,12 @@ static void bindBeatClock(lua_State* L) {
   auto start = lua_gettop(L);
   lua_newtable(L); // BeatClock
   int beatClockTableIndex = lua_gettop(L);
-  luaRawSetTable(L, beatClockTableIndex, "setBeatSyncTimeout", luaBeatClockSyncTimeout);
-  luaRawSetTable(L, beatClockTableIndex, "setBeatSyncInterval", luaBeatClockSyncInterval);
-  luaRawSetTable(L, beatClockTableIndex, "clearBeatSyncTimeout", luaBeatClockClearBeatSyncTimeout);
-  luaRawSetTable(L, beatClockTableIndex, "clearBeatSyncInterval", luaBeatClockClearBeatSyncTimeout);
-  luaRawSetTable(L, beatClockTableIndex, "setBPM", luaBeatClockSetBPM);
-  luaRawSetTable(L, beatClockTableIndex, "currentBeat", luaBeatClockCurrentBeat);
+  rawSetTable(L, beatClockTableIndex, "setBeatSyncTimeout", luaBeatClockSyncTimeout);
+  rawSetTable(L, beatClockTableIndex, "setBeatSyncInterval", luaBeatClockSyncInterval);
+  rawSetTable(L, beatClockTableIndex, "clearBeatSyncTimeout", luaBeatClockClearBeatSyncTimeout);
+  rawSetTable(L, beatClockTableIndex, "clearBeatSyncInterval", luaBeatClockClearBeatSyncTimeout);
+  rawSetTable(L, beatClockTableIndex, "setBPM", luaBeatClockSetBPM);
+  rawSetTable(L, beatClockTableIndex, "currentBeat", luaBeatClockCurrentBeat);
   getPalletCTable(L);
   auto palletCTableIndex = lua_gettop(L);
   lua_pushliteral(L, "beatClock");

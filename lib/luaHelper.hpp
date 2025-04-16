@@ -7,41 +7,21 @@
 #include <concepts>
 
 #include "lua.hpp"
-
 #include "pallet/variant.hpp"
 
 namespace pallet::luaHelper {
 
-namespace detail {
-
-template <class T>
-concept Boolean = std::is_same_v<T, bool>;
-
-template <class T>
-concept Integer = std::is_integral_v<T>;
-
-template <class T>
-concept FloatingPoint = std::is_floating_point_v<T>;
-}
-
-using namespace detail;
 
 template <class ValueType>
 struct LuaTraits;
 
-static inline void push(lua_State* L, auto&& value) {
-  LuaTraits<std::remove_cvref_t<decltype(value)>>::push(L, std::forward<decltype(value)>(value));
-}
+static inline void push(lua_State* L, auto&& value);
 
 template <class T>
-static inline bool luaIsType(lua_State* L, int index) {
-  return LuaTraits<T>::check(L, index);
-}
+static inline bool isType(lua_State* L, int index);
 
 template <class T>
-static inline T pull(lua_State* L, int index) {
-  return LuaTraits<T>::pull(L, index);
-}
+static inline T pull(lua_State* L, int index);
 
 template <>
 struct LuaTraits<bool> {
@@ -157,8 +137,8 @@ struct LuaTraits<T> {
 
 
 template <class T>
-T luaCheckedPull(lua_State* L, int index) {
-  if (luaIsType<T>(L, index)) [[likely]] {
+T checkedPull(lua_State* L, int index) {
+  if (isType<T>(L, index)) [[likely]] {
     return pull<T>(L, index);
   } else {
     luaL_argerror(L, index, "wrong argument");
@@ -172,22 +152,37 @@ template <class... Types, int... indexes>
 inline std::tuple<Types...> _luaCheckedPullMultiple(lua_State* L,
                                                     int baseIndex,
                                                     std::integer_sequence<int, indexes...>) {
-  return std::make_tuple(luaCheckedPull<Types>(L, baseIndex + indexes)...);
+  return std::make_tuple(checkedPull<Types>(L, baseIndex + indexes)...);
 }
 }
 
 
 template <class... Types>
 std::tuple<Types...>
-luaCheckedPullMultiple(lua_State* L, int baseIndex = 1) {
-  return _luaCheckedPullMultiple<Types...>(L, baseIndex, std::make_integer_sequence<int, sizeof...(Types)>{});
+checkedPullMultiple(lua_State* L, int baseIndex = 1) {
+  return detail::_luaCheckedPullMultiple<Types...>(L, baseIndex, std::make_integer_sequence<int, sizeof...(Types)>{});
 }
 
 
-static inline void luaRawSetTable(lua_State* L, int tableIndex, const auto& key, const auto& value) {
+static inline void rawSetTable(lua_State* L, int tableIndex, const auto& key, const auto& value) {
   push(L, key);
   push(L, value);
   lua_rawset(L, tableIndex);
 }
+
+static inline void push(lua_State* L, auto&& value) {
+  LuaTraits<std::remove_cvref_t<decltype(value)>>::push(L, std::forward<decltype(value)>(value));
+}
+
+template <class T>
+static inline bool isType(lua_State* L, int index) {
+  return LuaTraits<T>::check(L, index);
+}
+
+template <class T>
+static inline T pull(lua_State* L, int index) {
+  return LuaTraits<T>::pull(L, index);
+}
+
 
 }

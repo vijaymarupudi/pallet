@@ -10,37 +10,37 @@ using namespace pallet::luaHelper;
  */
 
   static int luaGridLed(lua_State* L) {
-    auto [grid, x, y, z] = luaCheckedPullMultiple<
+    auto [grid, x, y, z] = checkedPullMultiple<
       MonomeGrid*, int, int, int>(L, 1);
-    // auto grid = luaCheckedPull<MonomeGrid*>(L, 1);
-    // int x = luaCheckedPull<int>(L, 2);
-    // int y = luaCheckedPull<int>(L, 3);
-    // int z = luaCheckedPull<int>(L, 4);
+    // auto grid = checkedPull<MonomeGrid*>(L, 1);
+    // int x = checkedPull<int>(L, 2);
+    // int y = checkedPull<int>(L, 3);
+    // int z = checkedPull<int>(L, 4);
     grid->led(x - 1, y - 1, z);
     return 0;
   }
 
 static int luaGridAll(lua_State* L) {
-  auto grid = luaCheckedPull<MonomeGrid*>(L, 1);
-  int z = luaCheckedPull<int>(L, 2);
+  auto grid = checkedPull<MonomeGrid*>(L, 1);
+  int z = checkedPull<int>(L, 2);
   grid->all(z);
   return 0;
 }
 
   static int luaGridClear(lua_State* L) {
-    auto grid = luaCheckedPull<MonomeGrid*>(L, 1);
+    auto grid = checkedPull<MonomeGrid*>(L, 1);
     grid->clear();
     return 0;
   }
 
   static int luaGridRender(lua_State* L) {
-    auto grid = luaCheckedPull<MonomeGrid*>(L, 1);
+    auto grid = checkedPull<MonomeGrid*>(L, 1);
     grid->render();
     return 0;
   }
 
   static int luaGridSetOnKey(lua_State* L) {
-    auto grid = luaCheckedPull<MonomeGrid*>(L, 1);
+    auto grid = checkedPull<MonomeGrid*>(L, 1);
     int functionRef = luaL_ref(L, LUA_REGISTRYINDEX);
     auto& iface = getLuaInterfaceObject(L);
     iface.gridKeyFunction = functionRef;
@@ -57,7 +57,7 @@ static int luaGridAll(lua_State* L) {
 
 
   static int luaGridConnect(lua_State* L) {
-    int id = luaCheckedPull<int>(L, -2);
+    int id = checkedPull<int>(L, -2);
     // connect callback is the first argument
     int functionRef = luaL_ref(L, LUA_REGISTRYINDEX);
     auto& iface = getLuaInterfaceObject(L);
@@ -78,13 +78,13 @@ static int luaGridAll(lua_State* L) {
 static void bindGrid(lua_State* L) {
   lua_newtable(L);
   int gridTableIndex = lua_gettop(L);
-  luaRawSetTable(L, gridTableIndex, "connect", luaGridConnect);
-  luaRawSetTable(L, gridTableIndex, "led", luaGridLed);
-  luaRawSetTable(L, gridTableIndex, "clear", luaGridClear);
-  luaRawSetTable(L, gridTableIndex, "all", luaGridAll);
-  luaRawSetTable(L, gridTableIndex, "render", luaGridRender);
-  luaRawSetTable(L, gridTableIndex, "refresh", luaGridRender);
-  luaRawSetTable(L, gridTableIndex, "setOnKey", luaGridSetOnKey);
+  rawSetTable(L, gridTableIndex, "connect", luaGridConnect);
+  rawSetTable(L, gridTableIndex, "led", luaGridLed);
+  rawSetTable(L, gridTableIndex, "clear", luaGridClear);
+  rawSetTable(L, gridTableIndex, "all", luaGridAll);
+  rawSetTable(L, gridTableIndex, "render", luaGridRender);
+  rawSetTable(L, gridTableIndex, "refresh", luaGridRender);
+  rawSetTable(L, gridTableIndex, "setOnKey", luaGridSetOnKey);
   getPalletCTable(L);
   int palletCTableIndex = lua_gettop(L);
   lua_pushliteral(L, "grid");

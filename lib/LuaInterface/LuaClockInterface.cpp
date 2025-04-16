@@ -18,12 +18,12 @@ static void bindClock(lua_State* L) {
   auto palletCTableIndex = lua_gettop(L);
   lua_newtable(L); // clock
   int clockTableIndex = lua_gettop(L);
-  luaRawSetTable(L, clockTableIndex, "setTimeout", luaClockSetTimeout);
-  luaRawSetTable(L, clockTableIndex, "setInterval", luaClockSetInterval);
-  luaRawSetTable(L, clockTableIndex, "currentTime", luaClockCurrentTime);
-  luaRawSetTable(L, clockTableIndex, "clearTimeout", luaClockClearTimeout);
-  luaRawSetTable(L, clockTableIndex, "clearInterval", luaClockClearTimeout);
-  luaRawSetTable(L, clockTableIndex, "timeInMs", luaClockTimeInMs);
+  rawSetTable(L, clockTableIndex, "setTimeout", luaClockSetTimeout);
+  rawSetTable(L, clockTableIndex, "setInterval", luaClockSetInterval);
+  rawSetTable(L, clockTableIndex, "currentTime", luaClockCurrentTime);
+  rawSetTable(L, clockTableIndex, "clearTimeout", luaClockClearTimeout);
+  rawSetTable(L, clockTableIndex, "clearInterval", luaClockClearTimeout);
+  rawSetTable(L, clockTableIndex, "timeInMs", luaClockTimeInMs);
   lua_pushliteral(L, "clock");
   lua_pushvalue(L, clockTableIndex);
   lua_rawset(L, palletCTableIndex);
@@ -110,7 +110,7 @@ static void luaClockSetTimeoutIntervalCb(const ClockInterface::EventInfo& info, 
 
 
 static int luaClockClearTimeout(lua_State* L) {
-  int id = luaCheckedPull<int>(L, 1);
+  int id = checkedPull<int>(L, 1);
   auto& luaInterface = getLuaInterfaceObject(L);
   auto& state = luaInterface.clockCallbackState[id];
   luaClockStateCleanup(state, true);

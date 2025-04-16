@@ -35,7 +35,7 @@ static void bindMidiInterface(lua_State* L) {
   lua_newtable(L); // midi
   int midiTableIndex = lua_gettop(L);
   
-  luaRawSetTable(L, midiTableIndex, "sendMidi", luaSendMidi);
+  rawSetTable(L, midiTableIndex, "sendMidi", luaSendMidi);
 
   getPalletCTable(L);
   auto palletCTableIndex = lua_gettop(L);

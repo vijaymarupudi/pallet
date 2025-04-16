@@ -21,10 +21,10 @@ static void luaPrintSingle(lua_State* L, int index) {
     fwrite(str, 1, len, stdout);
   } else if (typ == LUA_TNUMBER) {
     if (lua_isinteger(L, index)) {
-      int64_t number = luaCheckedPull<int64_t>(L, index);
+      int64_t number = checkedPull<int64_t>(L, index);
       printf("%ld", number);
     } else {
-      float number = luaCheckedPull<float>(L, index);
+      float number = checkedPull<float>(L, index);
       printf("%f", number);
     }
 
@@ -192,7 +192,7 @@ LuaInterface::~LuaInterface() {
 static void luaBindPlatform(lua_State* L) {
   getPalletCTable(L);
   auto palletCTableIndex = lua_gettop(L);
-  luaRawSetTable(L, palletCTableIndex, "quit",
+  rawSetTable(L, palletCTableIndex, "quit",
                  +[](lua_State* L) {
                    auto& luaInterface = getLuaInterfaceObject(L);
                    luaInterface.platform->quit();
