@@ -14,6 +14,7 @@
 #include "pallet/BeatClock.hpp"
 #include "pallet/GraphicsInterface.hpp"
 #include "pallet/MidiInterface.hpp"
+#include "pallet/OscInterface.hpp"
 
 #include "pallet/error.hpp"
 
@@ -97,6 +98,12 @@ public:
    */
   MidiInterface* midiInterface = nullptr;
 
+  /*
+   * Osc binding state
+   */
+
+  OscInterface* oscInterface;
+
 private:
   void setupRequire();
 public:
@@ -110,6 +117,7 @@ public:
   void setBeatClock(BeatClock& beatClock);
   void setGraphicsInterface(GraphicsInterface& graphicsInterface);
   void setMidiInterface(MidiInterface& midiInterface);
+  void setOscInterface(OscInterface& oscInterface);
 };
 
 }

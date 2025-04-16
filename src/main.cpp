@@ -31,6 +31,7 @@ int actualMain() {
   luaInterface.setGraphicsInterface(*graphicsInterfaceResult);
   luaInterface.setMidiInterface(*midiInterfaceResult);
   luaInterface.setMonomeGridInterface(*gridInterfaceResult);
+  luaInterface.setOscInterface(*oscInterfaceResult);
 
   luaInterface.dostring(R"====(
 local beatClock = require('pallet').beatClock

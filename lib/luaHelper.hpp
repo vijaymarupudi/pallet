@@ -15,7 +15,6 @@ namespace pallet::luaHelper {
 // struct LuaTraits;
 
 
-
 template <class K, class V>
 static inline void rawSetTable(lua_State* L, int tableIndex, K&& key, V&& value) {
   push(L, std::forward<K>(key));

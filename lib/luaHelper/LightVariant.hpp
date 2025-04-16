@@ -1,17 +1,17 @@
 #pragma once
 
 #include "../luaHelper.hpp"
-#include "pallet/variant.hpp"
+#include "pallet/LightVariant.hpp"
 
 namespace pallet::luaHelper {
 
   namespace detail {
     template <class T>
-    struct luaPullVariant;
+    struct luaPullLightVariant;
 
     template <class... Types>
-    struct luaPullVariant<Variant<Types...>> {
-      using VariantType = Variant<Types...>;
+    struct luaPullLightVariant<LightVariant<Types...>> {
+      using VariantType = LightVariant<Types...>;
 
       template <class First, class... ArgTypes>
       static inline VariantType recursiveApplyMany(lua_State* L, int index) {
@@ -32,7 +32,7 @@ namespace pallet::luaHelper {
   }
 
 template <class... Types>
-struct LuaTraits<Variant<Types...>> {
+struct LuaTraits<LightVariant<Types...>> {
   static inline bool check(lua_State* L, int index) {
     return (isType<Types>(L, index) || ...);
   }
@@ -43,9 +43,10 @@ struct LuaTraits<Variant<Types...>> {
     }, std::forward<decltype(val)>(val));
   }
 
-  static inline Variant<Types...> pull(lua_State* L, int index) {
-    return detail::luaPullVariant<Variant<Types...>>::apply(L, index);
+  static inline LightVariant<Types...> pull(lua_State* L, int index) {
+    return detail::luaPullLightVariant<LightVariant<Types...>>::apply(L, index);
   }
 };
 
+  
 }

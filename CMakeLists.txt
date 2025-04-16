@@ -46,6 +46,7 @@ set(CXX_FILES
   lib/LuaInterface/LuaClockInterface.cpp
   lib/LuaInterface/LuaBeatClockInterface.cpp
   lib/LuaInterface/LuaMidiInterface.cpp
+  lib/LuaInterface/LuaOscInterface.cpp
   lib/PosixPlatform.cpp
   lib/LinuxPlatform.cpp
   lib/Clock.cpp
