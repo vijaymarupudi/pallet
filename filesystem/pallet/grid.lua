@@ -14,6 +14,15 @@ local function wrapGrid(g)
       render = function(self)
          return __grid.render(self.g)
       end,
+      onKey = {
+         g = g,
+         listen = function(self, cb)
+            return __grid.onKeyListen(self.g, cb)
+         end,
+         unlisten = function(self, id)
+            return __grid.onKeyUnlisten(self.g, id)
+         end
+      },
       setOnKey = function(self, cb)
          return __grid.setOnKey(self.g, cb)
       end

@@ -5,6 +5,7 @@
 #include <string>
 #include <cstdint>
 #include "pallet/error.hpp"
+#include "pallet/Event.hpp"
 
 namespace pallet {
 
@@ -21,20 +22,18 @@ public:
              QuadRenderFunction quadRenderFunc,
              void* quadRenderFuncUd0, void* quadRenderFuncUd1);
 
-  void setOnKey(void (*cb)(int x, int y, int z, void*), void* data);
+  using OnKeyEvent = Event<void(int, int, int)>;
+  OnKeyEvent onKey;
 
   bool isConnected();
   void led(int x, int y, int c);
   void all(int z);
   void clear();
   void render();
-  int getRows();
-  int getCols();
+  int getRows() const;
+  int getCols() const;
 
 private:
-  void (*onKeyCb)(int x, int y, int z, void*);
-  void* onKeyData;
-
   bool connected = true;
   std::string id;
   int rows;
@@ -58,7 +57,7 @@ private:
 
 
 class MonomeGridInterface {
-  
+
 public:
 
   using OnConnectCallback = void(*)(const std::string&, bool, MonomeGrid* grid, void*);
@@ -67,11 +66,12 @@ public:
     this->onConnectCb = cb;
     this->onConnectData = data;
   }
+
   virtual void sendRawQuadMap(int offX, int offY, MonomeGrid::QuadType data) = 0;
   virtual void connect(int idx) = 0;
 
 protected:
-  
+
   OnConnectCallback onConnectCb = nullptr;
   void* onConnectData = nullptr;
   static void uponConnectionState(MonomeGrid&, bool);
@@ -152,4 +152,3 @@ protected:
 
 
 // }
-

@@ -32,15 +32,8 @@ bool MonomeGrid::isQuadDirty(int quadIndex) {
   return this->quadDirtyFlags & (1 << quadIndex);
 }
 
-void MonomeGrid::setOnKey(void (*cb)(int x, int y, int z, void*), void* data) {
-  this->onKeyCb = cb;
-  this->onKeyData = data;
-}
-
 void MonomeGrid::uponKey(int x, int y, int z) {
-  if (this->onKeyCb) {
-    this->onKeyCb(x, y, z, onKeyData);
-  }
+  this->onKey.emit(x, y, z);
 }
 
 void MonomeGrid::uponConnectionState(bool state) {
@@ -83,11 +76,11 @@ void MonomeGrid::render() {
   this->quadDirtyFlags = 0;
 }
 
-int MonomeGrid::getRows() {
+int MonomeGrid::getRows() const {
   return this->rows;
 }
 
-int MonomeGrid::getCols() {
+int MonomeGrid::getCols() const {
   return this->cols;
 }
 

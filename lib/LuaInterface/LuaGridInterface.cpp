@@ -1,5 +1,6 @@
 #include "pallet/LuaInterface.hpp"
 #include "../LuaInterfaceImpl.hpp"
+#include "../luaHelper/LuaFunction.hpp"
 
 namespace pallet {
 
@@ -39,21 +40,21 @@ static int luaGridAll(lua_State* L) {
     return 0;
   }
 
-  static int luaGridSetOnKey(lua_State* L) {
-    auto grid = checkedPull<MonomeGrid*>(L, 1);
-    int functionRef = luaL_ref(L, LUA_REGISTRYINDEX);
-    auto& iface = getLuaInterfaceObject(L);
-    iface.gridKeyFunction = functionRef;
-    grid->setOnKey([](int x, int y, int z, void* ud) {
-      auto& luaInterface = *static_cast<LuaInterface*>(ud);
-      lua_rawgeti(luaInterface.L, LUA_REGISTRYINDEX, luaInterface.gridKeyFunction);
-      push(luaInterface.L, x + 1);
-      push(luaInterface.L, y + 1);
-      push(luaInterface.L, z);
-      lua_call(luaInterface.L, 3, 0);
-    }, &iface);
-    return 0;
-  }
+  // static int luaGridSetOnKey(lua_State* L) {
+  //   auto grid = checkedPull<MonomeGrid*>(L, 1);
+  //   int functionRef = luaL_ref(L, LUA_REGISTRYINDEX);
+  //   auto& iface = getLuaInterfaceObject(L);
+  //   iface.gridKeyFunction = functionRef;
+  //   grid->setOnKey([](int x, int y, int z, void* ud) {
+  //     auto& luaInterface = *static_cast<LuaInterface*>(ud);
+  //     lua_rawgeti(luaInterface.L, LUA_REGISTRYINDEX, luaInterface.gridKeyFunction);
+  //     push(luaInterface.L, x + 1);
+  //     push(luaInterface.L, y + 1);
+  //     push(luaInterface.L, z);
+  //     lua_call(luaInterface.L, 3, 0);
+  //   }, &iface);
+  //   return 0;
+  // }
 
 
   static int luaGridConnect(lua_State* L) {
@@ -84,7 +85,18 @@ static void bindGrid(lua_State* L) {
   rawSetTable(L, gridTableIndex, "all", luaGridAll);
   rawSetTable(L, gridTableIndex, "render", luaGridRender);
   rawSetTable(L, gridTableIndex, "refresh", luaGridRender);
-  rawSetTable(L, gridTableIndex, "setOnKey", luaGridSetOnKey);
+
+
+  rawSetTable(L, gridTableIndex, "onKeyListen",
+              [](MonomeGrid* grid, LuaFunction<void(int, int, int)> func) {
+                return grid->onKey.listen(std::move(func));
+              });
+
+  rawSetTable(L, gridTableIndex, "onKeyUnlisten",
+              [](MonomeGrid* grid, MonomeGrid::OnKeyEvent::Id id) {
+                return grid->onKey.unlisten(id);
+              });
+
   getPalletCTable(L);
   int palletCTableIndex = lua_gettop(L);
   lua_pushliteral(L, "grid");

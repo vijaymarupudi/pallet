@@ -9,14 +9,14 @@ struct LuaFunction;
 template <class ReturnType, class... Args>
 struct LuaFunction<ReturnType(Args...)> {
   lua_State* L;
-  int ref;
+  RegistryIndex luaFunction;
 
-  LuaFunction(lua_State* L, int ref) : L(L), ref(ref) {}
-  LuaFunction(LuaFunction&& other) : L(other.L), ref(std::exchange(other.ref, -1)) {}
+  LuaFunction(lua_State* L, RegistryIndex luaFunction) : L(L), luaFunction(luaFunction) {}
+  LuaFunction(LuaFunction&& other) : L(other.L), luaFunction(std::exchange(other.luaFunction, nullptr)) {}
   LuaFunction& operator=(LuaFunction&& other) = default;
   
   ReturnType operator()(Args... args) const {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
+    luaHelper::push(L, luaFunction);
     (luaHelper::push(L, std::move(args)), ...);
     
     lua_call(L, sizeof...(Args), (std::is_same_v<ReturnType, void> ? 0 : 1));
@@ -30,8 +30,8 @@ struct LuaFunction<ReturnType(Args...)> {
   }
 
   ~LuaFunction() {
-    if (ref >= 0) {
-      luaL_unref(L, LUA_REGISTRYINDEX, ref);
+    if (luaFunction) {
+      free(L, luaFunction);
     }
   }
 };
@@ -43,9 +43,7 @@ struct LuaTraits<LuaFunction<R(A...)>> {
   }
 
   static inline LuaFunction<R(A...)> pull(lua_State* L, int index) {
-    lua_pushvalue(L, index);
-    int ref = luaL_ref(L, LUA_REGISTRYINDEX);
-    return LuaFunction<R(A...)>{L, ref};
+    return LuaFunction<R(A...)>{L, store(L, index)};
   }
 };
 
