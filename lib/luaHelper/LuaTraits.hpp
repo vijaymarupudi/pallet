@@ -1,9 +1,13 @@
 #pragma once
 
 #include <tuple>
+#include <type_traits>
 #include <concepts>
+
+
 #include "lua.hpp"
 #include "pallet/functional.hpp"
+#include "concepts.hpp"
 
 namespace pallet::luaHelper {
 
@@ -11,25 +15,42 @@ namespace pallet::luaHelper {
 template <class ValueType>
 struct LuaTraits;
 
+namespace concepts {
+template <class T>
+concept Pushable = requires (lua_State* L, T value) {
+  LuaTraits<std::remove_cvref_t<T>>::push(L, value);
+};
 
-static inline void push(lua_State* L, auto&& value) {
+template <class T>
+concept Checkable = requires (lua_State* L, int index) {
+  { LuaTraits<std::remove_cvref_t<T>>::check(L, index) } -> std::same_as<bool>;
+};
+
+
+template <class T>
+concept Pullable = !std::is_rvalue_reference_v<T> && requires (lua_State* L, int index) {
+  { LuaTraits<T>::pull(L, index) } -> std::same_as<T>;
+};
+
+}
+
+static inline void push(lua_State* L, concepts::Pushable auto&& value) {
   LuaTraits<std::remove_cvref_t<decltype(value)>>::push(L, std::forward<decltype(value)>(value));
 }
 
-template <class T>
+template <concepts::Pullable T>
 static inline decltype(auto) pull(lua_State* L, int index) {
-  if constexpr (std::is_lvalue_reference_v<T>) {
-    return LuaTraits<T>::pull(L, index);
+  if constexpr (std::is_rvalue_reference_v<T>) {
+    // rvalue reference, invalid
+    static_assert(false, "Cannot pull rvalue reference");
   } else {
-    // rvalue or value type
-    return LuaTraits<std::remove_reference_t<T>>::pull(L, index);
+    return LuaTraits<T>::pull(L, index);
   }
-  
 }
 
-template <class T>
+template <concepts::Checkable T>
 static inline bool isType(lua_State* L, int index) {
-  return LuaTraits<std::remove_reference_t<T>>::check(L, index);
+  return LuaTraits<std::remove_cvref_t<T>>::check(L, index);
 }
 
 template <class K, class V>
@@ -50,19 +71,12 @@ decltype(auto) checkedPull(lua_State* L, int index) {
   }
 }
 
-namespace detail {
-template <class... Types, int... indexes>
-inline std::tuple<Types...> _luaCheckedPullMultiple(lua_State* L,
-                                                    int baseIndex,
-                                                    std::integer_sequence<int, indexes...>) {
-  return std::make_tuple(checkedPull<Types>(L, baseIndex + indexes)...);
-}
-}
-
 template <class... Types>
 std::tuple<Types...>
-checkedPullMultiple(lua_State* L, int baseIndex) {
-  return detail::_luaCheckedPullMultiple<Types...>(L, baseIndex, std::make_integer_sequence<int, sizeof...(Types)>{});
+checkedPullMultiple(lua_State* L, int baseIndex = 1) {
+  return ([&]<int... indexes>(std::integer_sequence<int, indexes...>) {
+      return std::make_tuple(checkedPull<Types>(L, baseIndex + indexes)...);
+    })(std::make_integer_sequence<int, sizeof...(Types)>{});
 }
 
 template <>
@@ -200,20 +214,6 @@ struct LuaRetrieveContext<lua_State*> {
 namespace detail {
 
 template <class T>
-struct StatelessIntLikeHelper : T {
-  int val;
-};
-
-
-template <class T>
-concept HasCallOperator = requires {
-  &T::operator();
-};
-
-template <class T>
-concept Stateless = sizeof(StatelessIntLikeHelper<T>) == sizeof(int);
-
-template <class T>
 concept LuaContextConvertable = requires (lua_State* L) {
   { LuaRetrieveContext<T>::retrieve(L) } -> std::same_as<T>;
 };
@@ -224,12 +224,11 @@ using namespace pallet::luaHelper;
 template <class T>
 struct CppFunctionToLuaCFunction;
 
-template <class R, class T, class... A>
-requires LuaContextConvertable<T>
+template <class R, LuaContextConvertable T, class... A>
 struct CppFunctionToLuaCFunction<R(T, A...)>  {
   template <class FunctionType>
   static inline constexpr lua_CFunction convert(FunctionType&& function)
-    requires (Stateless<std::remove_reference_t<FunctionType>>)
+    requires (concepts::Stateless<std::remove_reference_t<FunctionType>>)
   {
 
     // Don't need to use it, just need its type. It has no size
@@ -265,7 +264,7 @@ template <class R, class... A>
 struct CppFunctionToLuaCFunction<R(A...)>  {
   template <class FunctionType>
   static inline constexpr lua_CFunction convert(FunctionType&& function)
-    requires (Stateless<std::remove_reference_t<FunctionType>>)
+    requires (concepts::Stateless<std::remove_reference_t<FunctionType>>)
   {
     // Don't need to use it, just need its type. It has no size
     (void)function;
@@ -294,7 +293,8 @@ struct CppFunctionToLuaCFunction<R(A...)>  {
 };
 
 template <class T>
-concept ConvertableFunction = HasCallOperator<std::remove_reference_t<T>> && Stateless<std::remove_reference_t<T>>;
+concept ConvertableFunction = concepts::HasCallOperator<std::remove_reference_t<T>> &&
+                              concepts::Stateless<std::remove_reference_t<T>>;
 
 template <class T>
 lua_CFunction cppFunctionToLuaCFunction(T&& function)
@@ -312,43 +312,12 @@ static inline lua_CFunction toLuaCFunction(T&& function) {
 }
 
 template <class T>
-requires (requires (T value) {
-  toLuaCFunction(value);
-})
+requires (requires (T value) { toLuaCFunction(value); })
 struct LuaTraits<T> {
   template <class Arg>
   static inline void push(lua_State* L, Arg&& val) {
     lua_pushcfunction(L, detail::cppFunctionToLuaCFunction(std::forward<Arg>(val)));
   }
 };
-
-
-struct LuaIndex {
-  int index;
-  operator int() const {
-    return index;
-  }
-};
-
-template <>
-struct LuaTraits<LuaIndex> {
-  static inline bool check(lua_State* L, int index) {
-    (void)L;
-    (void)index;
-    return true;
-  }
-  
-  static inline void push(lua_State* L, LuaIndex val) {
-    lua_pushvalue(L, val.index);
-  }
-  
-  static inline LuaIndex pull(lua_State* L, int index) {
-    (void)L;
-    return LuaIndex{index};
-  }
-};
-
-
-
 
 }
