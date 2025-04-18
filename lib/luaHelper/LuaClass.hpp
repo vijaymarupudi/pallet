@@ -11,8 +11,8 @@ class LuaClass {
 public:
 
   LuaClass(lua_State* L, const char* name) : L(L), name(name) {
-    // Create metatable
 
+    // Create metatable
     lua_newtable(L);
     lua_pushvalue(L, -1);
     metatableRef = luaL_ref(L, LUA_REGISTRYINDEX);
@@ -25,7 +25,6 @@ public:
     luaHelper::push(L, "__index");
     lua_pushvalue(L, metatable);
     lua_rawset(L, metatable);
-
   }
 
   LuaClass(LuaClass&& other) : L(other.L),
