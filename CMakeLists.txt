@@ -21,6 +21,7 @@ add_subdirectory(third-party/rt)
 add_subdirectory(third-party/miniaudio)
 add_subdirectory(third-party/lua)
 add_subdirectory(third-party/amy)
+add_subdirectory(third-party/argparse)
 
 file(GLOB FILESYSTEM_FILES filesystem/**/*)
 
@@ -33,7 +34,7 @@ add_custom_target (PalletLuaFilesystem DEPENDS filesystem.h)
 # add_compile_options(-Wall -Wextra -pedantic -fsanitize=address -fno-exceptions)
 # add_link_options(-fsanitize=address)
 
-add_compile_options(-Wall -Wextra -pedantic -fno-exceptions)
+add_compile_options(-Wall -Wextra -pedantic)
 
 # add_compile_options(-Wall -Wextra -pedantic -pg)
 # add_link_options(-pg)
@@ -66,12 +67,18 @@ set_property(TARGET pallet PROPERTY CXX_STANDARD 23)
 target_link_libraries(pallet PUBLIC RT::RtMidi Miniaudio::Miniaudio Lua::Lua Amy::Amy PkgConfig::SDL3 PkgConfig::LO)
 target_include_directories(pallet PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(pallet PUBLIC include)
+target_compile_options(pallet PRIVATE -fno-exceptions)
 add_dependencies(pallet PalletLuaFilesystem)
 
 add_executable(main src/main.cpp)
 set_property(TARGET main PROPERTY CXX_STANDARD 23)
 target_link_libraries(main pallet)
 target_include_directories(main PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+
+add_executable(cli src/cli.cpp src/cliMain.cpp)
+set_property(TARGET cli PROPERTY CXX_STANDARD 23)
+target_link_libraries(cli pallet argparse::argparse)
+target_include_directories(cli PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(test src/test.cpp)
 target_link_libraries(test pallet)

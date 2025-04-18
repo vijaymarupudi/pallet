@@ -16,7 +16,7 @@ struct LuaTraits<std::vector<Type>> {
     size_t i = 0;
     for (auto&& item : val) {
       luaHelper::push(L, std::forward<decltype(item)>(item));
-      lua_rawseti(L, tableIndex, i);
+      lua_rawseti(L, tableIndex, i + 1);
       i++;
     }
   }
@@ -26,7 +26,7 @@ struct LuaTraits<std::vector<Type>> {
     std::vector<Type> item;
     item.reserve(len);
     for (size_t i = 0; i < len; i++) {
-      lua_rawgeti(L, tableIndex, i);
+      lua_rawgeti(L, tableIndex, i + 1);
       item.push_back(luaHelper::pull<Type>(L, -1));
       lua_pop(L, 1);
     }

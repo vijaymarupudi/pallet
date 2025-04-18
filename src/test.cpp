@@ -1,14 +1,27 @@
-// #include <print>
 #include "../lib/luaHelper.hpp"
+#include "../lib/luaHelper/LuaClass.hpp"
 #include "pallet/functional.hpp"
-
 #include <type_traits>
+#include <new>
+
+
+struct TestType {
+  int x;
+  int getX() const {
+    return x;
+  }
+};
+
 
 void other(lua_State* L) {
-  pallet::luaHelper::push(L, [&](lua_State*, int, int) {
-    return 0;
-  });
+  pallet::luaHelper::LuaClass<TestType> cls(L, "cls");
+  cls.addMethod<&TestType::getX>("getX");
+  cls.pushObject(32);
+  const char name[] = "hello!";
+  const char* another = name;
+  pallet::luaHelper::push(L, another);
 }
+
 int main() {
- 
+
 }

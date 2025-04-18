@@ -66,7 +66,7 @@ template <class T>
 requires (std::is_convertible_v<T, std::string_view>)
 struct LuaTraits<T> {
   static inline bool check(lua_State* L, int index) {
-    return lua_isstring(L, index);
+    return lua_type(L, index) == LUA_TSTRING;
   }
 
   static inline void push(lua_State* L, const std::string_view& str) {
@@ -84,7 +84,7 @@ struct LuaTraits<T> {
 template <std::floating_point T>
 struct LuaTraits<T> {
   static inline bool check(lua_State* L, int index) {
-    return lua_isnumber(L, index);
+    return lua_type(L, index) == LUA_TNUMBER && !lua_isinteger(L, index);
   }
 
   static inline void push(lua_State* L, T val) {
@@ -110,6 +110,15 @@ private:
     lua_pushcfunction(L, val);
   }
 };
+
+
+template <>
+struct LuaTraits<const char*> {
+  static inline void push(lua_State* L, const char* str) {
+    lua_pushstring(L, str);
+  }
+};
+
 
 template <std::convertible_to<lua_CFunction> T>
 struct LuaTraits<T> {
@@ -193,7 +202,6 @@ struct CppFunctionToLuaCFunction<R(T, A...)>  {
   
     lua_CFunction func = +[](lua_State* L) -> int {
 
-      
       auto l = [&](auto&&... args) {
         // This is fine, it is stateless
         auto&& context = LuaRetrieveContext<T>::retrieve(L);
@@ -201,7 +209,7 @@ struct CppFunctionToLuaCFunction<R(T, A...)>  {
         return lambdaPtr->operator()(std::forward<decltype(context)>(context), std::forward<decltype(args)>(args)...);
       };
 
-      auto&& argsTuple = checkedPullMultiple<A...>(L);
+      auto&& argsTuple = checkedPullMultiple<A...>(L, 1);
       if constexpr (std::is_same_v<R, void>) {
         std::apply(l, std::move(argsTuple));
         return 0;
@@ -235,7 +243,7 @@ struct CppFunctionToLuaCFunction<R(A...)>  {
         return lambdaPtr->operator()(std::forward<decltype(args)>(args)...);
       };
 
-      auto&& argsTuple = checkedPullMultiple<A...>(L);
+      auto&& argsTuple = checkedPullMultiple<A...>(L, 1);
       if constexpr (std::is_same_v<R, void>) {
         std::apply(l, std::move(argsTuple));
         return 0;
@@ -261,6 +269,10 @@ lua_CFunction cppFunctionToLuaCFunction(T&& function)
   
 }
 
+static inline lua_CFunction toLuaCFunction(auto&& function) {
+  return cppFunctionToLuaCFunction(std::forward<decltype(function)>(function));
+}
+
 template <class T>
 requires (requires (T value) {
   detail::cppFunctionToLuaCFunction(value);
@@ -271,6 +283,33 @@ struct LuaTraits<T> {
     lua_pushcfunction(L, detail::cppFunctionToLuaCFunction(std::forward<Arg>(val)));
   }
 };
+
+
+struct LuaIndex {
+  int index;
+  operator int() const {
+    return index;
+  }
+};
+
+template <>
+struct LuaTraits<LuaIndex> {
+  static inline bool check(lua_State* L, int index) {
+    (void)L;
+    (void)index;
+    return true;
+  }
+  
+  static inline void push(lua_State* L, LuaIndex val) {
+    lua_pushvalue(L, val.index);
+  }
+  
+  static inline LuaIndex pull(lua_State* L, int index) {
+    (void)L;
+    return LuaIndex{index};
+  }
+};
+
 
 
 
