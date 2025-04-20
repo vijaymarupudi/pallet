@@ -221,12 +221,10 @@ public:
 
   static Result<OscMonomeGridInterface> create(OscInterface& oscInterface);
   OscMonomeGridInterface(OscInterface& iface, OscAddress serialoscdAddr, OscServer oscServer);
-  ~OscMonomeGridInterface();
-
+  
   OscInterface* oscInterface;
   OscAddress serialoscdAddr;
   OscServer oscServer;
-  
 
   std::unordered_map<GridIndex, GridState> gridStates;
   
@@ -245,8 +243,8 @@ public:
   virtual int getRotationImpl(Id id) const override;
   virtual const char* getIdImpl(Id id) const override;
   virtual bool isConnectedImpl(Id id) const override;
-  virtual KeyEventId listenOnKeyImpl(Id id, Callable<void(int, int, int)>) override;
-  virtual void unlistenOnKeyImpl(Id id, KeyEventId) override;
+  virtual KeyEventId listenImpl(Id id, Callable<void(int, int, int)>) override;
+  virtual void unlistenImpl(Id id, KeyEventId) override;
 };
 
 }

@@ -8,9 +8,9 @@ namespace pallet::luaHelper {
 template <class T>
 class LuaClass {
   lua_State* L;
-  RegistryIndex metatableRef;
   const char* name;
 public:
+  RegistryIndex metatableRef;
 
   LuaClass(lua_State* L, const char* name) : L(L), name(name) {
 
@@ -42,13 +42,13 @@ public:
 
         LuaClass<T>& cls = *luaHelper::pull<LuaClass*>(L, lua_upvalueindex(1));
 
-        std::apply([&](auto&&... args) {
+        return std::apply([&](auto&&... args) -> int {
           auto lambdaPtr = static_cast<FunctionType*>(nullptr);
-          auto&& obj = lambdaPtr->operator()(std::forward<decltype(args)>(args)...);
+          auto&& obj = (*lambdaPtr)(std::forward<decltype(args)>(args)...);
           cls.pushObject(L, std::forward<decltype(obj)>(obj));
+          return 1;
         }, checkedPullMultiple<A...>(L, 1));
-
-        return 1;
+        
       };
 
     })(&FunctionType::operator());
@@ -64,6 +64,16 @@ public:
     metatable.rawset("new", closureFunction);
  
     lua_settop(L, stackTop);
+  }
+
+  void addStaticMethod(const char* name, auto&& function) {
+    luaHelper::push(L, metatableRef);
+    auto table = LuaTable(L, lua_gettop(L));
+    table.rawset(name, std::forward<decltype(function)>(function));
+  }
+
+  void pushClass(lua_State* L) {
+    
   }
 
   template <class... Args>
@@ -92,6 +102,26 @@ public:
     })(memberFunc);
   }
 
+  void addMethodBatch(StackIndex index, const char* name, concepts::StatelessLambdaLike auto&& function) {
+    auto metatable = LuaTable{L, index};
+
+    auto action = [&]<class R, class L, class... A>() {
+      metatable.rawset(name, [](T* ptr, A... args) {
+        static_cast<L*>(nullptr)->operator()(ptr, std::move(args)...);
+      });
+    };
+    
+    (pallet::overloaded {
+      [&]<class R, class L, class... A>(R(L::*)(T*, A...)) {
+        action.template operator()<R, L, A...>();
+      },
+        [&]<class R, class L, class... A>(R(L::*)(T*, A...) const) {
+          action.template operator()<R, L, A...>();
+        }
+    })(&std::remove_reference<decltype(function)>::type::operator());
+
+  }
+
   StackIndex beginBatch() {
     return LuaTable::from(L, metatableRef);
   }
@@ -112,6 +142,13 @@ public:
       free(L, metatableRef);
       // luaL_unref(L, LUA_REGISTRYINDEX, metatableRef.getIndex());
     }
+  }
+};
+
+template <class T>
+struct LuaTraits<LuaClass<T>> {
+  static inline void push(lua_State* L, LuaClass<T>& cls) {
+    luaHelper::push(L, cls.metatableRef);
   }
 };
 

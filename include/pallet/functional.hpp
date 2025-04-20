@@ -79,6 +79,7 @@ class Callable<R(A...)> {
 public:
   Callable(FuncPtrType funcPtr, void* ud) : mfunc{FuncPtrUdPair{funcPtr, ud}} {}
   Callable(Callable&&) = default;
+  Callable& operator=(Callable&&) = default;
 
   template <class F>
   requires (

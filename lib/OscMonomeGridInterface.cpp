@@ -129,11 +129,11 @@ void OscMonomeGridInterface::clearImpl(GridIndex id) {
   return pallet::clear(gridStates[id].ledState);
 }
 
-MonomeGridInterface::KeyEventId OscMonomeGridInterface::listenOnKeyImpl(GridIndex id, pallet::Callable<void(int, int, int)> func) {
+MonomeGridInterface::KeyEventId OscMonomeGridInterface::listenImpl(GridIndex id, pallet::Callable<void(int, int, int)> func) {
   return gridStates[id].onKey.listen(std::move(func));
 }
 
-void OscMonomeGridInterface::unlistenOnKeyImpl(GridIndex id, MonomeGridInterface::KeyEventId eid) {
+void OscMonomeGridInterface::unlistenImpl(GridIndex id, MonomeGridInterface::KeyEventId eid) {
   return gridStates[id].onKey.unlisten(eid);
 }
 
@@ -264,8 +264,19 @@ OscMonomeGridInterface::OscMonomeGridInterface(OscInterface& iface, OscAddress s
 
 
 
+static auto mapUnsafeIndexPointer(auto& map, auto&& idx) -> decltype(&((*map.find(std::forward<decltype(idx)>(idx))).second)) {
+  auto end = map.end();
+  auto it = map.find(std::forward<decltype(idx)>(idx));
+  if (it != end) {
+    return &(*it).second;
+  } else {
+    return nullptr;
+  }
+}
 
-
+static auto& mapUnsafeIndex(auto& map, auto&& idx) {
+  return *mapUnsafeIndexPointer(map, std::forward<decltype(idx)>(idx));
+}
 
 static void connect(OscMonomeGridInterface& iface, GridIndex idx) {
 
@@ -281,7 +292,8 @@ static void connect(OscMonomeGridInterface& iface, GridIndex idx) {
   state.nQuads = 4;
   state.new_ = false;
   state.connected = true;
-  auto callback = std::move(iface.pendingConnections[idx]);
+  
+  auto callback = std::move(mapUnsafeIndex(iface.pendingConnections, idx));
   std::move(callback)(idx);
   iface.pendingConnections.erase(idx);
 }
@@ -293,7 +305,7 @@ static void processConnectRequests(OscMonomeGridInterface& iface) {
       if (!state.connected) {
         connect(iface, idx);  
       } else {
-        auto callback = std::move(iface.pendingConnections[idx]);
+        auto callback = std::move(mapUnsafeIndex(iface.pendingConnections, idx));
         std::move(callback)
           (pallet::error(std::make_error_condition(std::errc::device_or_resource_busy)));
         iface.pendingConnections.erase(idx);
@@ -303,7 +315,7 @@ static void processConnectRequests(OscMonomeGridInterface& iface) {
 }
 
 void OscMonomeGridInterface::connectImpl(GridIndex idx, OnConnectCallback func) {
-  pendingConnections[idx] = std::move(func);
+  pendingConnections.emplace(idx, std::move(func));
   processConnectRequests(*this);
 }
 

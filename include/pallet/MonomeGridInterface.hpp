@@ -71,8 +71,8 @@ public:
   int getRotation(Id id) const;
   const char* getId(Id id) const;
   bool isConnected(Id id) const;
-  KeyEventId listenOnKey(Id id, pallet::Callable<void(int, int, int)>);
-  void unlistenOnKey(Id id, KeyEventId);
+  KeyEventId listen(Id id, pallet::Callable<void(int, int, int)>);
+  void unlisten(Id id, KeyEventId);
 
 private:
   
@@ -86,8 +86,8 @@ private:
   virtual int getRotationImpl(Id id) const = 0;
   virtual const char* getIdImpl(Id id) const = 0;
   virtual bool isConnectedImpl(Id id) const = 0;
-  virtual KeyEventId listenOnKeyImpl(Id id, pallet::Callable<void(int, int, int)>) = 0;
-  virtual void unlistenOnKeyImpl(Id id, KeyEventId) = 0;
+  virtual KeyEventId listenImpl(Id id, pallet::Callable<void(int, int, int)>) = 0;
+  virtual void unlistenImpl(Id id, KeyEventId) = 0;
 };
 
 
@@ -121,12 +121,12 @@ inline bool MonomeGridInterface::isConnected(Id id) const {
   return isConnectedImpl(id);
 }
 
-inline MonomeGridInterface::KeyEventId MonomeGridInterface::listenOnKey(Id id, pallet::Callable<void(int, int, int)> func) {
-  return listenOnKeyImpl(id, std::move(func));
+inline MonomeGridInterface::KeyEventId MonomeGridInterface::listen(Id id, pallet::Callable<void(int, int, int)> func) {
+  return listenImpl(id, std::move(func));
 }
 
-inline void MonomeGridInterface::unlistenOnKey(Id id, KeyEventId eid) {
-  return unlistenOnKeyImpl(id, eid);
+inline void MonomeGridInterface::unlisten(Id id, KeyEventId eid) {
+  return unlistenImpl(id, eid);
 }
 
 inline void MonomeGridInterface::led(Id id, int x, int y, int c) {

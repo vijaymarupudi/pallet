@@ -1,5 +1,7 @@
 #pragma once
 
+#include <type_traits>
+
 namespace pallet::luaHelper::concepts {
 
 namespace detail {
@@ -16,5 +18,8 @@ template <class T>
 concept HasCallOperator = requires {
   &T::operator();
 };
+
+template <class T>
+concept StatelessLambdaLike = Stateless<std::remove_reference_t<T>> && HasCallOperator<std::remove_reference_t<T>>;
 
 }
