@@ -18,7 +18,8 @@ static auto unsafeLookupPointer(auto& map, auto&& idx) -> decltype(&((*map.find(
   if (it != end) {
     return &((*it).second);
   } else {
-    return nullptr;
+    std::unreachable();
+    // return nullptr;
   }
 }
 
