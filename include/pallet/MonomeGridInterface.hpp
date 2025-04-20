@@ -58,7 +58,7 @@ class MonomeGridInterface {
 public:
 
   using KeyEventId = uint32_t;
-  using Id = int;
+  using Id = unsigned int;
   using OnConnectCallback = pallet::Callable<void(pallet::Result<Id>)>;
   
   void connect(Id idx, OnConnectCallback);
@@ -76,7 +76,7 @@ public:
 
 private:
   
-  virtual void connectImpl(int idx, OnConnectCallback) = 0;
+  virtual void connectImpl(Id idx, OnConnectCallback) = 0;
   virtual void ledImpl(Id id, int x, int y, int c) = 0;
   virtual void allImpl(Id id, int c) = 0;
   virtual void clearImpl(Id id) = 0;
@@ -91,7 +91,7 @@ private:
 };
 
 
-inline void MonomeGridInterface::connect(int idx, OnConnectCallback func) {
+inline void MonomeGridInterface::connect(Id idx, OnConnectCallback func) {
   return connectImpl(idx, std::move(func));
 }
 

@@ -48,7 +48,7 @@ namespace pallet {
 
 // };
 
-namespace pallet::grid::implementation {
+namespace grid::implementation {
 
 using QuadType = uint8_t[64];
 
@@ -197,7 +197,7 @@ struct GridInfo {
 
 struct LEDState {
   QuadType data[4];
-  uint8_t dirtyFlags = 0xFF;
+  uint8_t dirty = 0xFF;
 };
 
 struct GridState {
@@ -205,11 +205,12 @@ struct GridState {
   bool new_ = true;
   LEDState ledState;
   Event<void(int, int, int)> onKey;
+  int nQuads;
 };
 
 };
 
-using namespace pallet::grid::implementation;
+using namespace grid::implementation;
 
 struct OscMonomeGridInterface final : public MonomeGridInterface {
 public:
@@ -234,7 +235,7 @@ public:
   std::queue<GridInfo> devicePropertiesProcessingQueue;
   std::unordered_map<GridIndex, MonomeGridInterface::OnConnectCallback> pendingConnections;
 
-  virtual void connectImpl(int idx, OnConnectCallback) override;
+  virtual void connectImpl(Id idx, OnConnectCallback) override;
   virtual void ledImpl(Id id, int x, int y, int c) override;
   virtual void allImpl(Id id, int c) override;
   virtual void clearImpl(Id id) override;

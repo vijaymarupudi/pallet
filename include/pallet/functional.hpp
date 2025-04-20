@@ -69,6 +69,7 @@ class Callable;
 
 template <class R, class... A>
 class Callable<R(A...)> {
+  using FunctionType = R(A...);
   using FuncPtrType = R(*)(A..., void*);
   using FuncPtrUdPair = std::pair<FuncPtrType, void*>;
   using AbsCallablePtr = std::unique_ptr<detail::AbstractCallable<R(A...)>>;
@@ -77,6 +78,7 @@ class Callable<R(A...)> {
   
 public:
   Callable(FuncPtrType funcPtr, void* ud) : mfunc{FuncPtrUdPair{funcPtr, ud}} {}
+  Callable(Callable&&) = default;
 
   template <class F>
   requires (
