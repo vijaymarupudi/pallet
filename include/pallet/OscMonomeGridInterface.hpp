@@ -226,7 +226,7 @@ public:
   OscAddress serialoscdAddr;
   OscServer oscServer;
 
-  std::unordered_map<GridIndex, GridState> gridStates;
+  std::unordered_map<GridIndex, GridState> gridsStates;
   
   std::vector<GridInfo> gridsInformation;
   std::unordered_map<std::string, GridIndex> gridsInformationIdxById;

@@ -11,6 +11,22 @@ using GridIndex = OscMonomeGridInterface::GridIndex;
 static const int32_t GRID_OSC_SERVER_PORT = 7072;
 static constexpr const int32_t SERIALOSCD_PORT = 12002;
 
+
+static auto unsafeLookupPointer(auto& map, auto&& idx) -> decltype(&((*map.find(std::forward<decltype(idx)>(idx))).second)) {
+  auto end = map.end();
+  auto it = map.find(std::forward<decltype(idx)>(idx));
+  if (it != end) {
+    return &((*it).second);
+  } else {
+    return nullptr;
+  }
+}
+
+template <class K, class V>
+static V& unsafeLookup(std::unordered_map<K, V>& map, auto&& idx) {
+  return *unsafeLookupPointer(map, std::forward<decltype(idx)>(idx));
+}
+
 static inline int calcQuadIndex(int x, int y) {
   return (x / 8) + (y / 8) * 2;
 }
@@ -59,7 +75,7 @@ static void sendQuad(OscInterface* iface, const OscAddress& addr, const LEDState
 }
 
 static void render(OscMonomeGridInterface& iface, GridIndex id) {
-  auto& gridState = iface.gridStates[id];
+  auto& gridState = unsafeLookup(iface.gridsStates, id);
   if (!gridState.connected) { return; }
   auto& ledState = gridState.ledState;
   for (int quadIndex = 0; quadIndex < gridState.nQuads; quadIndex++) {
@@ -87,9 +103,6 @@ std::tuple<Types...> extractOscValues(const OscItem* items) {
   return tmp.template operator()<Types...>(std::make_index_sequence<sizeof...(Types)>{});
 }
 
-/*
- * NEW
- */
 
 int OscMonomeGridInterface::getRowsImpl(GridIndex id) const {
   return gridsInformation[id].rows;
@@ -108,8 +121,8 @@ const char* OscMonomeGridInterface::getIdImpl(GridIndex id) const {
 }
 
 bool OscMonomeGridInterface::isConnectedImpl(GridIndex id) const {
-  auto it = gridStates.find(id);
-  if (it != gridStates.end()) {
+  auto it = gridsStates.find(id);
+  if (it != gridsStates.end()) {
     return (*it).second.connected;
   }
 
@@ -118,23 +131,23 @@ bool OscMonomeGridInterface::isConnectedImpl(GridIndex id) const {
 }
 
 void OscMonomeGridInterface::ledImpl(GridIndex id, int x, int y, int c) {
-  return pallet::led(gridStates[id].ledState, x, y, c);
+  return pallet::led(unsafeLookup(gridsStates, id).ledState, x, y, c);
 }
 
 void OscMonomeGridInterface::allImpl(GridIndex id, int c) {
-  return pallet::all(gridStates[id].ledState, c);
+  return pallet::all(unsafeLookup(gridsStates, id).ledState, c);
 }
 
 void OscMonomeGridInterface::clearImpl(GridIndex id) {
-  return pallet::clear(gridStates[id].ledState);
+  return pallet::clear(unsafeLookup(gridsStates, id).ledState);
 }
 
 MonomeGridInterface::KeyEventId OscMonomeGridInterface::listenImpl(GridIndex id, pallet::Callable<void(int, int, int)> func) {
-  return gridStates[id].onKey.listen(std::move(func));
+  return unsafeLookup(gridsStates, id).onKey.listen(std::move(func));
 }
 
 void OscMonomeGridInterface::unlistenImpl(GridIndex id, MonomeGridInterface::KeyEventId eid) {
-  return gridStates[id].onKey.unlisten(eid);
+  return unsafeLookup(gridsStates, id).onKey.unlisten(eid);
 }
 
 void OscMonomeGridInterface::renderImpl(GridIndex id) {
@@ -172,7 +185,7 @@ static void onDeviceChange(OscMonomeGridInterface& iface, std::string id, bool c
   auto it = iface.gridsInformationIdxById.find(id);
   if (it != iface.gridsInformationIdxById.end()) {
     auto idx = (*it).second;
-    auto& state = iface.gridStates[idx];
+    auto& state = unsafeLookup(iface.gridsStates, idx);
     if (connected) {
       state.connected = true;
       if (!state.new_) {
@@ -202,7 +215,7 @@ void processOscMessages(OscMonomeGridInterface& iface, std::string_view path, co
     auto command = std::string_view(result.ptr, end);
     if (command == "/grid/key") {
       auto [x, y, z] = extractOscValues<int32_t, int32_t, int32_t>(items);
-      iface.gridStates[idx].onKey.emit(x, y, z);
+      unsafeLookup(iface.gridsStates, idx).onKey.emit(x, y, z);
     }
   } else if (path == "/serialosc/device") {
     auto&& [id, type, port] = extractOscValues<std::string_view, std::string_view, int32_t>(items);
@@ -263,37 +276,23 @@ OscMonomeGridInterface::OscMonomeGridInterface(OscInterface& iface, OscAddress s
 }
 
 
-
-static auto mapUnsafeIndexPointer(auto& map, auto&& idx) -> decltype(&((*map.find(std::forward<decltype(idx)>(idx))).second)) {
-  auto end = map.end();
-  auto it = map.find(std::forward<decltype(idx)>(idx));
-  if (it != end) {
-    return &(*it).second;
-  } else {
-    return nullptr;
-  }
-}
-
-static auto& mapUnsafeIndex(auto& map, auto&& idx) {
-  return *mapUnsafeIndexPointer(map, std::forward<decltype(idx)>(idx));
-}
-
 static void connect(OscMonomeGridInterface& iface, GridIndex idx) {
 
-  if (!iface.gridStates.contains(idx)) {
-    iface.gridStates[idx] = GridState{};
-    memset(&iface.gridStates[idx].ledState.data, 0, sizeof(iface.gridStates[idx].ledState.data));
+  if (!iface.gridsStates.contains(idx)) {
+    iface.gridsStates[idx] = GridState{};
+    memset(&(unsafeLookup(iface.gridsStates, idx).ledState.data), 0,
+           sizeof(QuadType));
   }
 
   char buf[16];
   snprintf(buf, 16, "/p/%d", idx);
   iface.oscInterface->send(iface.gridsInformation[idx].addr.getId(), "/sys/prefix", buf);
-  auto& state = iface.gridStates[idx];
+  auto& state = unsafeLookup(iface.gridsStates, idx);
   state.nQuads = 4;
   state.new_ = false;
   state.connected = true;
   
-  auto callback = std::move(mapUnsafeIndex(iface.pendingConnections, idx));
+  auto callback = std::move(unsafeLookup(iface.pendingConnections, idx));
   std::move(callback)(idx);
   iface.pendingConnections.erase(idx);
 }
@@ -301,13 +300,14 @@ static void connect(OscMonomeGridInterface& iface, GridIndex idx) {
 static void processConnectRequests(OscMonomeGridInterface& iface) {
   for (const auto& [idx, connectRequest] : iface.pendingConnections) {
     if (idx < iface.gridsInformation.size()) {
-      auto& state = iface.gridStates[idx];
+      auto& state = unsafeLookup(iface.gridsStates, idx);
       if (!state.connected) {
         connect(iface, idx);  
       } else {
-        auto callback = std::move(mapUnsafeIndex(iface.pendingConnections, idx));
+        auto callback = std::move(unsafeLookup(iface.pendingConnections, idx));
         std::move(callback)
-          (pallet::error(std::make_error_condition(std::errc::device_or_resource_busy)));
+          (pallet::error
+           (std::make_error_condition(std::errc::device_or_resource_busy)));
         iface.pendingConnections.erase(idx);
       }
     }
