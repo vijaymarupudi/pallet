@@ -70,7 +70,7 @@ static int luaGraphicsEventToTable(lua_State* L,
   lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
   lua_rawset(L, tableIndex);
 
-  auto visitor = overloads
+  auto visitor = overloaded
     {
       [&](const pallet::GraphicsEventMouseButton& e) {
         rawSetTable(L, tableIndex, "x", e.x + 1);

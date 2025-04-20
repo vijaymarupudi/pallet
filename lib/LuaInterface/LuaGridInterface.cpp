@@ -67,6 +67,7 @@ static int luaGridAll(lua_State* L) {
                                          MonomeGrid* grid, void* ud) {
       (void)id;
       (void)state;
+      if (!state) return;
       auto& luaInterface = *static_cast<LuaInterface*>(ud);
       lua_rawgeti(luaInterface.L, LUA_REGISTRYINDEX, luaInterface.gridOnConnectFunction);
       push(luaInterface.L, grid);

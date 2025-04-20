@@ -2,6 +2,6 @@
 
 namespace pallet {
 template<class... Ts>
-struct overloads : Ts... { using Ts::operator()...; };
+struct overloaded : Ts... { using Ts::operator()...; };
 }
 

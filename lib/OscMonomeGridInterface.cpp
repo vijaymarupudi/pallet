@@ -1,144 +1,302 @@
 #include "pallet/OscMonomeGridInterface.hpp"
+#include <cstdio>
+#include <system_error>
+#include <charconv>
 
 namespace pallet {
 
-static const int gridOscServerPort = 7072;
+static const int GRID_OSC_SERVER_PORT = 7072;
+static constexpr const int SERIALOSCD_PORT = 12002;
+
+
+static inline std::pair<int, int> calcQuadIndexAndPointIndex(int x, int y) {
+  return std::pair(calcQuadIndex(x, y), (x % 8) + 8 * (y % 8));
+}
+
+static void setDirty(LEDState& m, size_t i) {
+  m.dirty |= (1 << i);
+}
+
+static bool isDirty(LEDState& m, size_t i) {
+  return (bool)(m.dirty & (1 << i));
+}
+
+static void clearDirty(LEDState& m) {
+  m.dirty = 0;
+}
+
+static void led(LEDState& m, int x, int y, int c) {
+  auto [quadIndex, pointIndex] = calcQuadIndexAndPointIndex(x, y);
+  m.data[quadIndex][pointIndex] = c;
+  setDirty(m, quadIndex);
+};
+
+static void all(LEDState& m, int c) {
+  memset(&m.data, c, sizeof(QuadType) * 4);
+  for (int i = 0; i < 4; i++) {
+    dirty(m, i);
+  } 
+}
+
+static void clear(LEDState& m) {
+  all(m, 0);
+}
+
+static void sendQuad(OscInterface* iface, const OscAddress& addr, const LEDState& ledState, int quadIndex, int offX, int offY) {
+  ([&]<size_t... indexes>(std::index_sequence<indexes...>){
+    iface->send(addr.getId(),
+                "/monome/grid/led/level/map",
+                offX, offY, (static_cast<int32_t>(ledState.data[quadIndex][indexes]))...);
+  })(std::make_index_sequence<sizeof(QuadType)/sizeof(*QuadType)>{});
+}
+
+static void render(OscMonomeGridInterface& iface, GridIndex id) {
+  auto& gridState = iface.gridStates[id];
+  if (!gridState.connected) { return; }
+  auto& ledState = gridState.ledState;
+  for (int quadIndex = 0; quadIndex < gridState.metadata.nQuads; quadIndex++) {
+    if (isDirty(ledState, quadIndex)) {
+      int offX = (quadIndex % 2) * 8;
+      int offY = (quadIndex / 2) * 8;
+      sendQuad(iface.oscInterface, iface.gridsInformation[id].addr, ledState, quadIndex, offX, offY);
+    }
+  }
+  clearDirty(ledState);
+}
+
 
 template <class Type>
 static decltype(auto) get_unchecked(auto&& variant) {
   return std::forward<decltype(variant)>(variant).template get_unchecked<Type>();
 }
 
-  template <class... Types>
-  std::tuple<Types...> extractOscValues(const OscItem* items) {
-    auto tmp = ([&]<class... T, size_t... index>(std::index_sequence<index...>) {
-        return std::make_tuple(get_unchecked<T>(items[index])...);
+template <class... Types>
+std::tuple<Types...> extractOscValues(const OscItem* items) {
+  auto tmp = ([&]<class... T, size_t... index>(std::index_sequence<index...>) {
+      return std::make_tuple(get_unchecked<T>(items[index])...);
     });
 
-    return tmp.template operator()<Types...>(std::make_index_sequence<sizeof...(Types)>{});
+  return tmp.template operator()<Types...>(std::make_index_sequence<sizeof...(Types)>{});
+}
+
+/*
+ * NEW
+ */
+
+int OscMonomeGridInterface::getRowsImpl(GridIndex id) const {
+  return gridsInformation[id].rows;
+}
+
+int OscMonomeGridInterface::getColsImpl(GridIndex id) const {
+  return gridsInformation[id].cols;
+}
+
+int OscMonomeGridInterface::getRotationImpl(GridIndex id) const {
+  return gridsInformation[id].rotation;
+}
+
+const char* OscMonomeGridInterface::getIdImpl(GridIndex id) const {
+  return gridsInformation[id].id.c_str();
+}
+
+bool OscMonomeGridInterface::isConnectedImpl(GridIndex id) const {
+  auto it = gridStates.find(id);
+  if (it != gridStates.end()) {
+    return (*it).second.connected;
   }
 
-Result<OscMonomeGridInterface> OscMonomeGridInterface::create(OscInterface& oscInterface) {
-  return Result<OscMonomeGridInterface>(std::in_place_t{}, oscInterface);
+  return false;
+  
 }
 
-OscMonomeGridInterface::OscMonomeGridInterface(OscInterface& ioscInterface)
-  : oscInterface(&ioscInterface) {
-  serialoscdAddr = oscInterface->createAddress(12002);
-  oscServerId = oscInterface->createServer(gridOscServerPort);
-  oscInterface->listen(oscServerId, [&](const char *path, const OscItem* items,
-                                       size_t n) {
-    this->uponOscMessage(path, items, n);
-  });
-  requestDeviceNotifications();
+void OscMonomeGridInterface::ledImpl(GridIndex id, int x, int y, int c) {
+  return led(gridStates[id].ledState, x, y, c);
 }
 
-void OscMonomeGridInterface::sendRawQuadMap(int offX, int offY, MonomeGrid::QuadType data) {
-
-  auto tmp = [&]<size_t... indexes>(std::index_sequence<indexes...>){
-    this->oscInterface->send(this->gridAddr,
-                            "/monome/grid/led/level/map", offX, offY, (static_cast<int32_t>(data[indexes]))...);
-  };
-
-  tmp(std::make_index_sequence<64>{});
-  // this->oscInterface->sendMessage(this->gridAddr, "/monome/grid/led/level/map", msg);
+void OscMonomeGridInterface::allImpl(GridIndex id, int c) {
+  return all(gridStates[id].ledState, c);
 }
 
-void OscMonomeGridInterface::connect(int id) {
-  (void)id;
-  this->oscInterface->send(this->serialoscdAddr, "/serialosc/list",
-                           "localhost", gridOscServerPort);
+void OscMonomeGridInterface::clearImpl(GridIndex id) {
+  return clear(gridStates[id].ledState);
 }
 
-void OscMonomeGridInterface::uponOscMessage(const char *path, const OscItem* items,
-                                              size_t n) {
+uint32_t OscMonomeGridInterface::listenOnKeyImpl(GridIndex id, pallet::Callable<void(int, int, int)> func) {
+  return gridStates[id].onKey.listen(std::move(func));
+}
 
-  (void)n;
+uint32_t OscMonomeGridInterface::unlistenOnKeyImpl(GridIndex id, uint32_t eid) {
+  return gridStates[id].onKey.unlisten(eid);
+}
 
-  if (strcmp(path, "/monome/grid/key") == 0) {
+void OscMonomeGridInterface::renderImpl(GridIndex id) {
+  render(*this, id);
+}
 
-    auto [x, y, z] = extractOscValues<int32_t, int32_t, int32_t>(items);
+void enumerateDevices(OscMonomeGridInterface& iface) {
+  iface.oscInterface->send(iface.serialoscdAddr.getId(), "/serialosc/list",
+                           "localhost", iface.oscServer.getId());
+}
 
-    if (this->grid) {
-      MonomeGridInterface::uponKey(*this->grid, x, y, z);
+void retrieveDeviceProperties(OscMonomeGridInterface& iface) {
+  if (devicePropertiesProcessingQueue.size() == 0) { return; }
+  auto& info = iface.devicePropertiesProcessingQueue.front();
+  iface.oscInterface->send(info.addr.getId(), "/sys/info", GRID_OSC_SERVER_PORT);
+}
+
+static void onDeviceChange(OscMonomeGridInterface& iface, std::string id, bool connected) {
+  auto it = gridsInformationIdxById.find(id)
+    if (it != gridsInformationIdxById.end()) {
+      auto idx = *it;
+      auto& info = gridsInformation[idx];
+      if (connected) {
+        info.connected = true;
+        if (!info.new_) {
+          // reconnecting, render again
+          iface.render(idx);
+        }
+      } else {
+        info.connected = false;
+      }
+    } else {
+      // need to learn more about this one, so enumerate everything
+      // again
+      enumerateDevices(iface);
     }
+}
 
-  } else if (strcmp(path, "/serialosc/device") == 0) {
-    // currently only support a single grid
-    if (this->grid) { return; }
 
-    int gridPort = get_unchecked<int32_t>(items[2]);
-    this->gridId = get_unchecked<std::string_view>(items[0]);
+static void processConnectRequests(OscMonomeGridInterface& iface);
 
-    // printf("%s\n", &argv[1]->s); => "monome zero"
-
-    this->gridAddr = this->oscInterface->createAddress(gridPort);
-
-    // set port, set prefix, ask for information
-
-    this->oscInterface->send(this->gridAddr, "/sys/port", gridOscServerPort);
-    this->oscInterface->send(this->gridAddr, "/sys/prefix", "/monome");
-    this->oscInterface->send(this->gridAddr, "/sys/info");
-
-  } else if (strcmp(path, "/sys/size") == 0) {
+void processOscMessages(OscMonomeGridInterface& iface, std::string_view path, const OscItem* items) {
+  if (path.starts_with("/p/")) {
+    // from a device!
+    const char* start = path.data() + 3;
+    const char* end = path.data() + path.size();
+    unsigned int idx;
+    auto result = from_chars(start, end, val);
+    auto command = std::string_view(results.ptr, end);
+    if (command == "/grid/key") {
+      auto [x, y, z] = extractOscValues<int32_t, int32_t, int32_t>(items);
+      gridStates[idx].onKey.emit(x, y, z);
+    }
+  } else if (path == "/serialosc/device") {
+    auto& [id, type, port] = extractOscValues<std::string_view, std::string_view, int32_t>(items);
+    onDeviceInformation(iface, id, type, port);
+  } else if (path == "/serialosc/add") {
+    auto& [id] = extractOscValues<std::string_view>(items);
+    onDeviceChange(iface, id, true);
+  } else if (path == "/serialosc/remove") {
+    auto& [id] = extractOscValues<std::string_view>(items);
+    onDeviceChange(iface, id, false);
+  }
+  // these are device properties
+  else if (path == "/sys/size") {
     auto [rows, cols] = extractOscValues<int32_t, int32_t >(items);
+    auto& info = iface.devicePropertiesProcessingQueue.front();
+    info.rows = rows;
+    info.cols = cols;
+  } else if (path == "/sys/host") {
+    auto [host] = extractOscValues<std::string_view>(items);
+    auto& info = iface.devicePropertiesProcessingQueue.front();
+    info.host = std::move(host);
+  } else if (path == "/sys/prefix") {
+    auto [prefix] = extractOscValues<std::string_view>(items);
+    auto& info = iface.devicePropertiesProcessingQueue.front();
+    info.prefix = std::move(prefix);
+  } else if (path == "/sys/rotation") {
+    // This is the final property
+    auto [rotation] = extractOscValues<int32_t>(items);
+    auto&& info = std::move(iface.devicePropertiesProcessingQueue.front());
+    iface.devicePropertiesProcessingQueue.pop();
+    info.rotation = rotation;
+    info.index = iface.gridsInformation.size();
+    iface.gridsInformation.push_back(std::move(info));
+    processConnectRequests(iface);
+    // if more are needed
+    retrieveDeviceProperties(iface);
+  }
+}
 
-    auto renderFunc = [](int offX, int offY, uint8_t* data, void* ud0, void* ud1) {
-      (void)ud1;
-      auto thi = static_cast<OscMonomeGridInterface*>(ud0);
-      thi->sendRawQuadMap(offX, offY, data);
+Result<OscMonomeGridInterface> OscMonomeGridInterface::create(OscInterface& iface) {
+  return Result<OscMonomeGridInterface>(std::in_place,
+                                        iface,
+                                        OscAddress::create(&iface, SERIALOSCD_PORT),
+                                        OscServer::create(&iface, GRID_OSC_SERVER_PORT));
+  
+}
+
+OscMonomeGridInterface::OscMonomeGridInterface(OscInterface& iface, OscAddress serialoscdAddr,
+                                               OscServer oscServer)
+  : iface(&iface),
+    serialoscdAddr(std::move(serialoscdAddr)),
+    oscServer(std::move(oscServer)) {
+  
+  iface.listen(server.getId(), [&](const char* path, const OscItem* items, size_t n) {
+    processOscMessages(*this, path, items);
+  });
+}
+
+static void onDeviceInformation(OscMonomeGridInterface& iface,
+                         std::string id,
+                         std::string type,
+                         int port) {
+  if (gridsInformationIdxById.contains(id)) { return; }
+  else {
+    auto info = GridInfo{
+      .id = std::move(id),
+      .type = std::move(type),
+      .port = port,
+      .addr = OscAddress::create(iface.oscInterface, port)
     };
-
-
-    this->grid = MonomeGrid(gridId, rows, cols, renderFunc, this, nullptr);
-
-    if (this->onConnectCb) {
-      this->onConnectCb(this->gridId, true, &(*this->grid), this->onConnectData);
-    }
-
-  } else if (strcmp(path, "/serialosc/remove") == 0) {
-    const char* id = get_unchecked<std::string_view>(items[0]).data();
-    this->uponDeviceChange(id, false);
-  } else if (strcmp(path, "/serialosc/add") == 0) {
-    const char* id = get_unchecked<std::string_view>(items[0]).data();
-    this->uponDeviceChange(id, true);
+    devicePropertiesProcessingQueue.emplace_back(std::move(info));
+    retrieveDeviceProperties(iface);
   }
 }
 
-void OscMonomeGridInterface::uponDeviceChange(const char* cStrId, bool addition) {
-  std::string deviceId = cStrId;
-  if (!addition && deviceId == this->gridId) {
-    this->disconnect(false);
+
+
+
+static void connect(OscMonomeGridInterface& iface, GridIndex idx) {
+  auto& info = iface.gridsInformation(idx);
+  auto port = info.port;
+  
+  if (info.new_) {
+    gridStates[idx] = GridState{};
+    memset(&gridStates[idx].ledState.data, 0, sizeof(gridStates[idx].ledState.data));
   }
 
-  if (addition && deviceId == this->gridId && this->autoReconnect) {
-    this->connect(0);
-  }
-  this->requestDeviceNotifications();
+  char buf = buf[16];
+  snprintf(buf, 16, "/p/%d", idx);
+  iface.oscInterface->send(iface.gridsInformation[idx].addr.getId(), "/sys/prefix", buf);
+  auto& state = gridStates[idx];
+  info.new_ = false;
+  info.connected = true;
+  auto callback = std::move(pendingConnections[idx]);
+  std::move(callback)(idx);
+  pendingConnections.erase(idx);
 }
 
-void OscMonomeGridInterface::requestDeviceNotifications() {
-  this->oscInterface->send(this->serialoscdAddr, "/serialosc/notify",
-                           "localhost", gridOscServerPort);
-
-}
-
-void OscMonomeGridInterface::disconnect(bool manual) {
-  if (grid && grid->isConnected()) {
-    this->oscInterface->freeAddress(this->gridAddr);
-    MonomeGridInterface::uponConnectionState(*this->grid, false);
-    if (manual) {
-      this->autoReconnect = false;
-    }
-    if (this->onConnectCb) {
-      this->onConnectCb(this->gridId, false, nullptr, this->onConnectData);
+static void processConnectRequests(OscMonomeGridInterface& iface) {
+  for (const auto& [idx, connectRequest] : iface.pendingConnections) {
+    auto it = gridsInformation.find(idx);
+    if (it != gridsInformation.end()) {
+      if (!(*it).connected) {
+        connect(iface, idx);  
+      } else {
+        auto callback = std::move(pendingConnections[idx]);
+        std::move(callback)(pallet::error(std::errc::make_error_condition(
+                                            std::errc::device_or_resource_busy)));
+        pendingConnections.erase(it);
+      }
     }
   }
 }
 
-OscMonomeGridInterface::~OscMonomeGridInterface() {
-  this->disconnect();
-  this->oscInterface->freeAddress(this->serialoscdAddr);
+void OscMonomeGridInterface::connectImpl(int idx, OnConnectCallback func) {
+  pendingConnections[idx] = std::move(func);
+  processConnectRequests(*this);
 }
+
 
 }

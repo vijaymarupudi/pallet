@@ -56,7 +56,6 @@ set(CXX_FILES
   lib/GraphicsInterface.cpp
   lib/PosixGraphicsInterface.cpp
   lib/BeatClock.cpp
-  lib/MonomeGridInterface.cpp
   lib/LoOscInterface.cpp
   lib/OscMonomeGridInterface.cpp
   lib/io.cpp

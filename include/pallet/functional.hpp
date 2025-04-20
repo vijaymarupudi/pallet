@@ -5,6 +5,7 @@
 #include <utility>
 #include <cstddef>
 #include "pallet/LightVariant.hpp"
+#include "pallet/concepts.hpp"
 
 namespace pallet {
 
@@ -115,16 +116,17 @@ public:
     }
   }
 
-  R operator()(A... args) {
-    return pallet::visit(pallet::overloads {
-        [&](FuncPtrUdPair& item) {
-          auto& [cb, ub] = item;
-          return cb(args..., ub);
+  template <class Self>
+  R operator()(this Self&& self, A... args) {
+    return pallet::visit(pallet::overloaded {
+        [&](concepts::DecaysTo<FuncPtrUdPair> auto&& item) {
+          auto&& [cb, ub] = std::forward<decltype(item)>(item);
+          return std::forward<decltype(cb)>(cb)(args..., std::forward<decltype(ub)>(ub));
         },
-          [&](AbsCallablePtr& item) {
-            return (*item)(args...);
+          [&]<concepts::DecaysTo<AbsCallablePtr> T>(T&& item) {
+            return (*std::forward<T>(item))(args...);
           }
-          }, mfunc);
+      }, std::forward<Self>(self).mfunc);
   }
 };
 

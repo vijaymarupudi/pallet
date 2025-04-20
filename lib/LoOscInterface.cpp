@@ -4,7 +4,7 @@ namespace pallet {
 
 static lo_message oscMessageToLoMessage(const OscItem* items, size_t n) {
   lo_message ret = lo_message_new();
-  auto visitor = overloads {
+  auto visitor = overloaded {
     [&](const std::string_view& view) {
       lo_message_add_string(ret, view.data());
     },

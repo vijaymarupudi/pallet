@@ -8,6 +8,9 @@ local function wrapGrid(g)
       led = function(self, x, y, z)
          return __grid.led(self.g, x, y, z)
       end,
+      all = function(self, n)
+         return __grid.all(self.g, n)
+      end,
       clear = function(self)
          return __grid.clear(self.g)
       end,

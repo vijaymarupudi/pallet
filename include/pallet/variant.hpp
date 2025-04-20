@@ -2,7 +2,7 @@
 
 #include <variant>
 #include <type_traits>
-#include "pallet/overloads.hpp"
+#include "pallet/overloaded.hpp"
 
 namespace pallet {
 

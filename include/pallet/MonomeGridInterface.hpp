@@ -1,83 +1,145 @@
 #pragma once
 
-#include <utility>
-#include <string.h>
-#include <string>
 #include <cstdint>
 #include "pallet/error.hpp"
-#include "pallet/Event.hpp"
+#include "pallet/functional.hpp"
 
 namespace pallet {
 
 class MonomeGridInterface;
 
-class MonomeGrid {
-public:
+// class MonomeGrid {
+// public:
 
-  using QuadType = uint8_t[64];
-  using QuadRenderFunction = void(*)(int offX, int offY, uint8_t* data,
-                                     void* ud0, void* ud1);
+//   using QuadType = uint8_t[64];
+//   using QuadRenderFunction = void(*)(int offX, int offY, uint8_t* data,
+//                                      void* ud0, void* ud1);
 
-  MonomeGrid(std::string id, int rows, int cols,
-             QuadRenderFunction quadRenderFunc,
-             void* quadRenderFuncUd0, void* quadRenderFuncUd1);
+//   MonomeGrid(std::string id, int rows, int cols,
+//              QuadRenderFunction quadRenderFunc,
+//              void* quadRenderFuncUd0, void* quadRenderFuncUd1);
 
-  using OnKeyEvent = Event<void(int, int, int)>;
-  OnKeyEvent onKey;
+//   using OnKeyEvent = Event<void(int, int, int)>;
+//   OnKeyEvent onKey;
 
-  bool isConnected();
-  void led(int x, int y, int c);
-  void all(int z);
-  void clear();
-  void render();
-  int getRows() const;
-  int getCols() const;
+//   bool isConnected();
+//   void led(int x, int y, int c);
+//   void all(int z);
+//   void clear();
+//   void render();
+//   int getRows() const;
+//   int getCols() const;
+//   virtual ~MonomeGridInterface() {}
 
-private:
-  bool connected = true;
-  std::string id;
-  int rows;
-  int cols;
-  int nQuads;
+// private:
+//   bool connected = true;
+//   std::string id;
+//   int rows;
+//   int cols;
+//   int nQuads;
 
-  QuadRenderFunction quadRenderFunc;
-  void* quadRenderFuncUd0;
-  void* quadRenderFuncUd1;
+//   QuadRenderFunction quadRenderFunc;
+//   void* quadRenderFuncUd0;
+//   void* quadRenderFuncUd1;
 
-  QuadType quadData[4];
-  uint8_t quadDirtyFlags = 0xFF;
+//   QuadType quadData[4];
+//   uint8_t quadDirtyFlags = 0xFF;
 
-  void setQuadDirty(int quadIndex);
-  bool isQuadDirty(int quadIndex);
-  void uponKey(int x, int y, int z);
-  void uponConnectionState(bool state);
-  friend class MonomeGridInterface;
+//   void setQuadDirty(int quadIndex);
+//   bool isQuadDirty(int quadIndex);
+//   void uponKey(int x, int y, int z);
+//   void uponConnectionState(bool state);
+//   friend class MonomeGridInterface;
 
-};
-
+// };
 
 class MonomeGridInterface {
 
 public:
 
-  using OnConnectCallback = void(*)(const std::string&, bool, MonomeGrid* grid, void*);
+  using KeyEventId = uint32_t;
+  using Id = int;
+  using OnConnectCallback = pallet::Callable<void(pallet::Result<Id>)>;
+  
+  void connect(Id idx, OnConnectCallback);
+  void led(Id id, int x, int y, int c);
+  void all(Id id, int c);
+  void clear(Id id);
+  void render(Id id);
+  int getRows(Id id) const;
+  int getCols(Id id) const;
+  int getRotation(Id id) const;
+  const char* getId(Id id) const;
+  bool isConnected(Id id) const;
+  KeyEventId listenOnKey(Id id, pallet::Callable<void(int, int, int)>);
+  void unlistenOnKey(Id id, KeyEventId);
 
-  void setOnConnect(OnConnectCallback cb, void* data) {
-    this->onConnectCb = cb;
-    this->onConnectData = data;
-  }
-
-  virtual void sendRawQuadMap(int offX, int offY, MonomeGrid::QuadType data) = 0;
-  virtual void connect(int idx) = 0;
-
-protected:
-
-  OnConnectCallback onConnectCb = nullptr;
-  void* onConnectData = nullptr;
-  static void uponConnectionState(MonomeGrid&, bool);
-  static void uponKey(MonomeGrid&, int x, int y, int z);
-
+private:
+  
+  virtual void connectImpl(int idx, OnConnectCallback) = 0;
+  virtual void ledImpl(Id id, int x, int y, int c) = 0;
+  virtual void allImpl(Id id, int c) = 0;
+  virtual void clearImpl(Id id) = 0;
+  virtual void renderImpl(Id id) = 0;
+  virtual int getRowsImpl(Id id) const = 0;
+  virtual int getColsImpl(Id id) const = 0;
+  virtual int getRotationImpl(Id id) const = 0;
+  virtual const char* getIdImpl(Id id) const = 0;
+  virtual bool isConnectedImpl(Id id) const = 0;
+  virtual KeyEventId listenOnKeyImpl(Id id, pallet::Callable<void(int, int, int)>) = 0;
+  virtual void unlistenOnKeyImpl(Id id, KeyEventId) = 0;
 };
+
+
+inline void MonomeGridInterface::connect(int idx, OnConnectCallback func) {
+  return connectImpl(idx, std::move(func));
+}
+
+inline void MonomeGridInterface::render(Id id) {
+  return renderImpl(id);
+}
+
+inline int MonomeGridInterface::getRows(Id id) const {
+  return getRowsImpl(id);
+}
+
+inline int MonomeGridInterface::getCols(Id id) const {
+  return getColsImpl(id);
+}
+
+inline int MonomeGridInterface::getRotation(Id id) const {
+  return getRotationImpl(id);
+}
+
+
+inline const char* MonomeGridInterface::getId(Id id) const {
+  return getIdImpl(id);
+}
+
+
+inline bool MonomeGridInterface::isConnected(Id id) const {
+  return isConnectedImpl(id);
+}
+
+inline MonomeGridInterface::KeyEventId MonomeGridInterface::listenOnKey(Id id, pallet::Callable<void(int, int, int)> func) {
+  return listenOnKeyImpl(id, std::move(func));
+}
+
+inline void MonomeGridInterface::unlistenOnKey(Id id, KeyEventId eid) {
+  return unlistenOnKeyImpl(id, eid);
+}
+
+inline void MonomeGridInterface::led(Id id, int x, int y, int c) {
+  return ledImpl(id, x, y, c);
+}
+
+inline void MonomeGridInterface::all(Id id, int c) {
+  return allImpl(id, c);
+}
+
+inline void MonomeGridInterface::clear(Id id) {
+  return clearImpl(id);
+}
 
 }
 

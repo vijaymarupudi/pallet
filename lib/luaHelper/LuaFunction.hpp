@@ -43,7 +43,7 @@ struct LuaTraits<LuaFunction<R(A...)>> {
   }
 
   static inline LuaFunction<R(A...)> pull(lua_State* L, int index) {
-    return LuaFunction<R(A...)>{L, store(L, index)};
+    return LuaFunction<R(A...)>{L, store(L, StackIndex{index})};
   }
 };
 

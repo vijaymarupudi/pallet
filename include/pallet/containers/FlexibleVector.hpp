@@ -26,7 +26,7 @@ public:
 
   template <class... Args>
   T& emplace_back(Args&&... args) {
-    pallet::visit(overloads {
+    pallet::visit(overloaded {
         [&](StaticVector<T, N>& vec) {
           if (vec.capacity() == this->size()) {
             // can't use this one anymore

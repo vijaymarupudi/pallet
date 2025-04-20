@@ -3,7 +3,7 @@
 #include <utility>
 #include <type_traits>
 #include <new>
-#include "pallet/overloads.hpp"
+#include "pallet/overloaded.hpp"
 #include "pallet/types.hpp"
 
 namespace pallet {

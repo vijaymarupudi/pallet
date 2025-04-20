@@ -78,7 +78,7 @@ public:
   template <auto memberFunc>
   void addMethodBatch(StackIndex index, const char* name) {
     auto metatable = LuaTable{L, index};
-    (pallet::overloads {
+    (pallet::overloaded {
       [&]<class R, class... A>(R(T::*)(A...)) {
         metatable.rawset(name, [](T* ptr, A... args) {
           return (ptr->*memberFunc)(std::move(args)...);

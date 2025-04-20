@@ -48,7 +48,7 @@ struct LuaTraits<StackIndex> {
 template <>
 struct LuaTraits<RegistryIndex> {
   static inline void push(lua_State* L, RegistryIndex index) {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, index.index);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, index.getIndex());
   }
 };
 
