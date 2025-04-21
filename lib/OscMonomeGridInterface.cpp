@@ -12,7 +12,8 @@ static const int32_t GRID_OSC_SERVER_PORT = 7072;
 static constexpr const int32_t SERIALOSCD_PORT = 12002;
 
 
-static auto unsafeLookupPointer(auto& map, auto&& idx) -> decltype(&((*map.find(std::forward<decltype(idx)>(idx))).second)) {
+template <class K, class V>
+static V* unsafeLookupPointer(std::unordered_map<K, V>& map, auto&& idx) {
   auto end = map.end();
   auto it = map.find(std::forward<decltype(idx)>(idx));
   if (it != end) {

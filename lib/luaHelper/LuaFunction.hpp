@@ -17,7 +17,7 @@ struct LuaFunction<ReturnType(Args...)> {
   
   ReturnType operator()(Args... args) const {
     luaHelper::push(L, luaFunction);
-    (luaHelper::push(L, std::move(args)), ...);
+    (luaHelper::push(L, std::forward<Args>(args)), ...);
     
     lua_call(L, sizeof...(Args), (std::is_same_v<ReturnType, void> ? 0 : 1));
     if constexpr (std::is_same_v<ReturnType, void>) {

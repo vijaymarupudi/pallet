@@ -3,6 +3,7 @@
 #include "../luaHelper.hpp"
 #include "concepts.hpp"
 #include "LuaTable.hpp"
+#include "pallet/functional.hpp"
 
 namespace pallet::luaHelper {
 template <class T>
@@ -30,50 +31,92 @@ public:
   LuaClass(LuaClass&& other) : L(other.L),
                                metatableRef(std::exchange(other.metatableRef, nullptr)) {}
 
-  template <class FunctionType>
-  requires (concepts::Stateless<std::remove_cvref_t<FunctionType>> &&
-            concepts::HasCallOperator<std::remove_cvref_t<FunctionType>>)
+  // template <class FunctionType>
+  // requires (concepts::Stateless<std::remove_cvref_t<FunctionType>> &&
+  //           concepts::HasCallOperator<std::remove_cvref_t<FunctionType>>)
 
-  void addConstructor(FunctionType&&) {
+  // void addConstructor(FunctionType&&) {
     
-    auto func = ([&]<class... A>(T(FunctionType::*)(A...) const) -> lua_CFunction {
+  //   auto func = ([&]<class... A>(T(FunctionType::*)(A...) const) -> lua_CFunction {
 
-      return [](lua_State* L) -> int {
+  //     return [](lua_State* L) -> int {
 
-        LuaClass<T>& cls = *luaHelper::pull<LuaClass*>(L, lua_upvalueindex(1));
+  //       LuaClass<T>& cls = *luaHelper::pull<LuaClass*>(L, lua_upvalueindex(1));
 
-        return std::apply([&](auto&&... args) -> int {
-          auto lambdaPtr = static_cast<FunctionType*>(nullptr);
-          auto&& obj = (*lambdaPtr)(std::forward<decltype(args)>(args)...);
-          cls.pushObject(L, std::forward<decltype(obj)>(obj));
-          return 1;
-        }, checkedPullMultiple<A...>(L, 1));
+  //       return std::apply([&](auto&&... args) -> int {
+  //         auto lambda = std::decay_t<FunctionType>{};
+  //         auto&& obj = std::move(lambda)(std::forward<decltype(args)>(args)...);
+  //         cls.pushObject(L, std::forward<decltype(obj)>(obj));
+  //         return 1;
+  //       }, checkedPullMultiple<A...>(L, 1));
         
-      };
+  //     };
 
-    })(&FunctionType::operator());
+  //   })(&FunctionType::operator());
 
-    auto stackTop = lua_gettop(L);
-    // Used by the closure function
-    luaHelper::push(L, this);
+  //   auto stackTop = lua_gettop(L);
+  //   // Used by the closure function
+  //   luaHelper::push(L, this);
     
-    lua_pushcclosure(L, func, 1);
-    auto closureFunction = StackIndex{lua_gettop(L)};
+  //   lua_pushcclosure(L, func, 1);
+  //   auto closureFunction = StackIndex{lua_gettop(L)};
     
-    auto metatable = LuaTable::from(L, metatableRef);
-    metatable.rawset("new", closureFunction);
+  //   auto metatable = LuaTable::from(L, metatableRef);
+  //   metatable.rawset("new", closureFunction);
  
-    lua_settop(L, stackTop);
-  }
+  //   lua_settop(L, stackTop);
+  // }
 
   void addStaticMethod(const char* name, auto&& function) {
     luaHelper::push(L, metatableRef);
-    auto table = LuaTable(L, lua_gettop(L));
-    table.rawset(name, std::forward<decltype(function)>(function));
-  }
+    auto index = lua_gettop(L);
 
-  void pushClass(lua_State* L) {
+    luaHelper::push(L, name);
+
+    auto action = pallet::overloaded {
+
+      // The regular function case
+      [&]<class R, class LambdaType, class... A>
+      requires concepts::Returnable<R>
+      (R(LambdaType::*)(A...) const) {
+        luaHelper::push(L, std::forward<decltype(function)>(function));
+      },
+
+      // When the static method is returning an object of the class type
+      [&]<class LambdaType, concepts::ContextRetrievable B, class... A>
+      (T(LambdaType::*)(B, A...) const) {
+        
+        auto cfunc = toLuaCFunction([](lua_State* L, A... args) {
+          auto clsPointer = static_cast<LuaClass*>(lua_touserdata(L, lua_upvalueindex(1)));
+          auto lambda = LambdaType{};
+          auto&& context = retrieveContext<B>(L);
+          clsPointer->pushObject(L, std::move(lambda)(std::forward<decltype(context)>(context), std::forward<A>(args)...));
+          return ReturnStackTop{};
+        });
+        
+        luaHelper::push(L, this);
+        lua_pushcclosure(L, cfunc, 1);
+      },
+      
+      // When the static method is returning an object of the class type
+      [&]<class LambdaType, class... A>
+      (T(LambdaType::*)(A...) const) {        
+        auto cfunc = toLuaCFunction([](lua_State* L, A... args) {
+          auto clsPointer = static_cast<LuaClass*>(lua_touserdata(L, lua_upvalueindex(1)));
+          auto lambda = LambdaType{};
+          clsPointer->pushObject(L, std::move(lambda)(std::forward<A>(args)...));
+          return ReturnStackTop{};
+        });
+        
+        luaHelper::push(L, this);
+        lua_pushcclosure(L, cfunc, 1);
+      }
+    };
+
+    action(&std::remove_reference_t<decltype(function)>::operator());
     
+    lua_rawset(L, index);
+
   }
 
   template <class... Args>
@@ -91,12 +134,12 @@ public:
     (pallet::overloaded {
       [&]<class R, class... A>(R(T::*)(A...)) {
         metatable.rawset(name, [](T* ptr, A... args) {
-          return (ptr->*memberFunc)(std::move(args)...);
+          return (ptr->*memberFunc)(std::forward<A>(args)...);
         });
       },
       [&]<class R, class... A>(R(T::*)(A...) const) {
         metatable.rawset(name, [](T* ptr, A... args) {
-          return (ptr->*memberFunc)(std::move(args)...);
+          return (ptr->*memberFunc)(std::forward<A>(args)...);
         });
       }
     })(memberFunc);
@@ -107,7 +150,7 @@ public:
 
     auto action = [&]<class R, class L, class... A>() {
       metatable.rawset(name, [](T* ptr, A... args) {
-        static_cast<L*>(nullptr)->operator()(ptr, std::move(args)...);
+        static_cast<L*>(nullptr)->operator()(ptr, std::forward<A>(args)...);
       });
     };
     

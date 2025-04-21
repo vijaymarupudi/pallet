@@ -17,6 +17,7 @@
 #include "pallet/OscInterface.hpp"
 
 #include "pallet/error.hpp"
+#include "pallet/functional.hpp"
 
 namespace pallet {
 
@@ -36,6 +37,7 @@ public:
                                               std::deque<T>>;
 
   lua_State* L;
+  std::deque<Callable<void()>> onDestroy;
 
   /*
    * Platform binding state

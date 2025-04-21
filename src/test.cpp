@@ -13,16 +13,16 @@ struct TestType {
 };
 
 
-void other(lua_State* L) {
-  pallet::luaHelper::LuaClass<TestType> cls(L, "cls");
-  cls.addConstructor([&](int x) {
-    return TestType{x};
-  });
-  cls.addMethod<&TestType::getX>("getX");
-  cls.pushObject(L, 32);
-  const char name[] = "hello!";
-  const char* another = name;
-  pallet::luaHelper::push(L, another);
+void other(lua_State*) {
+  // pallet::luaHelper::LuaClass<TestType> cls(L, "cls");
+  // cls.addConstructor([&](int x) {
+  //   return TestType{x};
+  // });
+  // cls.addMethod<&TestType::getX>("getX");
+  // cls.pushObject(L, 32);
+  // const char name[] = "hello!";
+  // const char* another = name;
+  // pallet::luaHelper::push(L, another);
 }
 
 int main() {

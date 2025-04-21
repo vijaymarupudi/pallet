@@ -8,46 +8,6 @@
 
 namespace pallet {
 
-// struct MonomeGridMetadata {
-//   int rows;
-//   int cols;
-//   std::string id;
-//   int rotation;
-//   int nQuads;
-// };
-
-// class OscMonomeGridInterface final : public MonomeGridInterface {
-// public:
-//   using AddressId = OscInterface::AddressId;
-//   using ServerId = OscInterface::ServerId;
-
-//   static Result<OscMonomeGridInterface> create(OscInterface& oscInterface);
-//   OscMonomeGridInterface(OscInterface& oscInterface);
-//   void connect(int id) override;
-//   void disconnect(bool manual = true);
-//   ~OscMonomeGridInterface();
-
-// private:
-
-//   AddressId serialoscdAddr;
-//   AddressId gridAddr;
-//   ServerId oscServerId;
-
-//   OscInterface* oscInterface;
-
-//   std::string gridId;
-//   std::optional<MonomeGrid> grid;
-//   bool autoReconnect = true;
-
-//   MonomeGridMetadata currentMetadata;
-
-//   virtual void sendRawQuadMap(int offX, int offY, MonomeGrid::QuadType data) override;
-//   void uponOscMessage(const char *path, const OscItem* items, size_t n);
-//   void uponDeviceChange(const char* cStrId, bool addition);
-//   void requestDeviceNotifications();
-
-// };
-
 namespace grid::implementation {
 
 using QuadType = uint8_t[64];
@@ -208,7 +168,7 @@ struct GridState {
   int nQuads;
 };
 
-};
+}
 
 using namespace grid::implementation;
 

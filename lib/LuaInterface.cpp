@@ -185,6 +185,9 @@ int LuaInterface::dostring(const char* str) {
 
 
 LuaInterface::~LuaInterface() {
+  for (auto&& item : this->onDestroy) {
+    std::move(item)();
+  }
   lua_close(this->L);
 }
 

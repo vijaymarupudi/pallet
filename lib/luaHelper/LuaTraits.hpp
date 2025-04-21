@@ -22,6 +22,10 @@ concept Pushable = requires (lua_State* L, T value) {
 };
 
 template <class T>
+concept Returnable = std::same_as<T, void> || Pushable<T>;
+
+
+template <class T>
 concept Checkable = requires (lua_State* L, int index) {
   { LuaTraits<std::remove_cvref_t<T>>::check(L, index) } -> std::same_as<bool>;
 };
@@ -210,37 +214,43 @@ struct LuaRetrieveContext<lua_State*> {
   }
 };
 
-
-namespace detail {
-
+namespace concepts {
 template <class T>
-concept LuaContextConvertable = requires (lua_State* L) {
+concept ContextRetrievable = requires (lua_State* L) {
   { LuaRetrieveContext<T>::retrieve(L) } -> std::same_as<T>;
 };
+}
 
+template <concepts::ContextRetrievable T>
+decltype(auto) retrieveContext(lua_State* L) {
+  return LuaRetrieveContext<T>::retrieve(L);
+}
+
+namespace detail {
 
 using namespace pallet::luaHelper;
 
 template <class T>
 struct CppFunctionToLuaCFunction;
 
-template <class R, LuaContextConvertable T, class... A>
+template <class R, concepts::ContextRetrievable T, class... A>
 struct CppFunctionToLuaCFunction<R(T, A...)>  {
+
+  static constexpr bool usesContext = true;
+  using ContextType = T;
+  
   template <class FunctionType>
-  static inline constexpr lua_CFunction convert(FunctionType&& function)
+  static inline constexpr lua_CFunction convert(FunctionType&&)
     requires (concepts::Stateless<std::remove_reference_t<FunctionType>>)
   {
-
-    // Don't need to use it, just need its type. It has no size
-    (void)function;
-  
+    
     lua_CFunction func = +[](lua_State* L) -> int {
 
       auto l = [&](auto&&... args) {
         // This is fine, it is stateless
         auto&& context = LuaRetrieveContext<T>::retrieve(L);
-        auto lambdaPtr = reinterpret_cast<std::remove_reference_t<FunctionType>*>((void*)0);
-        return lambdaPtr->operator()(std::forward<decltype(context)>(context), std::forward<decltype(args)>(args)...);
+        auto lambda = std::decay_t<FunctionType>{};
+        return std::move(lambda)(std::forward<decltype(context)>(context), std::forward<decltype(args)>(args)...);
       };
 
       auto&& argsTuple = checkedPullMultiple<A...>(L, 1);
@@ -262,6 +272,9 @@ struct CppFunctionToLuaCFunction<R(T, A...)>  {
 // Version without context
 template <class R, class... A>
 struct CppFunctionToLuaCFunction<R(A...)>  {
+
+  static constexpr bool usesContext = false;
+  
   template <class FunctionType>
   static inline constexpr lua_CFunction convert(FunctionType&& function)
     requires (concepts::Stateless<std::remove_reference_t<FunctionType>>)
@@ -273,8 +286,8 @@ struct CppFunctionToLuaCFunction<R(A...)>  {
 
       auto l = [&](auto&&... args) {
         // This is fine, it is stateless
-        auto lambdaPtr = reinterpret_cast<std::remove_reference_t<FunctionType>*>((void*)0);
-        return lambdaPtr->operator()(std::forward<decltype(args)>(args)...);
+        auto lambda = std::decay_t<FunctionType>{};
+        return std::move(lambda)(std::forward<decltype(args)>(args)...);
       };
 
       auto&& argsTuple = checkedPullMultiple<A...>(L, 1);
@@ -302,13 +315,33 @@ lua_CFunction cppFunctionToLuaCFunction(T&& function)
   using StructType = CppFunctionToLuaCFunction<pallet::CallableFunctionType<std::remove_reference_t<T>>>;
   return StructType::convert(std::forward<T>(function));
 }
-  
-}
+
+} // namespace detail
 
 template <class T>
 requires (detail::ConvertableFunction<T>)
 static inline lua_CFunction toLuaCFunction(T&& function) {
   return detail::cppFunctionToLuaCFunction(std::forward<decltype(function)>(function));
+}
+
+template <class FunctionType, class... Args>
+decltype(auto) invokeWithContext(lua_State* L, FunctionType&& function, Args&&... args) {
+
+  using InfoType = detail::CppFunctionToLuaCFunction<
+                                 pallet::CallableFunctionType<
+                                   std::remove_reference_t<FunctionType>>>;
+
+  constexpr bool usesContext = InfoType::usesContext;
+
+  if constexpr (usesContext) {
+    auto&& context = LuaRetrieveContext<typename InfoType::ContextType>::retrieve(L);
+    return std::forward<decltype(function)>(function)(std::forward<decltype(context)>(context), std::forward<Args>(args)...);
+  } else {
+    // return [&](auto&& context) -> decltype(auto) {
+      
+    // }
+    return std::forward<decltype(function)>(function)(std::forward<Args>(args)...);
+  }
 }
 
 template <class T>

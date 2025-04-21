@@ -3,6 +3,9 @@
 #include "LuaTraits.hpp"
 
 namespace pallet::luaHelper {
+
+struct ReturnStackTop {};
+
 struct StackIndex {
   int index;
   int getIndex() const {
@@ -49,6 +52,13 @@ template <>
 struct LuaTraits<RegistryIndex> {
   static inline void push(lua_State* L, RegistryIndex index) {
     lua_rawgeti(L, LUA_REGISTRYINDEX, index.getIndex());
+  }
+};
+
+template <>
+struct LuaTraits<ReturnStackTop> {
+  static inline void push(lua_State* L, ReturnStackTop) {
+    (void)L;
   }
 };
 
