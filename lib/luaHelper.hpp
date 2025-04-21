@@ -9,13 +9,8 @@
 #include "lua.hpp"
 #include "luaHelper/LuaTraits.hpp"
 #include "luaHelper/types.hpp"
+#include "luaHelper/type_traits.hpp"
 
 namespace pallet::luaHelper {
-
-// template <class ValueType>
-// struct LuaTraits;
-
-
-
 
 }

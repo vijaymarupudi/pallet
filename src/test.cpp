@@ -5,26 +5,47 @@
 #include <new>
 
 
-struct TestType {
-  int x;
-  int getX() const {
-    return x;
+namespace {
+using namespace pallet::luaHelper;
+
+void print_value(auto input) {
+  (pallet::overloaded {
+    [&]<class R, class L, class A>(R(L::*)(A) const) {
+      A v = 3;
+      printf("%d\n", v);
+    },
+    [&]<class R, class L, class A>(R(L::*)(A)) {
+      A v = 3;
+      printf("%d\n", v);
+    },
+    [&]<class R, class A>(R(*)(A)) {
+      A v = 3;
+      printf("%d\n", v);
+    }
+  })(input.value);
+
+  // ([&](int(*)(int)) {
+  //   int v = 3;
+  //   printf("%d\n", v);
+  // })(input);
+
+}
+
+struct Test {
+  int method(int) const {
+    return 0;
   }
 };
 
+int func(int) { return 0; }
 
-void other(lua_State*) {
-  // pallet::luaHelper::LuaClass<TestType> cls(L, "cls");
-  // cls.addConstructor([&](int x) {
-  //   return TestType{x};
-  // });
-  // cls.addMethod<&TestType::getX>("getX");
-  // cls.pushObject(L, 32);
-  // const char name[] = "hello!";
-  // const char* another = name;
-  // pallet::luaHelper::push(L, another);
+void other() {
+  // static_assert(std::is_same_v<std::decay_t<decltype(func)>, int(*)(int)>);
+  print_value(cw<func>);
+}
+
 }
 
 int main() {
-
+  other();
 }

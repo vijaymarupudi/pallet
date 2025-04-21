@@ -84,7 +84,13 @@ static void bindGrid(LuaInterface& iface, lua_State* L) {
 
   auto b = gridClass.beginBatch();
 
-  gridClass.addStaticMethod("connect", [](MonomeGridInterface& iface, MonomeGridInterface::Id id) {
+  gridClass.addStaticMethod("connect", [](MonomeGridInterface& iface, MonomeGridInterface::Id id,
+                                          LuaFunction<void(int)> func) {
+    iface.connect(id, [func = std::move(func)](auto&& result) mutable {
+      if (result) {
+        std::move(func)(*result);
+      }
+    });
     return GridWrapper(&iface, id);
   });
   gridClass.addMethodBatch<&GridWrapper::led>(b, "led");
