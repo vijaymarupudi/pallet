@@ -75,6 +75,8 @@ struct LuaRetrieveContext<MonomeGridInterface&> {
 
 static void bindGrid(LuaInterface& iface, lua_State* L) {
 
+  using pallet::luaHelper::cw;
+
   auto gridClassPointer = new LuaClass<GridWrapper>(L, "grid");
   iface.onDestroy.push_back([gridClassPointer]() {
     delete gridClassPointer;
@@ -93,19 +95,21 @@ static void bindGrid(LuaInterface& iface, lua_State* L) {
     });
     return GridWrapper(&iface, id);
   });
-  gridClass.addMethodBatch<&GridWrapper::led>(b, "led");
-  gridClass.addMethodBatch<&GridWrapper::all>(b, "all");
-  gridClass.addMethodBatch<&GridWrapper::clear>(b, "clear");
-  gridClass.addMethodBatch<&GridWrapper::render>(b, "render");
-  gridClass.addMethodBatch<&GridWrapper::getRows>(b, "getRows");
-  gridClass.addMethodBatch<&GridWrapper::getCols>(b, "getCols");
-  gridClass.addMethodBatch<&GridWrapper::getRotation>(b, "getRotation");
-  gridClass.addMethodBatch<&GridWrapper::getId>(b, "getId");
-  gridClass.addMethodBatch<&GridWrapper::isConnected>(b, "isConnected");
-  gridClass.addMethodBatch(b, "listen", [](GridWrapper* wrapper, LuaFunction<void(int, int, int)> func) {
+
+  gridClass.addMethodBatch(b, "led", cw<&GridWrapper::led>);
+  gridClass.addMethodBatch(b, "all", cw<&GridWrapper::all>);
+  gridClass.addMethodBatch(b, "clear", cw<&GridWrapper::clear>);
+  gridClass.addMethodBatch(b, "render", cw<&GridWrapper::render>);
+  gridClass.addMethodBatch(b, "getRows", cw<&GridWrapper::getRows>);
+  gridClass.addMethodBatch(b, "getCols", cw<&GridWrapper::getCols>);
+  gridClass.addMethodBatch(b, "getRotation", cw<&GridWrapper::getRotation>);
+  gridClass.addMethodBatch(b, "getId", cw<&GridWrapper::getId>);
+  gridClass.addMethodBatch(b, "isConnected", cw<&GridWrapper::isConnected>);
+  gridClass.addMethodBatch(b, "listen", [](GridWrapper* wrapper,
+                                           LuaFunction<void(int, int, int)> func) {
     return wrapper->listen(std::move(func));
   });
-  gridClass.addMethodBatch<&GridWrapper::unlisten>(b, "unlisten");
+  gridClass.addMethodBatch(b, "unlisten", cw<&GridWrapper::unlisten>);
   gridClass.endBatch(b);
 
   getPalletCTable(L);

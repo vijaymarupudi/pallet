@@ -6,46 +6,48 @@
 
 
 namespace {
+
 using namespace pallet::luaHelper;
 
-void print_value(auto input) {
-  (pallet::overloaded {
-    [&]<class R, class L, class A>(R(L::*)(A) const) {
-      A v = 3;
-      printf("%d\n", v);
-    },
-    [&]<class R, class L, class A>(R(L::*)(A)) {
-      A v = 3;
-      printf("%d\n", v);
-    },
-    [&]<class R, class A>(R(*)(A)) {
-      A v = 3;
-      printf("%d\n", v);
-    }
-  })(input.value);
+// template <class R, class A, R(*value)(A)>
+// void print_value(constant_wrapper<value> input) {
+//   printf("%p\n", (void*)input.value);
+// }
 
-  // ([&](int(*)(int)) {
-  //   int v = 3;
-  //   printf("%d\n", v);
-  // })(input);
+// template <class R, class L, class... A, R(L::*value)(A...)>
+// void print_value(constant_wrapper<value> input) {
+//   printf("%p\n", (void*)input.value);
+// }
 
-}
+// struct Test {
+//   int method(int) {
+//     return 0;
+//   }
+// };
 
-struct Test {
-  int method(int) const {
-    return 0;
-  }
-};
+// int func(int) {
+//   return 0;
+// }
 
-int func(int) { return 0; }
 
-void other() {
+extern "C" void other(lua_State* L) {
+  (void)L;
+
+  int x = 0;
+  auto func = [item = &x]() -> int {
+    return *item;
+  };
+
+  static_assert(std::is_trivially_move_constructible_v<decltype(func)>);
+
+    
+  
   // static_assert(std::is_same_v<std::decay_t<decltype(func)>, int(*)(int)>);
-  print_value(cw<func>);
+  // print_value(cw<&Test::method>);
 }
 
 }
 
 int main() {
-  other();
+  
 }

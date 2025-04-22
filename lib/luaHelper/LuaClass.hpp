@@ -129,7 +129,7 @@ public:
   }
 
   template <auto memberFunc>
-  void addMethodBatch(StackIndex index, const char* name) {
+  void addMethodBatch(StackIndex index, const char* name, constant_wrapper<memberFunc>) {
     auto metatable = LuaTable{L, index};
     (pallet::overloaded {
       [&]<class R, class... A>(R(T::*)(A...)) {
