@@ -13,7 +13,7 @@ namespace pallet::luaHelper {
 
 
 template <class ValueType>
-struct LuaTraits;
+struct LuaTraits {};
 
 namespace concepts {
 template <class T>
@@ -38,22 +38,25 @@ concept Pullable = !std::is_rvalue_reference_v<T> && requires (lua_State* L, int
 
 }
 
-static inline void push(lua_State* L, concepts::Pushable auto&& value) {
+static inline void push(lua_State* L, auto&& value) {
+  static_assert(concepts::Pushable<decltype(value)>);
   LuaTraits<std::remove_cvref_t<decltype(value)>>::push(L, std::forward<decltype(value)>(value));
 }
 
-template <concepts::Pullable T>
+template <class T>
 static inline decltype(auto) pull(lua_State* L, int index) {
   if constexpr (std::is_rvalue_reference_v<T>) {
     // rvalue reference, invalid
     static_assert(false, "Cannot pull rvalue reference");
   } else {
+    static_assert(concepts::Pullable<T>);
     return LuaTraits<T>::pull(L, index);
   }
 }
 
-template <concepts::Checkable T>
+template <class T>
 static inline bool isType(lua_State* L, int index) {
+  static_assert(concepts::Checkable<T>);
   return LuaTraits<std::remove_cvref_t<T>>::check(L, index);
 }
 
