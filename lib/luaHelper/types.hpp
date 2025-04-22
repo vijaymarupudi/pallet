@@ -1,5 +1,6 @@
 #pragma once
 
+#include <concepts>
 #include "LuaTraits.hpp"
 
 namespace pallet::luaHelper {
@@ -84,5 +85,25 @@ static inline T pull(lua_State* L, StackIndex index) {
   return luaHelper::pull<T>(L, index.getIndex());
 }
 
+
+struct LuaNumber {
+  lua_Number number;
+  inline constexpr LuaNumber(lua_Number n) : number(n) {};
+};
+
+template <>
+struct LuaTraits<LuaNumber> {
+  static inline bool check(lua_State* L, int index) {
+    return lua_type(L, index) == LUA_TNUMBER;
+  }
+
+  static inline void push(lua_State* L, auto&& val) {
+    lua_pushnumber(L, val.number);
+  }
+
+  static inline lua_Number pull(lua_State* L, int index) {
+    return lua_tonumber(L, index);
+  }
+};
 
 }

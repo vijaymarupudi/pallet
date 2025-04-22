@@ -31,9 +31,13 @@ concept Checkable = requires (lua_State* L, int index) {
 };
 
 
+template <class T, class V>
+concept NotSameAs = !std::same_as<T, V>;
+
 template <class T>
 concept Pullable = !std::is_rvalue_reference_v<T> && requires (lua_State* L, int index) {
-  { LuaTraits<T>::pull(L, index) } -> std::same_as<T>;
+  // the return type is allowed to be different from the input type (LuaNumber support)
+  { LuaTraits<T>::pull(L, index) } -> NotSameAs<void>;
 };
 
 }
@@ -45,13 +49,9 @@ static inline void push(lua_State* L, auto&& value) {
 
 template <class T>
 static inline decltype(auto) pull(lua_State* L, int index) {
-  if constexpr (std::is_rvalue_reference_v<T>) {
-    // rvalue reference, invalid
-    static_assert(false, "Cannot pull rvalue reference");
-  } else {
-    static_assert(concepts::Pullable<T>);
-    return LuaTraits<T>::pull(L, index);
-  }
+  static_assert(!std::is_rvalue_reference_v<T>, "Cannot pull rvalue reference");
+  static_assert(concepts::Pullable<T>, "Value needs to be pullable");
+  return LuaTraits<T>::pull(L, index);
 }
 
 template <class T>
@@ -79,7 +79,7 @@ decltype(auto) checkedPull(lua_State* L, int index) {
 }
 
 template <class... Types>
-std::tuple<Types...>
+auto
 checkedPullMultiple(lua_State* L, int baseIndex = 1) {
   return ([&]<int... indexes>(std::integer_sequence<int, indexes...>) {
       return std::make_tuple(checkedPull<Types>(L, baseIndex + indexes)...);

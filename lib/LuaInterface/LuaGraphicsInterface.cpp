@@ -27,7 +27,7 @@ static int luaScreenClear(lua_State* L) {
 static int luaScreenRect(lua_State* L) {
   auto& luaInterface = getLuaInterfaceObject(L);
   auto [x, y, w, h, c] =
-    checkedPullMultiple<float, float, float, float, int>(L, 1);
+    checkedPullMultiple<LuaNumber, LuaNumber, LuaNumber, LuaNumber, int>(L, 1);
 
   luaInterface.graphicsInterface->rect(x - 1, y - 1, w, h, c);
   return 0;
@@ -36,7 +36,7 @@ static int luaScreenRect(lua_State* L) {
 static int luaScreenStrokeRect(lua_State* L) {
   auto& luaInterface = getLuaInterfaceObject(L);
   auto [x, y, w, h, c] =
-    checkedPullMultiple<float, float, float, float, int>(L, 1);
+    checkedPullMultiple<LuaNumber, LuaNumber, LuaNumber, LuaNumber, int>(L, 1);
 
   luaInterface.graphicsInterface->strokeRect(x - 1, y - 1, w, h, c);
   return 0;
@@ -45,7 +45,7 @@ static int luaScreenStrokeRect(lua_State* L) {
 static int luaScreenPoint(lua_State* L) {
   auto& luaInterface = getLuaInterfaceObject(L);
   auto [x, y, c] =
-    checkedPullMultiple<float, float, int>(L, 1);
+    checkedPullMultiple<LuaNumber, LuaNumber, int>(L, 1);
   luaInterface.graphicsInterface->point(x - 1, y - 1, c);
   return 0;
 }
@@ -53,7 +53,7 @@ static int luaScreenPoint(lua_State* L) {
 static int luaScreenText(lua_State* L) {
   auto& luaInterface = getLuaInterfaceObject(L);
   auto [x, y, str, fc, bc, align, baseline] =
-    checkedPullMultiple<float, float, std::string_view,
+    checkedPullMultiple<LuaNumber, LuaNumber, std::string_view,
                            int, int, pallet::GraphicsPosition,
                            pallet::GraphicsPosition>(L, 1);
   luaInterface.graphicsInterface->text(x - 1, y - 1, str, fc, bc, align, baseline);
