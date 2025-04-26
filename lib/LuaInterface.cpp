@@ -171,6 +171,8 @@ LuaInterface::LuaInterface() {
   lua_newtable(this->L);
   lua_rawsetp(this->L, LUA_REGISTRYINDEX, &_palletCTableRegistryIndex);
   this->setupRequire();
+
+  luaHelper::init(this->L);
 }
 
 int LuaInterface::dostring(const char* str) {
