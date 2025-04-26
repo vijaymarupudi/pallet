@@ -1,7 +1,9 @@
 #pragma once
 
+#include <memory>
 #include "LuaTraits.hpp"
 #include "type_traits.hpp"
+#include "finalizable.hpp"
 #include "concepts.hpp"
 
 namespace pallet::luaHelper {
@@ -23,131 +25,128 @@ concept ContextRetrievable = requires (lua_State* L) {
   { LuaRetrieveContext<T>::retrieve(L) } -> std::same_as<T>;
 };
 
+template <class T>
+concept IsStatelessFunction = concepts::Stateless<std::decay_t<T>> && std::is_default_constructible_v<std::decay_t<T>>;
+
+}
+
 namespace detail {
 
-template <class... ArgumentType>
-struct IncludesContextHelper {
-  static constexpr bool value = false;
+template <class T>
+struct ContextTraits {};
+
+template <class ReturnType, class... ArgumentType>
+struct ContextTraits<ReturnType(ArgumentType...)> {
+  static constexpr bool usesContext = false;
+  using functionWithoutContextType = ReturnType(ArgumentType...);
 };
 
-template <concepts::ContextRetrievable ContextType, class... ArgumentType>
-struct IncludesContextHelper<ContextType, ArgumentType...> {
-  static constexpr bool value = true;
+template <class ReturnType, concepts::ContextRetrievable ContextType, class... ArgumentType>
+struct ContextTraits<ReturnType(ContextType, ArgumentType...)> {
+  static constexpr bool usesContext = true;
+  using contextType = ContextType;
+  using functionWithoutContextType = ReturnType(ArgumentType...);
 };
 
 }
-
-template <class... ArgumentType>
-concept IncludesContext = detail::IncludesContextHelper<ArgumentType...>::value;
-
-}
-
-
-template <class T>
-struct RemoveContextType;
-
-template <class ReturnType, concepts::ContextRetrievable ContextType, class... ArgumentType>
-struct RemoveContextType<ReturnType(ContextType, ArgumentType...)> {
-  using type = ReturnType(ArgumentType...);
-};
-
-template <class ReturnType, class... ArgumentType>
-struct RemoveContextType<ReturnType(ArgumentType...)> {
-  using type = ReturnType(ArgumentType...);
-};
-
-template <class T>
-struct GetContextType;
-
-template <class ReturnType, concepts::ContextRetrievable ContextType, class... ArgumentType>
-struct GetContextType<ReturnType(ContextType, ArgumentType...)> {
-  using type = ContextType;
-};
-
-template <class ReturnType, class... ArgumentType>
-struct GetContextType<ReturnType(ArgumentType...)> {
-  using type = void;
-};
-
-template <class T>
-using RemoveContextTypeT = RemoveContextType<T>::type;
-
-template <class T>
-using GetContextTypeT = GetContextType<T>::type;
 
 template <concepts::ContextRetrievable T>
 decltype(auto) retrieveContext(lua_State* L) {
   return LuaRetrieveContext<T>::retrieve(L);
 }
 
-template <class... ArgumentType>
-requires (!concepts::IncludesContext<ArgumentType...>)
-decltype(auto) invokeWithContextArgsFromLua(lua_State* L, auto&& function) {
-  return std::apply([&](auto&&... args) {
-    return std::forward<decltype(function)>(function)(std::forward<ArgumentType>(args)...);
-  }, checkedPullMultiple<ArgumentType...>(L));
+namespace detail {
+
+template <class Traits>
+static inline decltype(auto) normalizeCallableApply(auto&& function, lua_State* L, auto&&... argument) {
+  if constexpr (Traits::usesContext) {
+    return std::forward<decltype(function)>(function)(retrieveContext<typename Traits::contextType>(L), std::forward<decltype(argument)>(argument)...);
+  } else {
+    return std::forward<decltype(function)>(function)(std::forward<decltype(argument)>(argument)...);
+  }
 }
 
-template <concepts::ContextRetrievable ContextType, class... ArgumentType>
-decltype(auto) invokeWithContextArgsFromLua(lua_State* L, auto&& function) {
-  return std::apply([&](auto&&... args) {
-    return std::forward<decltype(function)>(function)(retrieveContext<ContextType>(L), std::forward<ArgumentType>(args)...);
-  }, checkedPullMultiple<ArgumentType...>(L));
 }
 
-// template <class... ArgumentType>
-// requires (!concepts::IncludesContext<ArgumentType...>)
-// decltype(auto) invokeWithContext(lua_State* L, auto&& function, ArgumentType&&... args) {
-//   return std::forward<decltype(function)>(function)(std::forward<ArgumentType>(args)...);
-// }
+namespace concepts {
+template <class T>
+concept FunctionArgumentsPullable = (([]<class R, class... A>(std::in_place_type_t<R(A...)>) {
+      return (Pullable<A> && ...);
+    })(std::in_place_type<typename luaHelper::detail::ContextTraits<T>::functionWithoutContextType>));
+}
 
-// template <concepts::ContextRetrievable ContextType>
-// decltype(auto) invokeWithContext(lua_State* L, auto&& function, ArgumentType&&... args) {
-//   return std::forward<decltype(function)>(function)(retrieveContext<ContextType>(L), std::forward<ArgumentType>(args)...);
-// }
+template <class CallableType>
+decltype(auto) normalizeCallable(CallableType&& callable) {
+
+  using Traits = detail::ContextTraits<FunctionType<CallableType>>;
+
+  return ([&]<class ReturnType, class... ArgumentType>(std::in_place_type_t<ReturnType(ArgumentType...)>) {
+
+      static_assert(concepts::FunctionArgumentsPullable<ReturnType(ArgumentType...)>);
+
+      if constexpr (concepts::IsStatelessFunction<CallableType>) {
+        return [](lua_State* L, ArgumentType... argument) {
+          return detail::normalizeCallableApply<Traits>(std::decay_t<CallableType>{}, L, std::forward<ArgumentType>(argument)...);
+        };
+      } else {
+        return [callable=std::forward<CallableType>(callable)](lua_State* L, ArgumentType... argument) {
+          return detail::normalizeCallableApply<Traits>(callable, L, std::forward<ArgumentType>(argument)...);
+        };
+      }
+
+    })(std::in_place_type<typename Traits::functionWithoutContextType>);
+
+}
 
 
 template <class T>
 struct LuaClosureTraits {
-  // not incomplete so that the concept check works with public inheritance
+  // not an incomplete type so that the concept check works with public inheritance
 };
 
+namespace detail {
 
+int handleNormalizedCallableInLuaFunction(lua_State* L, auto&& callable) {
+  return [&]<class R, class... A>(std::in_place_type_t<R(lua_State*, A...)>) {
+    return std::apply([&](auto&&... args) {
+      if constexpr (std::same_as<R, void>) {
+        std::forward<decltype(callable)>(callable)(L, std::forward<decltype(args)>(args)...);
+        return 0;
+      } else {
+        luaHelper::push(L, std::forward<decltype(callable)>(callable)(L, std::forward<decltype(args)>(args)...));
+        return 1;
+      }
+    }, checkedPullMultiple<A...>(L));
+  }(std::in_place_type<FunctionType<decltype(callable)>>);
+}
+
+}
 
 // Stateless default constructible [contextual] callable (non-capturing lambda)
-
 template <class ReturnType,
           class CallableType,
           class... ArgumentType>
-
-requires concepts::Stateless<CallableType> &&
-  std::is_default_constructible_v<CallableType> &&
-  concepts::HasCallOperator<CallableType> &&
-  // Check that non-context arguments are pullable
-  (([]<class R, class... A>(std::type_identity<R(A...)>) {
-      return (concepts::Pullable<A> && ...);
-    })(std::type_identity<RemoveContextTypeT<ReturnType(ArgumentType...)>>{}))
-  
 struct LuaClosureTraits<ReturnType(CallableType::*)(ArgumentType...)> {
-  // static constexpr bool valid = true;
-  static constexpr bool usesContext = concepts::IncludesContext<ArgumentType...>;
-  using abstractFunctionType = ReturnType(ArgumentType...);
-  using contextType = GetContextTypeT<abstractFunctionType>;
-  using contextlessAbstractFunctionType = RemoveContextTypeT<abstractFunctionType>;
-  using returnType = ReturnType;
 
-  static inline lua_CFunction toPushable(auto&&) {
+  static inline void push(lua_State* L, auto&& callable) {
 
-    auto luaCFunc = static_cast<lua_CFunction>([](lua_State* L) -> int {
-      if constexpr (std::same_as<ReturnType, void>) {
-        invokeWithContextArgsFromLua<ArgumentType...>(L, CallableType{});
-        return 0;
-      } else {
-        luaHelper::push(L, invokeWithContextArgsFromLua<ArgumentType...>(L, CallableType{}));
-        return 1;
-      }
-    });
-    return luaCFunc;
+    auto normalizedCallable = normalizeCallable(std::forward<decltype(callable)>(callable));
+
+    using NormalizedCallableType = decltype(normalizedCallable);
+
+    if constexpr (concepts::IsStatelessFunction<NormalizedCallableType>) {
+      auto func = +[](lua_State* L) {
+        return detail::handleNormalizedCallableInLuaFunction(L, NormalizedCallableType{});
+      };
+      luaHelper::push(L, func);
+    } else {
+      createFinalizableUserData<NormalizedCallableType>(L, std::move(normalizedCallable));
+      auto func = +[](lua_State* L) {
+        auto& normalizedCallable = *luaHelper::pull<NormalizedCallableType*>(L, lua_upvalueindex(1));
+        return detail::handleNormalizedCallableInLuaFunction(L, normalizedCallable);
+      };
+      lua_pushcclosure(L, func, 1);
+    }
   }
 };
 
@@ -170,66 +169,65 @@ struct LuaClosureTraits<constant_wrapper<funcPtr>> : public LuaClosureTraits<dec
 
 namespace concepts {
 
-// template <class T>
-// concept PushableClosure = LuaClosureTraits<T>::valid;// requires(T v) {
-//   LuaClosureTraits<T>::toPushable(v);
-// };
-
 template <class T>
-concept PushableClosure = requires(T v) {
-   LuaClosureTraits<T>::toPushable(v);
+concept PushableClosure = requires(lua_State* L, T val) {
+  LuaClosureTraits<T>::push(L, std::move(val));
 };
 
-
-}
-
-auto toPushable(auto&& input) {
-  return LuaClosureTraits<std::decay_t<decltype(input)>>::toPushable(std::forward<decltype(input)>(input));
-}
+};
 
 template <class T>
 requires concepts::PushableClosure<std::decay_t<T>>
 struct LuaTraits<T> {
   template <class CallableType>
   static inline void push(lua_State* L, CallableType&& val) {
-    luaHelper::push(L, LuaClosureTraits<T>::toPushable(std::forward<CallableType>(val)));
+    LuaClosureTraits<T>::push(L, std::forward<CallableType>(val));
   }
 };
 
-static inline decltype(auto) callWithContextIfNeeded(lua_State* L, auto&& functionType, auto&&... args) {
-  using Traits = LuaClosureTraits<std::decay_t<decltype(functionType)>>;
-  if constexpr (Traits::usesContext) {
-    return std::forward<decltype(functionType)>(functionType)
-      (retrieveContext<typename Traits::contextType>(L), std::forward<decltype(args)>(args)...);
+
+namespace detail {
+
+decltype(auto) luaFunctionPipe(lua_State* L, auto&& after, auto&& before, auto&&... args) {
+  using ReturnValue = decltype(std::forward<decltype(before)>(before)(L, std::forward<decltype(args)>(args)...));
+  if constexpr (std::same_as<ReturnValue, void>) {
+    std::forward<decltype(before)>(before)(L, std::forward<decltype(args)>(args)...);
+    return std::forward<decltype(after)>(after)(L);
   } else {
-    return std::forward<decltype(functionType)>(functionType)(std::forward<decltype(args)>(args)...);
+    return std::forward<decltype(after)>(after)(L, std::forward<decltype(before)>(before)(L, std::forward<decltype(args)>(args)...));
   }
 }
 
-template <class FunctionType, class TransformationType>
-requires (concepts::Stateless<FunctionType> &&
-          concepts::Stateless<TransformationType>)
-static inline constexpr decltype(auto) luaClosureChained(FunctionType&&, TransformationType&&) {
+}
 
-  using Traits = LuaClosureTraits<std::decay_t<FunctionType>>;
-        
-  auto action = ([&]<class R, class... A>(std::type_identity<R(A...)>) {
-      
-    
-      return [](lua_State* L, A... args) {
-        if constexpr (std::same_as<R, void>) {
-          callWithContextIfNeeded(L, FunctionType{}, std::forward<A>(args)...);
-          return TransformationType{}(L);
-        } else {
-          return TransformationType{}(L, (callWithContextIfNeeded(L, FunctionType{},
-                                                                  std::forward<A>(args)...)));
-        }
-      };
-    });
+template <class InputFunctionType, class TransformationType>
+static inline constexpr auto luaClosureChain(InputFunctionType&& function, TransformationType&& transformation) {
 
-  return action(std::type_identity<typename Traits::contextlessAbstractFunctionType>{});
+  auto&& normalizedFunction = normalizeCallable(std::forward<InputFunctionType>(function));
+  using NormalizedFunctionType = decltype(normalizedFunction);
+
+  return ([&]<class R, class... A>(std::in_place_type_t<R(lua_State*, A...)>) {
+
+      if constexpr (concepts::IsStatelessFunction<NormalizedFunctionType> && concepts::IsStatelessFunction<TransformationType>) {
+        return [](lua_State* L, A... arg) -> decltype(auto) {
+          return detail::luaFunctionPipe(L, std::decay_t<TransformationType>{}, std::decay_t<NormalizedFunctionType>{}, std::forward<A>(arg)...);
+        };
+      } else if constexpr (concepts::IsStatelessFunction<NormalizedFunctionType>) {
+        return [transformation=std::forward<decltype(transformation)>(transformation)](lua_State* L, A... arg) -> decltype(auto) {
+          return detail::luaFunctionPipe(L, transformation, std::decay_t<NormalizedFunctionType>{}, std::forward<A>(arg)...);
+        };
+      } else if constexpr (concepts::IsStatelessFunction<TransformationType>) {
+        return [normalizedFunction=std::forward<decltype(normalizedFunction)>(normalizedFunction)](lua_State* L, A... arg) -> decltype(auto) {
+          return detail::luaFunctionPipe(L, std::decay_t<TransformationType>{}, normalizedFunction, std::forward<A>(arg)...);
+        };
+      } else {
+        return [normalizedFunction=std::forward<decltype(normalizedFunction)>(normalizedFunction),
+                transformation=std::forward<decltype(transformation)>(transformation)](lua_State* L, A... arg) -> decltype(auto) {
+          return detail::luaFunctionPipe(L, transformation, normalizedFunction, std::forward<A>(arg)...);
+        };
+      }
+    })(std::in_place_type<FunctionType<std::decay_t<NormalizedFunctionType>>>);
 }
 
 
 }
-

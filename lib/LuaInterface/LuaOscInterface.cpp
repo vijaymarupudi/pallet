@@ -38,11 +38,10 @@ static void bindOscInterface(lua_State* L) {
     return iface.freeAddress(addressId);
   });
 
-  using OscListenFunction = luaHelper::LuaFunction<void(std::string_view, const std::vector<OscItem>)>;
   rawSetTable(L, oscTableIndex, "listen", [](OscInterface& iface, OscInterface::ServerId server,
-                                             OscListenFunction func) {
-    return iface.listen(server, [func = std::move(func)](const char* path, const OscItem* items, size_t n) {
-      return func(path, std::vector(items, items + n));
+                                             luaHelper::LuaFunction func) {
+    return iface.listen(server, [func = std::move(func)](const char* path, const OscItem* items, size_t n) mutable {
+      func.call<void>(path, std::vector(items, items + n));
     });
   });
 

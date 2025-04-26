@@ -73,24 +73,19 @@ struct LuaRetrieveContext<MonomeGridInterface&> {
 };
 }
 
-static void bindGrid(LuaInterface& iface, lua_State* L) {
+static void bindGrid(lua_State* L) {
 
   using pallet::luaHelper::cw;
 
-  auto gridClassPointer = new LuaClass<GridWrapper>(L, "grid");
-  iface.onDestroy.push_back([gridClassPointer]() {
-    delete gridClassPointer;
-  });
-
-  auto& gridClass = *gridClassPointer;
+  auto& gridClass = LuaClass<GridWrapper>::create(L, "grid");
 
   auto b = gridClass.beginBatch();
 
   gridClass.addStaticMethod("connect", [](MonomeGridInterface& iface, MonomeGridInterface::Id id,
-                                          LuaFunction<void(int)> func) {
+                                          LuaFunction func) {
     iface.connect(id, [func = std::move(func)](auto&& result) mutable {
       if (result) {
-        std::move(func)(*result);
+        func.call<void>(*result);
       }
     });
     return GridWrapper(&iface, id);
@@ -106,8 +101,10 @@ static void bindGrid(LuaInterface& iface, lua_State* L) {
   gridClass.addMethodBatch(b, "getId", cw<&GridWrapper::getId>);
   gridClass.addMethodBatch(b, "isConnected", cw<&GridWrapper::isConnected>);
   gridClass.addMethodBatch(b, "listen", [](GridWrapper* wrapper,
-                                           LuaFunction<void(int, int, int)> func) {
-    return wrapper->listen(std::move(func));
+                                           LuaFunction func) {
+    return wrapper->listen([func=std::move(func)](int x, int y, int z) mutable {
+      func.call<void>(x, y, z);
+    });
   });
   gridClass.addMethodBatch(b, "unlisten", cw<&GridWrapper::unlisten>);
   gridClass.endBatch(b);
@@ -124,6 +121,6 @@ static void bindGrid(LuaInterface& iface, lua_State* L) {
 
 void LuaInterface::setMonomeGridInterface(MonomeGridInterface& gridInterface) {
   this->gridInterface = &gridInterface;
-  bindGrid(*this, this->L);
+  bindGrid(this->L);
 }
 }

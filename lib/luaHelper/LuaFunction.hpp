@@ -3,19 +3,17 @@
 #include "../luaHelper.hpp"
 
 namespace pallet::luaHelper {
-template <class FunctionType>
-struct LuaFunction;
 
-template <class ReturnType, class... Args>
-struct LuaFunction<ReturnType(Args...)> {
+struct LuaFunction {
   lua_State* L;
   RegistryIndex luaFunction;
 
   LuaFunction(lua_State* L, RegistryIndex luaFunction) : L(L), luaFunction(luaFunction) {}
   LuaFunction(LuaFunction&& other) : L(other.L), luaFunction(std::exchange(other.luaFunction, nullptr)) {}
   LuaFunction& operator=(LuaFunction&& other) = default;
-  
-  ReturnType operator()(Args... args) const {
+
+  template <class ReturnType, class... Args>
+  ReturnType call(Args&&... args) {
     luaHelper::push(L, luaFunction);
     (luaHelper::push(L, std::forward<Args>(args)), ...);
     
@@ -36,14 +34,14 @@ struct LuaFunction<ReturnType(Args...)> {
   }
 };
 
-template <class R, class... A>
-struct LuaTraits<LuaFunction<R(A...)>> {
+template <>
+struct LuaTraits<LuaFunction> {
   static inline bool check(lua_State* L, int index) {
     return lua_isfunction(L, index);
   }
 
-  static inline LuaFunction<R(A...)> pull(lua_State* L, int index) {
-    return LuaFunction<R(A...)>{L, store(L, StackIndex{index})};
+  static inline LuaFunction pull(lua_State* L, int index) {
+    return LuaFunction{L, store(L, StackIndex{index})};
   }
 };
 

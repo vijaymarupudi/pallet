@@ -1,9 +1,10 @@
 #pragma once
 
-#include "../luaHelper.hpp"
 #include "concepts.hpp"
 #include "LuaTable.hpp"
 #include "pallet/functional.hpp"
+#include "finalizable.hpp"
+#include "type_traits.hpp"
 
 namespace pallet::luaHelper {
 template <class T>
@@ -13,7 +14,11 @@ class LuaClass {
 public:
   RegistryIndex metatableRef;
 
-  LuaClass(lua_State* L, const char* name) : L(L), name(name) {
+  static LuaClass& create(lua_State* L, const char* name) {
+    return createFinalizableUserData<LuaClass>(L, PrivateTag, L, name);
+  }
+
+  LuaClass(PrivateTagType, lua_State* L, const char* name) : L(L), name(name) {
 
     // Create metatable
     auto metatable = LuaTable::create(L);
@@ -68,78 +73,21 @@ public:
   // }
 
   void addStaticMethod(const char* name, auto&& function) {
-
-    luaHelper::push(L, metatableRef);
-    auto index = lua_gettop(L);
-
-    luaHelper::push(L, name);
-
-    auto cfunc = luaClosureChained(std::forward<decltype(function)>(function), pallet::overloaded {
+    auto table = LuaTable::from(L, metatableRef);
+    table.rawset(name, luaClosureChain(std::forward<decltype(function)>(function), pallet::overloaded {
         [](lua_State* L) {
           (void)L;
           return;
         },
-          [](lua_State* L, auto&& val) {
+          [this](lua_State* L, auto&& val) {
             if constexpr (std::same_as<std::decay_t<decltype(val)>, T>) {
-              auto clsPointer = static_cast<LuaClass*>(lua_touserdata(L, lua_upvalueindex(1)));
-              clsPointer->pushObject(L, std::forward<decltype(val)>(val));
+              this->pushObject(L, std::forward<decltype(val)>(val));
               return ReturnStackTop{};
             } else {
               return std::forward<decltype(val)>(val);
             }
           }
-          });
-
-    luaHelper::push(L, this);
-    lua_pushcclosure(L, toPushable(cfunc), 1);
-    // luaHelper::push(L, cfunc);
-    lua_rawset(L, index);
-
-
-    // auto action = pallet::overloaded {
-
-    //   // The regular function case
-    //   [&]<class R, class LambdaType, class... A>
-    //   requires concepts::Returnable<R>
-    //   (R(LambdaType::*)(A...) const) {
-    //     luaHelper::push(L, std::forward<decltype(function)>(function));
-    //   },
-
-    //   // When the static method is returning an object of the class type
-    //   [&]<class LambdaType, concepts::ContextRetrievable B, class... A>
-    //   (T(LambdaType::*)(B, A...) const) {
-        
-    //     auto cfunc = toLuaCFunction([](lua_State* L, A... args) {
-    //       auto clsPointer = static_cast<LuaClass*>(lua_touserdata(L, lua_upvalueindex(1)));
-    //       auto lambda = LambdaType{};
-    //       auto&& context = retrieveContext<B>(L);
-    //       clsPointer->pushObject(L, std::move(lambda)(std::forward<decltype(context)>(context), std::forward<A>(args)...));
-    //       return ReturnStackTop{};
-    //     });
-        
-    //     luaHelper::push(L, this);
-    //     lua_pushcclosure(L, cfunc, 1);
-    //   },
-      
-    //   // When the static method is returning an object of the class type
-    //   [&]<class LambdaType, class... A>
-    //   (T(LambdaType::*)(A...) const) {        
-    //     auto cfunc = toLuaCFunction([](lua_State* L, A... args) {
-    //       auto clsPointer = static_cast<LuaClass*>(lua_touserdata(L, lua_upvalueindex(1)));
-    //       auto lambda = LambdaType{};
-    //       clsPointer->pushObject(L, std::move(lambda)(std::forward<A>(args)...));
-    //       return ReturnStackTop{};
-    //     });
-        
-    //     luaHelper::push(L, this);
-    //     lua_pushcclosure(L, cfunc, 1);
-    //   }
-    // };
-
-    // action(&std::remove_reference_t<decltype(function)>::operator());
-    
-    
-
+          }));
   }
 
   template <class... Args>
@@ -206,7 +154,6 @@ public:
   ~LuaClass() {
     if (metatableRef) {
       free(L, metatableRef);
-      // luaL_unref(L, LUA_REGISTRYINDEX, metatableRef.getIndex());
     }
   }
 };

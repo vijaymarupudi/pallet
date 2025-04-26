@@ -14,4 +14,8 @@
 
 namespace pallet::luaHelper {
 
+static inline void init(lua_State* L) {
+  createFinalizableMetatable(L);
+}
+
 }
