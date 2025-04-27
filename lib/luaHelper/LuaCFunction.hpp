@@ -81,14 +81,13 @@ namespace concepts {
 template <class T>
 concept FunctionArgumentsPullable = (([]<class R, class... A>(std::in_place_type_t<R(A...)>) {
       return (Pullable<A> && ...);
-    })(std::in_place_type<typename luaHelper::detail::ContextTraits<T>::functionWithoutContextType>));
+    })(std::in_place_type<T>));
 }
 
 template <class CallableType>
 decltype(auto) normalizeCallable(CallableType&& callable) {
 
   using Traits = detail::ContextTraits<FunctionType<CallableType>>;
-
 
   return ([&]<class ReturnType, class... ArgumentType>(std::in_place_type_t<ReturnType(ArgumentType...)>) {
 
