@@ -30,6 +30,11 @@ struct LuaTable {
     return LuaTable{L, lua_gettop(L)};
   }
 
+  static inline LuaTable from(lua_State* L, void* key) {
+    registryPush(L, key);
+    return LuaTable{L, lua_gettop(L)};
+  }
+
   operator StackIndex () const {
     return index;
   }

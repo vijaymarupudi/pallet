@@ -85,7 +85,7 @@ concept FunctionArgumentsPullable = (([]<class R, class... A>(std::in_place_type
 }
 
 template <class CallableType>
-decltype(auto) normalizeCallable(CallableType&& callable) {
+static inline decltype(auto) normalizeCallable(CallableType&& callable) {
 
   using Traits = detail::ContextTraits<FunctionType<CallableType>>;
 
@@ -117,7 +117,7 @@ struct LuaClosureTraits {
 
 namespace detail {
 
-int handleNormalizedCallableInLuaFunction(lua_State* L, auto&& callable) {
+static inline int handleNormalizedCallableInLuaFunction(lua_State* L, auto&& callable) {
   return [&]<class R, class... A>(std::in_place_type_t<R(lua_State*, A...)>) {
     return std::apply([&](auto&&... args) {
       if constexpr (std::same_as<R, void>) {
@@ -199,7 +199,7 @@ struct LuaTraits<T> {
 
 namespace detail {
 
-decltype(auto) luaFunctionPipe(lua_State* L, auto&& after, auto&& before, auto&&... args) {
+static inline decltype(auto) luaFunctionPipe(lua_State* L, auto&& after, auto&& before, auto&&... args) {
   using ReturnValue = decltype(std::forward<decltype(before)>(before)(L, std::forward<decltype(args)>(args)...));
   if constexpr (std::same_as<ReturnValue, void>) {
     std::forward<decltype(before)>(before)(L, std::forward<decltype(args)>(args)...);

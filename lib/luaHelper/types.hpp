@@ -5,6 +5,45 @@
 
 namespace pallet::luaHelper {
 
+
+struct LuaNumber {
+  lua_Number number;
+  inline constexpr LuaNumber(lua_Number n) : number(n) {};
+};
+
+template <>
+struct LuaTraits<LuaNumber> {
+  static inline bool check(lua_State* L, int index) {
+    return lua_type(L, index) == LUA_TNUMBER;
+  }
+
+  static inline void push(lua_State* L, auto&& val) {
+    lua_pushnumber(L, val.number);
+  }
+
+  static inline lua_Number pull(lua_State* L, int index) {
+    return lua_tonumber(L, index);
+  }
+};
+
+struct LuaNil {};
+
+template<>
+struct LuaTraits<LuaNil> {
+  static inline bool check(lua_State* L, int index) {
+    return lua_type(L, index) == LUA_TNIL;
+  }
+
+  static inline void push(lua_State* L, auto&&) {
+    lua_pushnil(L);
+  }
+
+  static inline LuaNil pull(lua_State*, int) {
+    return LuaNil{};
+  }
+};
+
+
 struct ReturnStackTop {};
 
 struct StackIndex {
@@ -68,8 +107,29 @@ static inline RegistryIndex store(lua_State* L, auto&& item) {
   return RegistryIndex{luaL_ref(L, LUA_REGISTRYINDEX)};
 };
 
+static inline void store(lua_State* L, void* key, auto&& item) {
+  luaHelper::push(L, item);
+  lua_rawsetp(L, LUA_REGISTRYINDEX, key);
+};
+
+static inline void registryPush(lua_State* L, void* key) {
+  lua_rawgetp(L, LUA_REGISTRYINDEX, key);
+}
+
+template <class T>
+static inline T pull(lua_State* L, void* key) {
+  registryPush(L, key);
+  return luaHelper::pull<T>(L, -1);
+}
+
+
 static inline void free(lua_State* L, RegistryIndex index) {
   luaL_unref(L, LUA_REGISTRYINDEX, index.getIndex());
+}
+
+static inline void free(lua_State* L, void* key) {
+  luaHelper::push(L, LuaNil{});
+  lua_rawsetp(L, LUA_REGISTRYINDEX, key);
 }
 
 template <class T>
@@ -84,26 +144,5 @@ template <class T>
 static inline T pull(lua_State* L, StackIndex index) {
   return luaHelper::pull<T>(L, index.getIndex());
 }
-
-
-struct LuaNumber {
-  lua_Number number;
-  inline constexpr LuaNumber(lua_Number n) : number(n) {};
-};
-
-template <>
-struct LuaTraits<LuaNumber> {
-  static inline bool check(lua_State* L, int index) {
-    return lua_type(L, index) == LUA_TNUMBER;
-  }
-
-  static inline void push(lua_State* L, auto&& val) {
-    lua_pushnumber(L, val.number);
-  }
-
-  static inline lua_Number pull(lua_State* L, int index) {
-    return lua_tonumber(L, index);
-  }
-};
 
 }

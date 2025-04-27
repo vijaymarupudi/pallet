@@ -7,6 +7,8 @@ namespace pallet {
 
 using namespace pallet::luaHelper;
 
+char luaGridWrapperClassKey = 'g';
+
   /*
  * Grid bindings
  */
@@ -73,22 +75,45 @@ struct LuaRetrieveContext<MonomeGridInterface&> {
 };
 }
 
+// template <>
+// struct LuaTraits<GridWrapper> {
+//   static inline void push(lua_State* L, concepts::DecaysTo<GridWrapper> auto&& wrapper) {
+
+//   }
+// };
+
+
 static void bindGrid(lua_State* L) {
 
   using pallet::luaHelper::cw;
 
-  auto& gridClass = LuaClass<GridWrapper>::create(L, "grid");
+  auto& gridClass = LuaClass<GridWrapper>::create(L, "grid", &luaGridWrapperClassKey);
 
   auto b = gridClass.beginBatch();
 
-  gridClass.addStaticMethod("connect", [](MonomeGridInterface& iface, MonomeGridInterface::Id id,
+  gridClass.addStaticMethod("connect", [](lua_State* L,
+                                          MonomeGridInterface::Id id,
                                           LuaFunction func) {
-    iface.connect(id, [func = std::move(func)](auto&& result) mutable {
+
+    auto& iface = retrieveContext<MonomeGridInterface&>(L);
+
+    iface.connect(id, [func = std::move(func), L](auto&& result) mutable {
+
       if (result) {
-        func.call<void>(*result);
+
+        auto& iface = retrieveContext<MonomeGridInterface&>(L);
+        auto& gridClass = LuaClass<GridWrapper>::from(L, &luaGridWrapperClassKey);
+        gridClass.pushObject(L, GridWrapper(&iface, *result));
+        auto stackIndex = StackIndex{lua_gettop(L)};
+        func.call<void>(stackIndex);
+
+      } else {
+
+        func.call<void>(LuaNil{});
+
       }
+
     });
-    return GridWrapper(&iface, id);
   });
 
   gridClass.addMethodBatch(b, "led", cw<&GridWrapper::led>);

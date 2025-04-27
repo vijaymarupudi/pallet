@@ -22,4 +22,8 @@ concept HasCallOperator = requires {
 template <class T>
 concept StatelessLambdaLike = Stateless<std::remove_reference_t<T>> && HasCallOperator<std::remove_reference_t<T>>;
 
+
+template <class T, class V>
+concept DecaysTo = std::is_same_v<std::decay_t<T>, V>;
+
 }
