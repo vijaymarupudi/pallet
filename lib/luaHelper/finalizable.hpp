@@ -3,13 +3,13 @@
 #include <utility>
 #include "lua.hpp"
 #include "LuaTable.hpp"
+#include <memory>
 
 
 namespace pallet::luaHelper {
 
 namespace detail {
 inline char finalizableMetatableLocation = 'f';
-
 }
 
 static inline void createFinalizableMetatable(lua_State* L) {
@@ -40,7 +40,7 @@ static inline T& createFinalizableUserData(lua_State* L, Args&&... args) {
     luaHelper::push(L, static_cast<void*>(nullptr));
   } else {
     luaHelper::push(L, reinterpret_cast<void*>(+[](T* value) {
-      value->~T();
+      std::destroy_at(value);
     }));  
   }
   lua_setiuservalue(L, -2, 1);
