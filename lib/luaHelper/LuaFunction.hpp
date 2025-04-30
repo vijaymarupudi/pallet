@@ -6,15 +6,16 @@ namespace pallet::luaHelper {
 
 struct LuaFunction {
   lua_State* L;
-  RegistryIndex luaFunction;
+  RegistryIndex registryEntry;
 
-  LuaFunction(lua_State* L, RegistryIndex luaFunction) : L(L), luaFunction(luaFunction) {}
-  LuaFunction(LuaFunction&& other) : L(other.L), luaFunction(std::exchange(other.luaFunction, nullptr)) {}
+  LuaFunction(lua_State* L, RegistryIndex registryEntry)
+    : L(L), registryEntry(std::move(registryEntry)) {}
+  LuaFunction(LuaFunction&& other) : L(other.L), registryEntry(std::exchange(other.registryEntry, nullptr)) {}
   LuaFunction& operator=(LuaFunction&& other) = default;
 
   template <class ReturnType = void, class... Args>
   ReturnType call(Args&&... args) {
-    luaHelper::push(L, luaFunction);
+    luaHelper::push(L, registryEntry);
     (luaHelper::push(L, std::forward<Args>(args)), ...);
     
     lua_call(L, sizeof...(Args), (std::is_same_v<ReturnType, void> ? 0 : 1));
@@ -28,8 +29,8 @@ struct LuaFunction {
   }
 
   ~LuaFunction() {
-    if (luaFunction) {
-      free(L, luaFunction);
+    if (registryEntry) {
+      free(L, registryEntry);
     }
   }
 };
@@ -41,7 +42,8 @@ struct LuaTraits<LuaFunction> {
   }
 
   static inline LuaFunction pull(lua_State* L, int index) {
-    return LuaFunction{L, store(L, StackIndex{index})};
+    auto registryIndex = store(L, StackIndex{index});
+    return LuaFunction{L, std::move(registryIndex)};
   }
 };
 

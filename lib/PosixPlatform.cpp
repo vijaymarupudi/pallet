@@ -181,7 +181,7 @@ void PosixPlatform::loopIter() {
     this->pollFds.push_back(std::move(item));
   }
   poll(this->pollFds.data(), this->pollFds.size(), -1);
-  for (size_t i = 0; i < this->pollFds.size(); i++) {
+  for (size_t i = 0; (i < this->pollFds.size()) && this->mRunning; i++) {
     if (this->pollFds[i].revents) {
       int fd = this->pollFds[i].fd;
       assert(this->fdCallbacks.find(fd) != this->fdCallbacks.end());

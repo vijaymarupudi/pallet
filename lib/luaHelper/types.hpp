@@ -50,22 +50,22 @@ struct ReturnStackTop {};
 
 struct StackIndex {
   int index;
-  int getIndex() const {
+  constexpr int getIndex() const {
     return index;
   }
 };
 
 struct RegistryIndex {
   int index;
-  int getIndex() const {
+  constexpr int getIndex() const {
     return index;
   }
   
-  operator bool () const {
+  constexpr operator bool () const {
     return !(index == LUA_NOREF);
   }
 
-  RegistryIndex& operator=(const std::nullptr_t&) {
+  constexpr RegistryIndex& operator=(const std::nullptr_t&) {
     index = LUA_NOREF;
     return *this;
   }
@@ -80,7 +80,7 @@ struct LuaTraits<StackIndex> {
     return true;
   }
   static inline void push(lua_State* L, StackIndex index) {
-    lua_pushvalue(L, index.index);
+    lua_pushvalue(L, index.getIndex());
   }
 
   static inline StackIndex pull(lua_State* L, int index) {
@@ -105,7 +105,7 @@ struct LuaTraits<ReturnStackTop> {
 };
 
 static inline RegistryIndex store(lua_State* L, auto&& item) {
-  luaHelper::push(L, item);
+  luaHelper::push(L, std::forward<decltype(item)>(item));
   return RegistryIndex{luaL_ref(L, LUA_REGISTRYINDEX)};
 };
 

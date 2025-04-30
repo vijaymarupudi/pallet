@@ -194,7 +194,7 @@ LuaInterface::~LuaInterface() {
 }
 
 
-static void luaBindPlatform(lua_State* L) {
+static void bindPlatform(lua_State* L) {
   getPalletCTable(L);
   auto palletCTableIndex = lua_gettop(L);
   rawSetTable(L, palletCTableIndex, "quit",
@@ -207,7 +207,7 @@ static void luaBindPlatform(lua_State* L) {
 
 void LuaInterface::setPlatform(Platform& platform) {
   this->platform = &platform;
-  luaBindPlatform(this->L);
+  bindPlatform(this->L);
 }
 
 }
