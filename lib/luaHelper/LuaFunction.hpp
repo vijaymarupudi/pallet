@@ -12,7 +12,7 @@ struct LuaFunction {
   LuaFunction(LuaFunction&& other) : L(other.L), luaFunction(std::exchange(other.luaFunction, nullptr)) {}
   LuaFunction& operator=(LuaFunction&& other) = default;
 
-  template <class ReturnType, class... Args>
+  template <class ReturnType = void, class... Args>
   ReturnType call(Args&&... args) {
     luaHelper::push(L, luaFunction);
     (luaHelper::push(L, std::forward<Args>(args)), ...);
@@ -23,7 +23,7 @@ struct LuaFunction {
     } else {
       auto&& ret = luaHelper::pull<ReturnType>(L, -1);
       lua_pop(L, 1);
-      return std::forward<decltype(ret)>(ret);
+      return ret;
     }
   }
 

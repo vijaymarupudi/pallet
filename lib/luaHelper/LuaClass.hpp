@@ -10,24 +10,24 @@
 namespace pallet::luaHelper {
 template <class T>
 class LuaClass {
+  static constexpr inline const char key = 'k';
+  static constexpr inline const void* const classKey = &key;
   lua_State* L;
   const char* name;
 public:
-  void* classKey;
   RegistryIndex metatableRef;
 
-  static inline LuaClass& create(lua_State* L, const char* name, void* key) {
-    return createFinalizableUserData<LuaClass>(L, PrivateTag, L, name, key);
+  static inline LuaClass& create(lua_State* L, const char* name) {
+    return createFinalizableUserData<LuaClass>(L, PrivateTag, L, name);
   }
 
-  static inline LuaClass& from(lua_State* L, void* key) {
-    return *pull<LuaClass*>(L, key);
+  static inline LuaClass& from(lua_State* L) {
+    return *pull<LuaClass*>(L, classKey);
   }
 
   LuaClass(PrivateTagType, lua_State* L,
-           const char* name, void* key) : L(L),
-                                          name(name),
-                                          classKey(key) {
+           const char* name) : L(L),
+                               name(name) {
 
     // store pointer to self
     store(L, classKey, this);
@@ -54,19 +54,19 @@ public:
     auto table = LuaTable::from(L, metatableRef);
     
     table.rawset(name, luaClosureChain(std::forward<decltype(function)>(function), pallet::overloaded {
-        [](lua_State* L) {
-          (void)L;
-          return;
-        },
-          [this](lua_State* L, auto&& val) {
-            if constexpr (std::same_as<std::decay_t<decltype(val)>, T>) {
-              this->pushObject(L, std::forward<decltype(val)>(val));
-              return ReturnStackTop{};
-            } else {
-              return val;
+          [](lua_State* L) {
+            (void)L;
+            return;
+          },
+            [this](lua_State* L, auto&& val) {
+              if constexpr (std::same_as<std::decay_t<decltype(val)>, T>) {
+                this->pushObject(L, std::forward<decltype(val)>(val));
+                return ReturnStackTop{};
+              } else {
+                return val;
+              }
             }
-          }
-          }));
+            }));
 
     lua_pop(L, 1); // the table
   }
@@ -83,18 +83,23 @@ public:
   template <auto memberFunc>
   void addMethodBatch(StackIndex index, const char* name, constant_wrapper<memberFunc>) {
     auto metatable = LuaTable{L, index};
+
+    auto action = [&]<class... A>() {
+      metatable.rawset(name, [](T* ptr, A... args) {
+        return (ptr->*memberFunc)(std::forward<A>(args)...);
+      });
+    };
+
     (pallet::overloaded {
-      [&]<class R, class... A>(R(T::*)(A...)) {
-        metatable.rawset(name, [](T* ptr, A... args) {
-          return (ptr->*memberFunc)(std::forward<A>(args)...);
-        });
+      [&]<class R, class L, class... A>(R(L::*)(A...) const) {
+        action.template operator()<A...>();
       },
-      [&]<class R, class... A>(R(T::*)(A...) const) {
-        metatable.rawset(name, [](T* ptr, A... args) {
-          return (ptr->*memberFunc)(std::forward<A>(args)...);
-        });
-      }
+        [&]<class R, class L, class... A>(R(L::*)(A...)) {
+          action.template operator()<A...>();
+        }
     })(memberFunc);
+
+    
   }
 
   void addMethodBatch(StackIndex index, const char* name, concepts::StatelessLambdaLike auto&& function) {
@@ -136,6 +141,14 @@ public:
     free(L, metatableRef);
     free(L, classKey);
   }
+
+
+  struct LuaTraits {
+    static inline void push(lua_State* L, T value) {
+      auto& cls = LuaClass::from(L);
+      cls.pushObject(L, std::move(value));
+    }
+  };
 
 };
 

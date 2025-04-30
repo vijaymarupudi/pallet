@@ -2,7 +2,7 @@ local __pallet = require('__pallet')
 
 return {
    clock = __pallet.clock,
-   grid = require("pallet.grid"),
+   grid = __pallet.grid,
    beatClock = __pallet.beatClock,
    screen = __pallet.screen,
    midi = __pallet.midi,

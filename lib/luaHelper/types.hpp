@@ -26,10 +26,12 @@ struct LuaTraits<LuaNumber> {
   }
 };
 
-struct LuaNil {};
+struct LuaNilType {};
+
+const constexpr LuaNilType LuaNil;
 
 template<>
-struct LuaTraits<LuaNil> {
+struct LuaTraits<LuaNilType> {
   static inline bool check(lua_State* L, int index) {
     return lua_type(L, index) == LUA_TNIL;
   }
@@ -38,8 +40,8 @@ struct LuaTraits<LuaNil> {
     lua_pushnil(L);
   }
 
-  static inline LuaNil pull(lua_State*, int) {
-    return LuaNil{};
+  static inline LuaNilType pull(lua_State*, int) {
+    return LuaNil;
   }
 };
 
@@ -107,17 +109,17 @@ static inline RegistryIndex store(lua_State* L, auto&& item) {
   return RegistryIndex{luaL_ref(L, LUA_REGISTRYINDEX)};
 };
 
-static inline void store(lua_State* L, void* key, auto&& item) {
+static inline void store(lua_State* L, const void* key, auto&& item) {
   luaHelper::push(L, item);
   lua_rawsetp(L, LUA_REGISTRYINDEX, key);
 };
 
-static inline void registryPush(lua_State* L, void* key) {
+static inline void registryPush(lua_State* L, const void* key) {
   lua_rawgetp(L, LUA_REGISTRYINDEX, key);
 }
 
 template <class T>
-static inline T pull(lua_State* L, void* key) {
+static inline T pull(lua_State* L, const void* key) {
   registryPush(L, key);
   return luaHelper::pull<T>(L, -1);
 }
@@ -127,8 +129,8 @@ static inline void free(lua_State* L, RegistryIndex index) {
   luaL_unref(L, LUA_REGISTRYINDEX, index.getIndex());
 }
 
-static inline void free(lua_State* L, void* key) {
-  luaHelper::push(L, LuaNil{});
+static inline void free(lua_State* L, const void* key) {
+  luaHelper::push(L, LuaNil);
   lua_rawsetp(L, LUA_REGISTRYINDEX, key);
 }
 
@@ -137,7 +139,7 @@ static inline T pull(lua_State* L, RegistryIndex index) {
   luaHelper::push(L, index);
   auto&& val = luaHelper::pull<T>(L, -1);
   lua_pop(L, 1);
-  return std::forward<decltype(val)>(val);
+  return val;
 }
 
 template <class T>

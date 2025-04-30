@@ -7,7 +7,7 @@ namespace pallet {
 
 using namespace pallet::luaHelper;
 
-char luaGridWrapperClassKey = 'g';
+char GridWrapperKey = 'g';
 
   /*
  * Grid bindings
@@ -66,7 +66,14 @@ public:
   }
 };
 
+
+using GridLuaClass = LuaClass<GridWrapper>;
+
 namespace luaHelper {
+
+template <>
+struct LuaTraits<GridWrapper> : public GridLuaClass::LuaTraits {};
+
 template <>
 struct LuaRetrieveContext<MonomeGridInterface&> {
   static inline MonomeGridInterface& retrieve(lua_State* L) {
@@ -87,32 +94,21 @@ static void bindGrid(lua_State* L) {
 
   using pallet::luaHelper::cw;
 
-  auto& gridClass = LuaClass<GridWrapper>::create(L, "grid", &luaGridWrapperClassKey);
+  auto& gridClass = GridLuaClass::create(L, "grid");
 
   auto b = gridClass.beginBatch();
 
-  gridClass.addStaticMethod("connect", [](lua_State* L,
+  gridClass.addStaticMethod("connect", [](MonomeGridInterface& iface,
                                           MonomeGridInterface::Id id,
                                           LuaFunction func) {
-
-    auto& iface = retrieveContext<MonomeGridInterface&>(L);
-
-    iface.connect(id, [func = std::move(func), L](auto&& result) mutable {
-
+    iface.connect(id, [func = std::move(func),
+                       iface = &iface] (auto&& result)
+                  mutable {
       if (result) {
-
-        auto& iface = retrieveContext<MonomeGridInterface&>(L);
-        auto& gridClass = LuaClass<GridWrapper>::from(L, &luaGridWrapperClassKey);
-        gridClass.pushObject(L, GridWrapper(&iface, *result));
-        auto stackIndex = StackIndex{lua_gettop(L)};
-        func.call<void>(stackIndex);
-
+        func.call(GridWrapper(iface, *result));
       } else {
-
-        func.call<void>(LuaNil{});
-
+        func.call(LuaNil);
       }
-
     });
   });
 
@@ -128,7 +124,7 @@ static void bindGrid(lua_State* L) {
   gridClass.addMethodBatch(b, "listen", [](GridWrapper* wrapper,
                                            LuaFunction func) {
     return wrapper->listen([func=std::move(func)](int x, int y, int z) mutable {
-      func.call<void>(x, y, z);
+      func.call(x, y, z);
     });
   });
   gridClass.addMethodBatch(b, "unlisten", cw<&GridWrapper::unlisten>);
