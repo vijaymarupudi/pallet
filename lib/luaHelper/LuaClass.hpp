@@ -144,6 +144,7 @@ public:
 
 
   struct LuaTraits {
+    // only follows value semantics
     static inline void push(lua_State* L, T value) {
       auto& cls = LuaClass::from(L);
       cls.pushObject(L, std::move(value));

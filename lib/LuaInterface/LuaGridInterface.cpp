@@ -102,10 +102,10 @@ static void bindGrid(lua_State* L) {
                                           MonomeGridInterface::Id id,
                                           LuaFunction func) {
     iface.connect(id, [func = std::move(func),
-                       iface = &iface] (auto&& result)
+                       &iface] (auto&& result)
                   mutable {
       if (result) {
-        func.call(GridWrapper(iface, *result));
+        func.call(GridWrapper(&iface, *result));
       } else {
         func.call(LuaNil);
       }

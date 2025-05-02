@@ -147,4 +147,31 @@ static inline T pull(lua_State* L, StackIndex index) {
   return luaHelper::pull<T>(L, index.getIndex());
 }
 
+template <class T>
+struct LuaUserData {
+  lua_State* L;
+  StackIndex index;
+  T& operator*() const {
+    return *luaHelper::pull<T*>(L, index);
+  }
+  operator StackIndex() const {
+    return index;
+  }
+};
+
+template <class T>
+struct LuaTraits<LuaUserData<T>> {
+  void push(lua_State* L, auto&& v) {
+    luaHelper::push(L, static_cast<StackIndex>(v));
+  }
+
+  LuaUserData<T> pull(lua_State* L, int index) {
+    return LuaUserData<T>(L, index);
+  }
+
+  bool check(lua_State* L, int index) {
+    return lua_isuserdata(L, index);
+  }
+};
+
 }

@@ -8,7 +8,6 @@
 #include "pallet/io.hpp"
 
 int cliMain(const char* filename) {
-
   auto res = pallet::LuaInterface::create().and_then([&](auto&& luaInterface) {
     return pallet::LinuxPlatform::create().and_then([&](auto&& platform) {
       return pallet::Clock::create(platform).and_then([&](auto&& clock) {
@@ -36,30 +35,6 @@ int cliMain(const char* filename) {
       });
     });
   });
-  // auto beatClockResult = pallet::BeatClock::create(*clockResult);
-  // auto midiInterfaceResult = pallet::PosixMidiInterface::create(*platformResult);
-  // auto graphicsInterfaceResult = pallet::PosixGraphicsInterface::create(*platformResult);
-  // auto oscInterfaceResult = pallet::LoOscInterface::create(*platformResult);
-  // if (!oscInterfaceResult) return 1;
-  // auto gridInterfaceResult = pallet::OscMonomeGridInterface::create(*oscInterfaceResult);
-  // auto luaInterfaceResult = pallet::LuaInterface::create();
-
-  //   if (!(platformResult && clockResult && midiInterfaceResult && beatClockResult && graphicsInterfaceResult && oscInterfaceResult && gridInterfaceResult && luaInterfaceResult)) {
-  //   return 1;
-  // }
-
-  // auto& luaInterface = *luaInterfaceResult;
-  // luaInterface.setClockInterface(*clockResult);
-  // luaInterface.setBeatClock(*beatClockResult);
-  // luaInterface.setGraphicsInterface(*graphicsInterfaceResult);
-  // luaInterface.setMidiInterface(*midiInterfaceResult);
-  // luaInterface.setMonomeGridInterface(*gridInterfaceResult);
-  // luaInterface.setOscInterface(*oscInterfaceResult);
- 
-  // auto res = pallet::readFile(filename).transform([&](auto&& contents) {
-  //   luaInterface.dostring(contents.c_str());
-  //   (*platformResult).loop();
-  // });
 
   if (!res) { return 1; }
   return 0;

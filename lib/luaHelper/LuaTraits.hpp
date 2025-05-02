@@ -26,10 +26,17 @@ concept Returnable = std::same_as<T, void> || Pushable<T>;
 
 
 template <class T>
-concept Checkable = requires (lua_State* L, int index) {
+concept GeneralCheckable = requires (lua_State* L, int index) {
   { LuaTraits<std::remove_cvref_t<T>>::check(L, index) } -> std::same_as<bool>;
 };
 
+template <class T>
+concept EfficientCheckable = requires (lua_State* L, int index, int type) {
+  { LuaTraits<std::remove_cvref_t<T>>::check(L, index, type) } -> std::same_as<bool>;
+};
+
+template <class T>
+concept Checkable = GeneralCheckable<T> && EfficientCheckable<T>;
 
 template <class T, class V>
 concept NotSameAs = !std::same_as<T, V>;
@@ -56,8 +63,35 @@ static inline decltype(auto) pull(lua_State* L, int index) {
 
 template <class T>
 static inline bool isType(lua_State* L, int index) {
-  static_assert(concepts::Checkable<T>);
-  return LuaTraits<std::remove_cvref_t<T>>::check(L, index);
+  if constexpr (concepts::GeneralCheckable<T>) {
+    return LuaTraits<std::remove_cvref_t<T>>::check(L, index);  
+  } else if constexpr (concepts::EfficientCheckable<T>) {
+    auto type = lua_type(L, index);
+    return LuaTraits<std::remove_cvref_t<T>>::check(L, index, type);
+  } else {
+    static_assert(false, "Cannot check type");
+  }
+}
+
+template <class T>
+static inline bool isType(lua_State* L, int index, int type) {
+  if constexpr (concepts::GeneralCheckable<T>) {
+    return LuaTraits<std::remove_cvref_t<T>>::check(L, index);  
+  } else if constexpr (concepts::EfficientCheckable<T>) {
+    return LuaTraits<std::remove_cvref_t<T>>::check(L, index, type);
+  } else {
+    static_assert(false, "Cannot check type");
+  }
+}
+
+
+template <class T>
+static inline bool isTypeEfficient(lua_State* L, int index, int type) {  
+  if constexpr (concepts::EfficientCheckable<T>) {
+    return LuaTraits<std::remove_cvref_t<T>>::check(L, index, type);
+  } else {
+    static_assert(false, "Cannot check type efficient");
+  }
 }
 
 template <class K, class V>
@@ -88,8 +122,10 @@ checkedPullMultiple(lua_State* L, int baseIndex = 1) {
 
 template <>
 struct LuaTraits<bool> {
-  static inline bool check(lua_State* L, int index) {
-    return lua_isboolean(L, index);
+  static inline bool check(lua_State* L, int index, int type) {
+    (void)L;
+    (void)index;
+    return type == LUA_TBOOLEAN;
   }
 
   static inline void push(lua_State* L, bool val) {
@@ -121,8 +157,10 @@ struct LuaTraits<T> {
 template <class T>
 requires (std::is_convertible_v<T, std::string_view>)
 struct LuaTraits<T> {
-  static inline bool check(lua_State* L, int index) {
-    return lua_type(L, index) == LUA_TSTRING;
+  static inline bool check(lua_State* L, int index, int type) {
+    (void)L;
+    (void)index;
+    return type == LUA_TSTRING;
   }
 
   static inline void push(lua_State* L, const std::string_view& str) {
@@ -139,8 +177,8 @@ struct LuaTraits<T> {
 
 template <std::floating_point T>
 struct LuaTraits<T> {
-  static inline bool check(lua_State* L, int index) {
-    return lua_type(L, index) == LUA_TNUMBER && !lua_isinteger(L, index);
+  static inline bool check(lua_State* L, int index, int type) {
+    return type == LUA_TNUMBER && !lua_isinteger(L, index);
   }
 
   static inline void push(lua_State* L, T val) {
@@ -158,8 +196,10 @@ struct LuaTraits<lua_CFunction> {
 private:
   using T = lua_CFunction;
   public:
-  static inline bool check(lua_State* L, int index) {
-    return lua_iscfunction(L, index);
+  static inline bool check(lua_State* L, int index, int type) {
+    (void)L;
+    (void)index;
+    return type == LUA_TFUNCTION;
   }
 
   static inline void push(lua_State* L, T val) {
@@ -176,8 +216,9 @@ struct LuaTraits<const char*> {
 };
 
 
-template <std::convertible_to<lua_CFunction> T>
-struct LuaTraits<T> {
+// lua function reference (function without converting to pointer)
+template <>
+struct LuaTraits<int(lua_State* L)> {
 private:
   // using T = lua_CFunction;
   public:
@@ -185,7 +226,7 @@ private:
     return lua_iscfunction(L, index);
   }
 
-  static inline void push(lua_State* L, T val) {
+  static inline void push(lua_State* L, auto&& val) {
     lua_pushcfunction(L, val);
   }
 };
@@ -193,8 +234,10 @@ private:
 template <class T>
 requires std::is_pointer_v<T>
 struct LuaTraits<T> {
-  static inline bool check(lua_State* L, int index) {
-    return lua_islightuserdata(L, index);
+  static inline bool check(lua_State* L, int index, int type) {
+    (void)L;
+    (void)index;
+    return type == LUA_TUSERDATA;
   }
 
   static inline void push(lua_State* L, T val) {
