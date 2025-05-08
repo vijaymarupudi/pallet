@@ -12,10 +12,10 @@ static const int32_t GRID_OSC_SERVER_PORT = 7072;
 static constexpr const int32_t SERIALOSCD_PORT = 12002;
 
 
-template <class K, class V>
-static V* unsafeLookupPointer(std::unordered_map<K, V>& map, auto&& idx) {
-  auto end = map.end();
-  auto it = map.find(std::forward<decltype(idx)>(idx));
+static auto unsafeLookupPointer(auto& map, auto&& idx) {
+  using MapType = std::remove_cvref_t<decltype(map)>;
+  typename MapType::iterator end = map.end();
+  typename MapType::iterator it = map.find(std::forward<decltype(idx)>(idx));
   if (it != end) {
     return &((*it).second);
   } else {
@@ -24,8 +24,7 @@ static V* unsafeLookupPointer(std::unordered_map<K, V>& map, auto&& idx) {
   }
 }
 
-template <class K, class V>
-static V& unsafeLookup(std::unordered_map<K, V>& map, auto&& idx) {
+static decltype(auto) unsafeLookup(auto& map, auto&& idx) {
   return *unsafeLookupPointer(map, std::forward<decltype(idx)>(idx));
 }
 
@@ -300,7 +299,10 @@ static void connect(OscMonomeGridInterface& iface, GridIndex idx) {
 }
 
 static void processConnectRequests(OscMonomeGridInterface& iface) {
-  for (const auto& [idx, connectRequest] : iface.pendingConnections) {
+  decltype(iface.pendingConnections)::iterator it = iface.pendingConnections.begin();
+  decltype(iface.pendingConnections)::iterator end = iface.pendingConnections.end();
+  for (; !(it == end); ++it) {
+    const auto& [idx, connectRequest] = *it;
     if (idx < iface.gridsInformation.size()) {
       auto& state = unsafeLookup(iface.gridsStates, idx);
       if (!state.connected) {
@@ -320,6 +322,7 @@ void OscMonomeGridInterface::connectImpl(GridIndex idx, OnConnectCallback func) 
   pendingConnections.emplace(idx, std::move(func));
   processConnectRequests(*this);
 }
+
 
 
 }
