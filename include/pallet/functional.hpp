@@ -4,7 +4,7 @@
 #include <type_traits>
 #include <utility>
 #include <cstddef>
-#include "pallet/LightVariant.hpp"
+#include "pallet/variant.hpp"
 #include "pallet/concepts.hpp"
 
 namespace pallet {
@@ -74,7 +74,7 @@ class Callable<R(A...)> {
   using FuncPtrUdPair = std::pair<FuncPtrType, void*>;
   using AbsCallablePtr = std::unique_ptr<detail::AbstractCallable<R(A...)>>;
 
-  pallet::LightVariant<FuncPtrUdPair, AbsCallablePtr> mfunc;
+  pallet::Variant<FuncPtrUdPair, AbsCallablePtr> mfunc;
   
 public:
   Callable(FuncPtrType funcPtr, void* ud) : mfunc{FuncPtrUdPair{funcPtr, ud}} {}
@@ -92,7 +92,7 @@ public:
     )
   
   Callable(F&& obj) : mfunc{FuncPtrUdPair{nullptr, nullptr}} {
-    auto& funcPtrUdPair = *pallet::get_if<0>(mfunc);
+    auto& funcPtrUdPair = pallet::get<0>(mfunc);
     void*& ud = std::get<1>(funcPtrUdPair);
     new (&ud) F (std::forward<F>(obj));
     std::get<0>(funcPtrUdPair) = +[](A... args, void* ud) {
@@ -111,12 +111,12 @@ public:
   Callable(std::nullptr_t) :
     mfunc{FuncPtrUdPair(nullptr, nullptr)} {}
 
-  operator bool () {
-    if (mfunc.index() == 0 && std::get<0>(pallet::get<0>(mfunc)) == nullptr) {
-      return false;
-    } else {
-      return true;
-    }
+  // False for an empty Callable and for one that has been moved from
+  operator bool () const {
+    return pallet::visit(pallet::overloaded {
+        [](const FuncPtrUdPair& item) { return std::get<0>(item) != nullptr; },
+        [](const AbsCallablePtr& item) { return item != nullptr; }
+      }, mfunc);
   }
 
   template <class Self>

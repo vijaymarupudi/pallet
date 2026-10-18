@@ -66,7 +66,7 @@ static int luaGraphicsEventToTable(lua_State* L,
   lua_newtable(L);
   auto tableIndex = lua_gettop(L);
   lua_pushliteral(L, "type");
-  int ref = luaInterface.graphicsEventStringsRef[event.index()];
+  int ref = luaInterface.graphicsEventStringsRef[pallet::variantIndex(event)];
   lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
   lua_rawset(L, tableIndex);
 
@@ -141,7 +141,7 @@ static void bindGraphicsInterface(lua_State* L) {
 
   // intern and store graphics event strings
 
-  lightVariantForEach<pallet::GraphicsEvent>([&]<class EventType, size_t i>() {
+  variantForEach<pallet::GraphicsEvent>([&]<class EventType, size_t i>() {
       auto str = getGraphicsEventName<EventType>();
       lua_pushstring(L, str);
       int ref = luaL_ref(L, LUA_REGISTRYINDEX);

@@ -7,7 +7,7 @@
 #include "pallet/constants.hpp"
 #include "pallet/CGPixel.h"
 
-#include "pallet/LightVariant.hpp"
+#include "pallet/variant.hpp"
 
 
 namespace pallet {
@@ -46,10 +46,10 @@ struct OperationText {
 
 struct OperationClear {};
 
-using Operation = LightVariant<OperationRect,
-                               OperationPoint,
-                               OperationText,
-                               OperationClear>;
+using Operation = Variant<OperationRect,
+                          OperationPoint,
+                          OperationText,
+                          OperationClear>;
 
 }
 
@@ -76,10 +76,10 @@ struct GraphicsEventKey {
 struct GraphicsEventQuit {};
 
 
-using GraphicsEvent = LightVariant<GraphicsEventMouseButton,
-                                   GraphicsEventMouseMove,
-                                   GraphicsEventKey,
-                                   GraphicsEventQuit>;
+using GraphicsEvent = Variant<GraphicsEventMouseButton,
+                              GraphicsEventMouseMove,
+                              GraphicsEventKey,
+                              GraphicsEventQuit>;
 
 template <class T>
 consteval const char* getGraphicsEventName() {

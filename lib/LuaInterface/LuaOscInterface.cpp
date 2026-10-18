@@ -1,6 +1,6 @@
 #include "pallet/LuaInterface.hpp"
 #include "../LuaInterfaceImpl.hpp"
-#include "../luaHelper/LightVariant.hpp"
+#include "../luaHelper/variant.hpp"
 #include "../luaHelper/vector.hpp"
 #include "../luaHelper/LuaFunction.hpp"
 

@@ -90,11 +90,6 @@ static void render(OscMonomeGridInterface& iface, GridIndex id) {
 }
 
 
-template <class Type>
-static decltype(auto) get_unchecked(auto&& variant) {
-  return std::forward<decltype(variant)>(variant).template get_unchecked<Type>();
-}
-
 template <class... Types>
 std::tuple<Types...> extractOscValues(const OscItem* items) {
   auto tmp = ([&]<class... T, size_t... index>(std::index_sequence<index...>) {

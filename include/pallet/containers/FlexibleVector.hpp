@@ -1,12 +1,14 @@
-#include "pallet/LightVariant.hpp"
+#pragma once
+#include <vector>
+#include "pallet/variant.hpp"
 #include "pallet/containers/StaticVector.hpp"
 
 namespace pallet::containers {
 
 template <class T, size_t N>
 class FlexibleVector {
-  LightVariant<StaticVector<T, N>,
-               std::vector<T>> vec;
+  Variant<StaticVector<T, N>,
+          std::vector<T>> vec;
 
 public:
 
@@ -35,9 +37,9 @@ public:
             for (size_t i = 0; i < vec.size(); i++) {
               newvec.push_back(std::move(vec[i]));
             }
-            this->vec = std::move(newvec);
-            // clear old vec
+            // clear old vec before the assignment below destroys it
             vec.clear();
+            this->vec = std::move(newvec);
           }
         },
           [&](std::vector<T>& vec) {
