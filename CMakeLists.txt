@@ -69,6 +69,8 @@ target_include_directories(pallet PUBLIC include)
 target_compile_options(pallet PRIVATE -fno-exceptions)
 add_dependencies(pallet PalletLuaFilesystem)
 
+if (PROJECT_IS_TOP_LEVEL)
+
 add_executable(main src/main.cpp)
 set_property(TARGET main PROPERTY CXX_STANDARD 23)
 target_link_libraries(main pallet)
@@ -89,3 +91,5 @@ add_executable(measure-timing-latency
                src/measure-timing-latency.cpp)
 target_link_libraries(measure-timing-latency pallet)
 set_property(TARGET measure-timing-latency PROPERTY CXX_STANDARD 23)
+
+endif()
