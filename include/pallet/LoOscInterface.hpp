@@ -65,6 +65,7 @@ public:
   virtual void freeAddress(AddressId id) override;
 
   virtual ServerId createServer(int port) override;
+  virtual int serverPort(ServerId) override;
   virtual void freeServer(ServerId id) override;
 
   virtual MessageEvent::Id listen(ServerId id, MessageEvent::Callback callback) override;

@@ -98,6 +98,20 @@ public:
     return emplaceToStorage(std::forward<Args>(args)...);
   }
 
+  // number of slots, live or free; valid ids are below this
+  size_t slots() const {
+    return storage.size();
+  }
+
+  // whether index refers to a live entry
+  bool contains(Id index) {
+    if (index >= storage.size()) { return false; }
+    for (size_t i = 0; i < freeVector.size(); i++) {
+      if (freeVector[i] == index) { return false; }
+    }
+    return true;
+  }
+
   void free(Id index) {
     Space<EntryType>& space = storage[index];
     space.destroy();
@@ -159,7 +173,13 @@ public:
 
   IdTableIterator<IdTable> begin () {
     std::sort(freeVector.begin(), freeVector.end(), std::greater<Id>{});
-    return IdTableIterator<IdTable> {this, 0, static_cast<std::ptrdiff_t>(freeVector.size() - 1)};
+    IdTableIterator<IdTable> it {this, 0, static_cast<std::ptrdiff_t>(freeVector.size() - 1)};
+    if (it.freeVectorIndex >= 0 && freeVector[it.freeVectorIndex] == 0) {
+      // slot 0 is free, so start at the first live slot
+      it.freeVectorIndex--;
+      ++it;
+    }
+    return it;
   }
 
   IdTableIterator<IdTable> end () {

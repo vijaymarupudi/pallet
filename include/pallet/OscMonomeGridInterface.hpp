@@ -1,7 +1,11 @@
+#pragma once
+
+#include <cstdint>
+#include <deque>
 #include <optional>
 #include <string>
 #include <unordered_map>
-#include <queue>
+#include <utility>
 
 #include "MonomeGridInterface.hpp"
 #include "OscInterface.hpp"
@@ -21,7 +25,14 @@ struct IdWrapper {
   IdWrapper() : iface{nullptr}, id{0} {}
   IdWrapper(IdWrapper&& other) : iface{std::exchange(other.iface, nullptr)},
                              id{std::exchange(other.id, 0)} {}
-  IdWrapper& operator=(IdWrapper&& other) = default;
+  IdWrapper& operator=(IdWrapper&& other) {
+    if (this != &other) {
+      disconnect();
+      iface = std::exchange(other.iface, nullptr);
+      id = std::exchange(other.id, 0);
+    }
+    return *this;
+  }
   
   operator bool() const {
     return !(id == 0);
@@ -78,99 +89,37 @@ struct OscServer : public IdWrapper<OscInterface, OscInterface::ServerId, OscSer
 };
 
 
-// struct OscAddress {
-//   OscInterface* iface;
-//   OscInterface::AddressId address;
-//   static OscAddress create(OscInterface* iface, int port) {
-//     return OscAddress(iface, iface->createAddress(port));
-//   }
-//   OscAddress(OscInterface* iface, OscInterface::AddressId address) : iface{iface}, address{address + 1} {}
-//   OscAddress() : iface{nullptr}, address{0} {}
-//   OscAddress(OscAddress&& other) : iface{std::exchange(other.iface, nullptr)},
-//                              address{std::exchange(other.address, 0)} {}
-//   OscAddress& operator=(OscAddress&& other) = default;
-  
-//   operator bool() const {
-//     return !(address == 0);
-//   }
-//   OscInterface::AddressId getId() const {
-//     return address - 1;
-//   }
-
-//   void disconnect() {
-//     if (*this) {
-//       iface->freeAddress(getId());
-//       this->address = 0;
-//     }
-//   }
-  
-//   ~OscAddress() {
-//     disconnect();
-//   }
-// };
-  
-
-
-
-
-// struct OscServer {
-//   OscInterface* iface;
-//   OscInterface::ServerId server;
-//   static OscServer create(OscInterface* iface, int port) {
-//     return OscServer(iface, iface->createServer(port));
-//   }
-//   OscServer() : iface(nullptr), server(0) {}
-//   OscServer(OscInterface* iface, OscInterface::ServerId iserver) : iface(iface), server(server + 1) {}
-//   OscServer(OscServer&& other) : iface(std::exchange(other.iface, nullptr)),
-//                                  server(std::exchange(other.server, 0)) {}
-//   OscServer& operator=(OscServer&& other) = default;
-//   operator bool() const {
-//     return server != 0;
-//   }
-//   OscInterface::ServerId getId() const {
-//     return server - 1;
-//   }
-//   void disconnect() {
-//     iface->freeServer(getId());
-//     this->server = 0;
-//   }
-//   ~OscServer() {
-//     if (*this) {
-//       disconnect();
-//     }
-//   }
-// }
-
-
-struct GridInfo {
-  std::string id;
-  std::string type;
-  int port;
-  OscAddress addr;
-  std::string prefix;
-  std::string host;
-  int index;
-  int rows;
-  int cols;
-  int rotation;
-};
-
 struct LEDState {
-  QuadType data[4];
+  QuadType data[4] = {};
   uint8_t dirty = 0xFF;
 };
 
-struct GridState {
-  bool connected = false;
-  bool new_ = true;
+// Everything known about one serialosc device. Devices are never
+// removed from the table, so a device's position is its stable
+// MonomeGridInterface::Id.
+struct Device {
+  enum class Phase {
+    Probing,    // waiting for the /sys/info reply
+    Ready,      // properties known, nobody has connected to it
+    Connected,  // connected, and the device is present
+    Gone,       // unplugged, or about to be re-probed
+  };
+
+  std::string id;
+  std::string type;
+  OscAddress addr;
+  int rows = 0;
+  int cols = 0;
+  int rotation = 0;
+  Phase phase = Phase::Probing;
+  // set by connect(), kept across unplugging so that the grid is
+  // re-activated when it comes back
+  bool claimed = false;
   LEDState ledState;
   Event<void(int, int, int)> onKey;
-  int nQuads;
 };
 
 }
-
-using namespace grid::implementation;
 
 struct OscMonomeGridInterface final : public MonomeGridInterface {
 public:
@@ -180,20 +129,35 @@ public:
   using GridIndex = MonomeGridInterface::Id;
 
   static Result<OscMonomeGridInterface> create(OscInterface& oscInterface);
-  OscMonomeGridInterface(OscInterface& iface, OscAddress serialoscdAddr, OscServer oscServer);
-  
-  OscInterface* oscInterface;
-  OscAddress serialoscdAddr;
-  OscServer oscServer;
+  // the OSC listener captures this
+  OscMonomeGridInterface(const OscMonomeGridInterface&) = delete;
+  OscMonomeGridInterface& operator=(const OscMonomeGridInterface&) = delete;
 
-  std::unordered_map<GridIndex, GridState> gridsStates;
-  
-  std::vector<GridInfo> gridsInformation;
-  std::unordered_map<std::string, GridIndex> gridsInformationIdxById;
-  std::queue<GridInfo> devicePropertiesProcessingQueue;
+  OscMonomeGridInterface(OscInterface& iface, grid::implementation::OscAddress serialoscdAddr,
+                         grid::implementation::OscServer oscServer);
+
+  OscInterface* oscInterface;
+  grid::implementation::OscAddress serialoscdAddr;
+  grid::implementation::OscServer oscServer;
+  // the port that oscServer actually listens on, chosen by the system
+  int serverPort;
+
+  // index == GridIndex; a deque so that references stay valid when
+  // devices are added
+  std::deque<grid::implementation::Device> devices;
+  std::unordered_map<std::string, GridIndex> devicesById;
+  // connect() requests for devices that are not ready yet (or not
+  // discovered yet)
   std::unordered_map<GridIndex, MonomeGridInterface::OnConnectCallback> pendingConnections;
+  // connect() requests by serial for devices that are not discovered
+  // yet; moved to pendingConnections once the device gets an index
+  std::unordered_map<std::string, MonomeGridInterface::OnConnectCallback> pendingSerialConnections;
+  // Devices waiting for properties. Replies to /sys/info carry no
+  // sender, so only the front device is queried and replies belong to it.
+  std::deque<GridIndex> probeQueue;
 
   virtual void connectImpl(Id idx, OnConnectCallback) override;
+  virtual void connectBySerialImpl(std::string_view serial, OnConnectCallback) override;
   virtual void ledImpl(Id id, int x, int y, int c) override;
   virtual void allImpl(Id id, int c) override;
   virtual void clearImpl(Id id) override;

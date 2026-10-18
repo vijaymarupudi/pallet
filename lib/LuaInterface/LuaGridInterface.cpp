@@ -2,6 +2,7 @@
 #include "../LuaInterfaceImpl.hpp"
 #include "../luaHelper/LuaFunction.hpp"
 #include "../luaHelper/LuaClass.hpp"
+#include "../luaHelper/variant.hpp"
 
 namespace pallet {
 
@@ -98,18 +99,32 @@ static void bindGrid(lua_State* L) {
 
   auto b = gridClass.beginBatch();
 
+  // grid.connect(index, func) or grid.connect(serial, func). The serial
+  // is stable across runs; the index is the discovery order.
   gridClass.addStaticMethod("connect", [](MonomeGridInterface& iface,
-                                          MonomeGridInterface::Id id,
+                                          Variant<int, std::string_view> which,
                                           LuaFunction func) {
-    iface.connect(id, [func = std::move(func),
-                       &iface] (auto&& result)
-                  mutable {
+    auto onConnect = [func = std::move(func),
+                      &iface] (auto&& result)
+                     mutable {
       if (result) {
         func.call(GridWrapper(&iface, *result));
       } else {
         func.call(LuaNil);
       }
-    });
+    };
+    if (auto* luaId = pallet::get_if<int>(which)) {
+      // Lua indexes grids from 1, like the screen coordinates
+      if (*luaId < 1) {
+        onConnect(Result<MonomeGridInterface::Id>(pallet::error(
+          std::make_error_condition(std::errc::invalid_argument))));
+        return;
+      }
+      iface.connect(static_cast<MonomeGridInterface::Id>(*luaId - 1), std::move(onConnect));
+    } else {
+      // the string_view points into the Lua stack; connect() copies it
+      iface.connect(pallet::get_unchecked<std::string_view>(which), std::move(onConnect));
+    }
   });
 
   gridClass.addMethodBatch(b, "led", cw<&GridWrapper::led>);

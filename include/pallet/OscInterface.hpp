@@ -21,7 +21,9 @@ public:
   virtual AddressId createAddress(int port) = 0;
   virtual void freeAddress(AddressId) = 0;
 
+  // port 0 lets the system choose a free port, see serverPort
   virtual ServerId createServer(int port) = 0;
+  virtual int serverPort(ServerId) = 0;
   virtual void freeServer(ServerId) = 0;
 
   virtual MessageEvent::Id listen(ServerId, MessageEvent::Callback) = 0;

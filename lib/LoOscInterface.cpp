@@ -40,12 +40,22 @@ static LoAddressType makeLoAddress(int port) {
 static LoServerPtr makeLoServer(int port) {
   char buf[16];
   snprintf(buf, 16, "%d", port);
-  auto server = lo_server_new(buf, oscInterfaceLoOnErrorFunc);
-  return LoServerPtr {server};
+  // a null port lets liblo choose a free one
+  return LoServerPtr {lo_server_new(port == 0 ? nullptr : buf, oscInterfaceLoOnErrorFunc)};
+}
+
+// liblo ignores the iface and ip settings for UDP servers, so the
+// socket listens on every interface. Messages are not authenticated,
+// so drop everything that does not come from this machine.
+static bool isLoopbackSource(lo_message message) {
+  lo_address source = lo_message_get_source(message);
+  const char* host = source ? lo_address_get_hostname(source) : nullptr;
+  return host && strncmp(host, "127.", 4) == 0;
 }
 
 
 LoServer::LoServer(int port, PosixPlatform* iplatform) : loServer(makeLoServer(port)), platform(iplatform), port(port) {
+  if (this->loServer) { this->port = lo_server_get_port(this->loServer.get()); }
   lo_server_add_method(this->loServer.get(), NULL, NULL, LoServer::uponLoOscMessageCallback, this);
   int fd = lo_server_get_socket_fd(this->loServer.get());
   this->platform->watchFdIn(fd, LoServer::loServerFdReadyCallback, this);
@@ -96,7 +106,7 @@ LoServer::~LoServer() {
 void LoServer::uponLoMessage(const char *path, const char *types,
                    lo_arg ** argv,
                    int argc, lo_message data) {
-  (void)data;
+  if (!isLoopbackSource(data)) { return; }
   auto& buffer = this->messageBuffer;
   for (int i = 0; i < argc; i++) {
     auto arg = argv[i];
@@ -156,6 +166,10 @@ void LoOscInterface::freeAddress(AddressId id) {
 
 LoOscInterface::ServerId LoOscInterface::createServer(int port) {
   return serverIdTable.emplace(port, platform);
+}
+
+int LoOscInterface::serverPort(ServerId id) {
+  return serverIdTable[id].port;
 }
 
 void LoOscInterface::freeServer(ServerId id) {

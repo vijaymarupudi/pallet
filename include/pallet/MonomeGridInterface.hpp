@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string_view>
 #include "pallet/error.hpp"
 #include "pallet/functional.hpp"
 
@@ -62,6 +63,10 @@ public:
   using OnConnectCallback = pallet::Callable<void(pallet::Result<Id>)>;
   
   void connect(Id idx, OnConnectCallback);
+  // Connect to the grid with this serialosc serial (e.g. "m1000123").
+  // The serial is stable across runs, unlike the index. If the grid has
+  // not been discovered yet, the callback runs once it appears.
+  void connect(std::string_view serial, OnConnectCallback);
   void led(Id id, int x, int y, int c);
   void all(Id id, int c);
   void clear(Id id);
@@ -77,6 +82,7 @@ public:
 private:
   
   virtual void connectImpl(Id idx, OnConnectCallback) = 0;
+  virtual void connectBySerialImpl(std::string_view serial, OnConnectCallback) = 0;
   virtual void ledImpl(Id id, int x, int y, int c) = 0;
   virtual void allImpl(Id id, int c) = 0;
   virtual void clearImpl(Id id) = 0;
@@ -93,6 +99,10 @@ private:
 
 inline void MonomeGridInterface::connect(Id idx, OnConnectCallback func) {
   return connectImpl(idx, std::move(func));
+}
+
+inline void MonomeGridInterface::connect(std::string_view serial, OnConnectCallback func) {
+  return connectBySerialImpl(serial, std::move(func));
 }
 
 inline void MonomeGridInterface::render(Id id) {

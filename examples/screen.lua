@@ -16,7 +16,7 @@ local function text(x, y, string, c)
 end
 
 grid.connect(1, function(g)
-  g:setOnKey(function(x, y, z)
+  g:listen(function(x, y, z)
     TEXT = string.format("%d %d %d", x, y, z)
   end)
 end)
