@@ -66,8 +66,10 @@ struct OscAddressTraits {
 struct OscAddress : public IdWrapper<OscInterface, OscInterface::AddressId, OscAddressTraits> {
   using IdWrapper::IdWrapper;
 
-  static OscAddress create(OscInterface* iface, int port) {
-    return OscAddress(iface, iface->createAddress(port));
+  static Result<OscAddress> create(OscInterface* iface, int port) {
+    return iface->createAddress(port).transform([&](OscInterface::AddressId id) {
+      return OscAddress(iface, id);
+    });
   }
   
 };
@@ -82,8 +84,10 @@ struct OscServerTraits {
 struct OscServer : public IdWrapper<OscInterface, OscInterface::ServerId, OscServerTraits> {
   using IdWrapper::IdWrapper;
 
-  static OscServer create(OscInterface* iface, int port) {
-    return OscServer(iface, iface->createServer(port));
+  static Result<OscServer> create(OscInterface* iface, int port) {
+    return iface->createServer(port).transform([&](OscInterface::ServerId id) {
+      return OscServer(iface, id);
+    });
   }
 
 };
@@ -124,8 +128,6 @@ struct Device {
 struct OscMonomeGridInterface final : public MonomeGridInterface {
 public:
 
-  using AddressId = OscInterface::AddressId;
-  using ServerId = OscInterface::ServerId;
   using GridIndex = MonomeGridInterface::Id;
 
   static Result<OscMonomeGridInterface> create(OscInterface& oscInterface);
@@ -134,7 +136,15 @@ public:
   OscMonomeGridInterface& operator=(const OscMonomeGridInterface&) = delete;
 
   OscMonomeGridInterface(OscInterface& iface, grid::implementation::OscAddress serialoscdAddr,
-                         grid::implementation::OscServer oscServer);
+                         grid::implementation::OscServer oscServer, int serverPort);
+
+  // the number of grids serialosc has reported so far, which is also
+  // one more than the largest valid GridIndex
+  size_t deviceCount() const { return devices.size(); }
+
+private:
+  // the handling of the serialosc messages, defined in the .cpp
+  struct Protocol;
 
   OscInterface* oscInterface;
   grid::implementation::OscAddress serialoscdAddr;

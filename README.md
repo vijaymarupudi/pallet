@@ -22,7 +22,7 @@ Example use cases include:
 
 ## Current state
 
-Currently only supports Linux (liblo required), but structured in a
+Currently only supports Linux, but structured in a
 way that makes cross platform support easy to support.
 
 A primary goal for this project is to be able to run it on the
@@ -32,6 +32,19 @@ queue instead of threads**.
 
 Most interfaces (Graphics, Grid, Midi, Osc, Audio, Clock, BeatClock)
 have been implemented and are functional.
+
+## Tests
+
+```
+cmake -S . -B build -G Ninja
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
+The tests are in `tests/` and use [doctest](third-party/doctest). `test_oscpp` checks the vendored OSC
+library, `test_osc_interface` sends OSC over loopback sockets, and `test_grid` runs the serialosc grid code
+against a fake `OscInterface`. Add `-DPALLET_SANITIZE=ON` to the configure step to run them under AddressSanitizer
+and UndefinedBehaviorSanitizer. The socket test reads `/proc/net/udp`, so it needs Linux.
 
 ## What's left?
 

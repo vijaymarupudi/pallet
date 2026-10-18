@@ -22,16 +22,29 @@ static void bindOscInterface(lua_State* L) {
   auto palletCTableIndex = lua_gettop(L);
   lua_newtable(L); // osc
   int oscTableIndex = lua_gettop(L);
-  rawSetTable(L, oscTableIndex, "createServer", [](OscInterface& iface, int port) {
-    return iface.createServer(port);
+  // createServer, createAddress and listen return nil on failure, like
+  // grid.connect
+  rawSetTable(L, oscTableIndex, "createServer", [](OscInterface& iface, int port)
+                                                  -> Variant<OscInterface::ServerId, LuaNilType> {
+    if (auto id = iface.createServer(port)) { return *id; }
+    return LuaNil;
+  });
+
+  // the port that createServer(0) chose
+  rawSetTable(L, oscTableIndex, "serverPort", [](OscInterface& iface, OscInterface::ServerId serverId)
+                                                -> Variant<int, LuaNilType> {
+    if (auto port = iface.serverPort(serverId)) { return *port; }
+    return LuaNil;
   });
 
   rawSetTable(L, oscTableIndex, "freeServer", [](OscInterface& iface, OscInterface::ServerId serverId) {
     return iface.freeServer(serverId);
   });
 
-  rawSetTable(L, oscTableIndex, "createAddress", [](OscInterface& iface, int port) {
-    return iface.createAddress(port);
+  rawSetTable(L, oscTableIndex, "createAddress", [](OscInterface& iface, int port)
+                                                   -> Variant<OscInterface::AddressId, LuaNilType> {
+    if (auto id = iface.createAddress(port)) { return *id; }
+    return LuaNil;
   });
 
   rawSetTable(L, oscTableIndex, "freeAddress", [](OscInterface& iface, OscInterface::AddressId addressId) {
@@ -39,10 +52,13 @@ static void bindOscInterface(lua_State* L) {
   });
 
   rawSetTable(L, oscTableIndex, "listen", [](OscInterface& iface, OscInterface::ServerId server,
-                                             luaHelper::LuaFunction func) {
-    return iface.listen(server, [func = std::move(func)](const char* path, const OscItem* items, size_t n) mutable {
+                                             luaHelper::LuaFunction func)
+                                            -> Variant<OscInterface::MessageEvent::Id, LuaNilType> {
+    auto id = iface.listen(server, [func = std::move(func)](const char* path, const OscItem* items, size_t n) mutable {
       func.call<void>(path, std::vector(items, items + n));
     });
+    if (id) { return *id; }
+    return LuaNil;
   });
 
   rawSetTable(L, oscTableIndex, "unlisten", [](OscInterface& iface, OscInterface::ServerId server,

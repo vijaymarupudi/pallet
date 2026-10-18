@@ -9,20 +9,16 @@
 
 namespace pallet {
 
-using namespace grid::implementation;
+using grid::implementation::Device;
+using grid::implementation::LEDState;
+using grid::implementation::OscAddress;
+using grid::implementation::OscServer;
+using grid::implementation::QuadType;
 
 using GridIndex = OscMonomeGridInterface::GridIndex;
 
 static constexpr const int32_t SERIALOSCD_PORT = 12002;
 
-
-static Device* findDevice(OscMonomeGridInterface& iface, GridIndex id) {
-  return id < iface.devices.size() ? &iface.devices[id] : nullptr;
-}
-
-static const Device* findDevice(const OscMonomeGridInterface& iface, GridIndex id) {
-  return id < iface.devices.size() ? &iface.devices[id] : nullptr;
-}
 
 static inline int calcQuadIndex(int x, int y) {
   return (x / 8) + (y / 8) * 2;
@@ -71,6 +67,31 @@ static void sendQuad(OscInterface* iface, const OscAddress& addr, const LEDState
   })(std::make_index_sequence<N_QUAD_VALUES>{});
 }
 
+// Returns nothing unless there are exactly sizeof...(Types) items
+// and each one has the requested type. OSC input is untrusted.
+template <class... Types>
+static std::optional<std::tuple<Types...>> extractOscValues(const OscItem* items, size_t n) {
+  if (n != sizeof...(Types)) { return std::nullopt; }
+  return [&]<size_t... index>(std::index_sequence<index...>) -> std::optional<std::tuple<Types...>> {
+    auto pointers = std::make_tuple(pallet::get_if<Types>(items[index])...);
+    if (!((std::get<index>(pointers) != nullptr) && ...)) { return std::nullopt; }
+    return std::tuple<Types...>(*std::get<index>(pointers)...);
+  }(std::index_sequence_for<Types...>{});
+}
+
+
+// The handling of the serialosc messages. It is a nested struct so that it
+// can use the private state of the interface.
+struct OscMonomeGridInterface::Protocol {
+
+static Device* findDevice(OscMonomeGridInterface& iface, GridIndex id) {
+  return id < iface.devices.size() ? &iface.devices[id] : nullptr;
+}
+
+static const Device* findDevice(const OscMonomeGridInterface& iface, GridIndex id) {
+  return id < iface.devices.size() ? &iface.devices[id] : nullptr;
+}
+
 static void render(OscMonomeGridInterface& iface, GridIndex id) {
   Device* device = findDevice(iface, id);
   if (!device || device->phase != Device::Phase::Connected) { return; }
@@ -85,77 +106,6 @@ static void render(OscMonomeGridInterface& iface, GridIndex id) {
     }
   }
   clearDirty(ledState);
-}
-
-// Returns nothing unless there are exactly sizeof...(Types) items
-// and each one has the requested type. OSC input is untrusted.
-template <class... Types>
-static std::optional<std::tuple<Types...>> extractOscValues(const OscItem* items, size_t n) {
-  if (n != sizeof...(Types)) { return std::nullopt; }
-  return [&]<size_t... index>(std::index_sequence<index...>) -> std::optional<std::tuple<Types...>> {
-    auto pointers = std::make_tuple(pallet::get_if<Types>(items[index])...);
-    if (!((std::get<index>(pointers) != nullptr) && ...)) { return std::nullopt; }
-    return std::tuple<Types...>(*std::get<index>(pointers)...);
-  }(std::index_sequence_for<Types...>{});
-}
-
-
-int OscMonomeGridInterface::getRowsImpl(GridIndex id) const {
-  const Device* device = findDevice(*this, id);
-  return device ? device->rows : 0;
-}
-
-int OscMonomeGridInterface::getColsImpl(GridIndex id) const {
-  const Device* device = findDevice(*this, id);
-  return device ? device->cols : 0;
-}
-
-int OscMonomeGridInterface::getRotationImpl(GridIndex id) const {
-  const Device* device = findDevice(*this, id);
-  return device ? device->rotation : 0;
-}
-
-const char* OscMonomeGridInterface::getIdImpl(GridIndex id) const {
-  const Device* device = findDevice(*this, id);
-  return device ? device->id.c_str() : "";
-}
-
-bool OscMonomeGridInterface::isConnectedImpl(GridIndex id) const {
-  const Device* device = findDevice(*this, id);
-  return device && device->phase == Device::Phase::Connected;
-}
-
-void OscMonomeGridInterface::ledImpl(GridIndex id, int x, int y, int c) {
-  Device* device = findDevice(*this, id);
-  if (!device || x < 0 || y < 0 || x >= device->cols || y >= device->rows) { return; }
-  pallet::led(device->ledState, x, y, c);
-}
-
-void OscMonomeGridInterface::allImpl(GridIndex id, int c) {
-  if (Device* device = findDevice(*this, id)) {
-    pallet::all(device->ledState, c);
-  }
-}
-
-void OscMonomeGridInterface::clearImpl(GridIndex id) {
-  if (Device* device = findDevice(*this, id)) {
-    pallet::clear(device->ledState);
-  }
-}
-
-MonomeGridInterface::KeyEventId OscMonomeGridInterface::listenImpl(GridIndex id, pallet::Callable<void(int, int, int)> func) {
-  Device* device = findDevice(*this, id);
-  return device ? device->onKey.listen(std::move(func)) : 0;
-}
-
-void OscMonomeGridInterface::unlistenImpl(GridIndex id, MonomeGridInterface::KeyEventId eid) {
-  if (Device* device = findDevice(*this, id)) {
-    device->onKey.unlisten(eid);
-  }
-}
-
-void OscMonomeGridInterface::renderImpl(GridIndex id) {
-  pallet::render(*this, id);
 }
 
 static void requestDeviceList(OscMonomeGridInterface& iface) {
@@ -201,7 +151,7 @@ static void activate(OscMonomeGridInterface& iface, GridIndex idx, bool redraw) 
   device.claimed = true;
   if (redraw) {
     device.ledState.dirty = 0xFF;
-    pallet::render(iface, idx);
+    render(iface, idx);
   }
 }
 
@@ -232,11 +182,14 @@ static void onDeviceInformation(OscMonomeGridInterface& iface,
                                 int port) {
   auto it = iface.devicesById.find(id);
   if (it == iface.devicesById.end()) {
+    auto addr = OscAddress::create(iface.oscInterface, port);
+    // the port comes from the network
+    if (!addr) { return; }
     GridIndex idx = iface.devices.size();
     auto& device = iface.devices.emplace_back();
     device.id = id;
     device.type = std::move(type);
-    device.addr = OscAddress::create(iface.oscInterface, port);
+    device.addr = std::move(*addr);
     auto waiting = iface.pendingSerialConnections.extract(device.id);
     iface.devicesById.emplace(std::move(id), idx);
     if (waiting) {
@@ -249,7 +202,9 @@ static void onDeviceInformation(OscMonomeGridInterface& iface,
   auto& device = iface.devices[idx];
   if (device.phase == Device::Phase::Gone) {
     // plugged back in, possibly on a different port
-    device.addr = OscAddress::create(iface.oscInterface, port);
+    auto addr = OscAddress::create(iface.oscInterface, port);
+    if (!addr) { return; }
+    device.addr = std::move(*addr);
     probeDevice(iface, idx);
   }
   // otherwise this is a repeated listing of a device we already have
@@ -322,35 +277,100 @@ static void processOscMessages(OscMonomeGridInterface& iface, std::string_view p
   }
 }
 
+};
+
+int OscMonomeGridInterface::getRowsImpl(GridIndex id) const {
+  const Device* device = Protocol::findDevice(*this, id);
+  return device ? device->rows : 0;
+}
+
+int OscMonomeGridInterface::getColsImpl(GridIndex id) const {
+  const Device* device = Protocol::findDevice(*this, id);
+  return device ? device->cols : 0;
+}
+
+int OscMonomeGridInterface::getRotationImpl(GridIndex id) const {
+  const Device* device = Protocol::findDevice(*this, id);
+  return device ? device->rotation : 0;
+}
+
+const char* OscMonomeGridInterface::getIdImpl(GridIndex id) const {
+  const Device* device = Protocol::findDevice(*this, id);
+  return device ? device->id.c_str() : "";
+}
+
+bool OscMonomeGridInterface::isConnectedImpl(GridIndex id) const {
+  const Device* device = Protocol::findDevice(*this, id);
+  return device && device->phase == Device::Phase::Connected;
+}
+
+void OscMonomeGridInterface::ledImpl(GridIndex id, int x, int y, int c) {
+  Device* device = Protocol::findDevice(*this, id);
+  if (!device || x < 0 || y < 0 || x >= device->cols || y >= device->rows) { return; }
+  pallet::led(device->ledState, x, y, c);
+}
+
+void OscMonomeGridInterface::allImpl(GridIndex id, int c) {
+  if (Device* device = Protocol::findDevice(*this, id)) {
+    pallet::all(device->ledState, c);
+  }
+}
+
+void OscMonomeGridInterface::clearImpl(GridIndex id) {
+  if (Device* device = Protocol::findDevice(*this, id)) {
+    pallet::clear(device->ledState);
+  }
+}
+
+MonomeGridInterface::KeyEventId OscMonomeGridInterface::listenImpl(GridIndex id, pallet::Callable<void(int, int, int)> func) {
+  Device* device = Protocol::findDevice(*this, id);
+  return device ? device->onKey.listen(std::move(func)) : 0;
+}
+
+void OscMonomeGridInterface::unlistenImpl(GridIndex id, MonomeGridInterface::KeyEventId eid) {
+  if (Device* device = Protocol::findDevice(*this, id)) {
+    device->onKey.unlisten(eid);
+  }
+}
+
+void OscMonomeGridInterface::renderImpl(GridIndex id) {
+  Protocol::render(*this, id);
+}
+
 Result<OscMonomeGridInterface> OscMonomeGridInterface::create(OscInterface& iface) {
-  return Result<OscMonomeGridInterface>(std::in_place,
-                                        iface,
-                                        OscAddress::create(&iface, SERIALOSCD_PORT),
-                                        OscServer::create(&iface, 0));
-  
+  auto server = OscServer::create(&iface, 0);
+  if (!server) { return pallet::error(server.error()); }
+  // the system chooses the port
+  auto serverPort = iface.serverPort(server->getId());
+  if (!serverPort) { return pallet::error(serverPort.error()); }
+  auto serialoscd = OscAddress::create(&iface, SERIALOSCD_PORT);
+  if (!serialoscd) { return pallet::error(serialoscd.error()); }
+  return Result<OscMonomeGridInterface>(std::in_place, iface, std::move(*serialoscd),
+                                        std::move(*server), *serverPort);
 }
 
 OscMonomeGridInterface::OscMonomeGridInterface(OscInterface& iface, OscAddress serialoscdAddr,
-                                               OscServer oscServer)
+                                               OscServer oscServer, int serverPort)
   : oscInterface(&iface),
     serialoscdAddr(std::move(serialoscdAddr)),
     oscServer(std::move(oscServer)),
-    serverPort(iface.serverPort(this->oscServer.getId())) {
-  
-  oscInterface->listen(this->oscServer.getId(), [&](const char* path, const OscItem* items, size_t n) {
-    processOscMessages(*this, path, items, n);
+    serverPort(serverPort) {
+
+  // the server was created by the caller, so its id is live
+  (void)oscInterface->listen(this->oscServer.getId(), [&](const char* path, const OscItem* items, size_t n) {
+    Protocol::processOscMessages(*this, path, items, n);
   });
 
-  requestDeviceNotifications(*this);
-  requestDeviceList(*this);
+  Protocol::requestDeviceNotifications(*this);
+  Protocol::requestDeviceList(*this);
 }
 
 void OscMonomeGridInterface::connectImpl(GridIndex idx, OnConnectCallback func) {
-  Device* device = findDevice(*this, idx);
+  Device* device = Protocol::findDevice(*this, idx);
   if (device && device->claimed) {
     std::move(func)(pallet::error(std::make_error_condition(std::errc::device_or_resource_busy)));
   } else if (device && device->phase == Device::Phase::Ready) {
-    activate(*this, idx, false);
+    Protocol::activate(*this, idx, false);
     std::move(func)(idx);
   } else if (!pendingConnections.contains(idx)) {
     // not discovered, still being probed, or unplugged: finish when

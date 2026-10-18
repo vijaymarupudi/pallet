@@ -4,7 +4,7 @@
 #include "pallet/LuaInterface.hpp"
 #include "pallet/BeatClock.hpp"
 #include "pallet/OscMonomeGridInterface.hpp"
-#include "pallet/LoOscInterface.hpp"
+#include "pallet/PosixOscInterface.hpp"
 #include "pallet/io.hpp"
 
 int cliMain(const char* filename) {
@@ -14,7 +14,7 @@ int cliMain(const char* filename) {
         return pallet::BeatClock::create(clock).and_then([&](auto&& beatClock) {
           return pallet::PosixMidiInterface::create(platform).and_then([&](auto&& midiInterface) {
             return pallet::PosixGraphicsInterface::create(platform).and_then([&](auto&& graphicsInterface) {
-              return pallet::LoOscInterface::create(platform).and_then([&](auto&& oscInterface) {
+              return pallet::PosixOscInterface::create(platform).and_then([&](auto&& oscInterface) {
                 return pallet::OscMonomeGridInterface::create(oscInterface).and_then([&](auto&& gridInterface) {
                   luaInterface.setPlatform(platform);
                   luaInterface.setClockInterface(clock);

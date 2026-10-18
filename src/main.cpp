@@ -6,7 +6,7 @@
 #include "pallet/LuaInterface.hpp"
 #include "pallet/BeatClock.hpp"
 #include "pallet/OscMonomeGridInterface.hpp"
-#include "pallet/LoOscInterface.hpp"
+#include "pallet/PosixOscInterface.hpp"
 #include "pallet/measurement.hpp"
 
 int actualMain() {
@@ -16,7 +16,7 @@ int actualMain() {
   auto beatClockResult = pallet::BeatClock::create(*clockResult);
   auto midiInterfaceResult = pallet::PosixMidiInterface::create(*platformResult);
   auto graphicsInterfaceResult = pallet::PosixGraphicsInterface::create(*platformResult);
-  auto oscInterfaceResult = pallet::LoOscInterface::create(*platformResult);
+  auto oscInterfaceResult = pallet::PosixOscInterface::create(*platformResult);
   if (!oscInterfaceResult) return 1;
   auto gridInterfaceResult = pallet::OscMonomeGridInterface::create(*oscInterfaceResult);
   auto luaInterfaceResult = pallet::LuaInterface::create();

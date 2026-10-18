@@ -184,8 +184,11 @@ void PosixPlatform::loopIter() {
   for (size_t i = 0; (i < this->pollFds.size()) && this->mRunning; i++) {
     if (this->pollFds[i].revents) {
       int fd = this->pollFds[i].fd;
-      assert(this->fdCallbacks.find(fd) != this->fdCallbacks.end());
-      auto& state = this->fdCallbacks[fd];
+      auto it = this->fdCallbacks.find(fd);
+      // a callback earlier in this pass may have removed the fd
+      if (it == this->fdCallbacks.end()) { continue; }
+      // the callback may remove its own entry
+      FdPollState state = it->second;
       state.callback(fd, this->pollFds[i].revents, state.ud);
     }
   }

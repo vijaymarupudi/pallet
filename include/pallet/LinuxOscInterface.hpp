@@ -1,5 +1,7 @@
-#include "pallet/LoOscInterface.hpp"
+#pragma once
+
+#include "pallet/PosixOscInterface.hpp"
 
 namespace pallet {
-  using LinuxOscInterface = LoOscInterface;
+  using LinuxOscInterface = PosixOscInterface;
 }

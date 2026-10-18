@@ -15,13 +15,13 @@ ExternalProject_Add(bytecode-compiler
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SDL3 REQUIRED IMPORTED_TARGET sdl3)
-pkg_check_modules(LO REQUIRED IMPORTED_TARGET liblo)
 
 add_subdirectory(third-party/rt)
 add_subdirectory(third-party/miniaudio)
 add_subdirectory(third-party/lua)
 add_subdirectory(third-party/amy)
 add_subdirectory(third-party/argparse)
+add_subdirectory(third-party/oscpp)
 
 file(GLOB FILESYSTEM_FILES filesystem/**/*)
 
@@ -31,8 +31,12 @@ add_custom_command(OUTPUT filesystem.h
 
 add_custom_target (PalletLuaFilesystem DEPENDS filesystem.h)
 
-# add_compile_options(-Wall -Wextra -pedantic -fsanitize=address -fno-exceptions)
-# add_link_options(-fsanitize=address)
+# cmake -DPALLET_SANITIZE=ON instruments everything below, including the tests
+option(PALLET_SANITIZE "Build with AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+if (PALLET_SANITIZE)
+  add_compile_options(-fsanitize=address,undefined -fno-sanitize-recover=undefined)
+  add_link_options(-fsanitize=address,undefined)
+endif()
 
 add_compile_options(-Wall -Wextra -pedantic)
 
@@ -56,14 +60,15 @@ set(CXX_FILES
   lib/GraphicsInterface.cpp
   lib/PosixGraphicsInterface.cpp
   lib/BeatClock.cpp
-  lib/LoOscInterface.cpp
+  lib/PosixOscInterface.cpp
   lib/OscMonomeGridInterface.cpp
   lib/io.cpp
   )
 
 add_library(pallet STATIC ${CXX_FILES})
 set_property(TARGET pallet PROPERTY CXX_STANDARD 23)
-target_link_libraries(pallet PUBLIC RT::RtMidi Miniaudio::Miniaudio Lua::Lua Amy::Amy PkgConfig::SDL3 PkgConfig::LO)
+target_link_libraries(pallet PUBLIC RT::RtMidi Miniaudio::Miniaudio Lua::Lua Amy::Amy PkgConfig::SDL3)
+target_link_libraries(pallet PRIVATE oscpp::oscpp)
 target_include_directories(pallet PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(pallet PUBLIC include)
 target_compile_options(pallet PRIVATE -fno-exceptions)
@@ -81,15 +86,20 @@ set_property(TARGET cli PROPERTY CXX_STANDARD 23)
 target_link_libraries(cli pallet argparse::argparse)
 target_include_directories(cli PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
-add_executable(test src/test.cpp)
-target_link_libraries(test pallet)
-target_include_directories(test PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-# set_property(TARGET test PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
-set_property(TARGET test PROPERTY CXX_STANDARD 23)
+# a scratch program, not one of the tests (CMake reserves the target name
+# "test" once testing is enabled)
+add_executable(scratch src/test.cpp)
+target_link_libraries(scratch pallet)
+target_include_directories(scratch PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+# set_property(TARGET scratch PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+set_property(TARGET scratch PROPERTY CXX_STANDARD 23)
 
 add_executable(measure-timing-latency
                src/measure-timing-latency.cpp)
 target_link_libraries(measure-timing-latency pallet)
 set_property(TARGET measure-timing-latency PROPERTY CXX_STANDARD 23)
+
+enable_testing()
+add_subdirectory(tests)
 
 endif()

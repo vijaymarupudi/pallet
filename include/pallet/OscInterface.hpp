@@ -5,6 +5,7 @@
 
 #include "pallet/variant.hpp"
 #include "pallet/Event.hpp"
+#include "pallet/error.hpp"
 
 
 namespace pallet {
@@ -18,15 +19,20 @@ public:
   using AddressId = size_t;
   using ServerId = size_t;
 
-  virtual AddressId createAddress(int port) = 0;
-  virtual void freeAddress(AddressId) = 0;
+  // Ports are 1..65535 for addresses and 0..65535 for servers, where
+  // 0 lets the system choose a free port (see serverPort). Creating
+  // fails with an error condition if the port is invalid or the server
+  // cannot listen on it.
+  virtual Result<AddressId> createAddress(int port) = 0;
+  virtual Result<ServerId> createServer(int port) = 0;
+  virtual Result<int> serverPort(ServerId) = 0;
 
-  // port 0 lets the system choose a free port, see serverPort
-  virtual ServerId createServer(int port) = 0;
-  virtual int serverPort(ServerId) = 0;
+  // The free and unlisten functions ignore ids that are not live, and
+  // sendMessage drops messages to an address that is not live.
+  virtual void freeAddress(AddressId) = 0;
   virtual void freeServer(ServerId) = 0;
 
-  virtual MessageEvent::Id listen(ServerId, MessageEvent::Callback) = 0;
+  virtual Result<MessageEvent::Id> listen(ServerId, MessageEvent::Callback) = 0;
   virtual void unlisten(ServerId, MessageEvent::Id) = 0;
 
   void sendMessage(const AddressId address, const char* path, const OscItem* items, size_t n);
